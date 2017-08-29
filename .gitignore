@@ -1,0 +1,59 @@
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+stm8gal
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Doxygen output
+doxygen/html/*
+doxygen/latex/*
+doxygen/man/*
+doxygen/rtf/*
+doxygen/xml/*
+
+# STM8 / bootloader manuals
+STM8_Datasheets/*
+
+# regression list 
+tool_validation.*
+
+# Others
+.DS_Store
+*.rel
+*.asm
+*.lst
+*.rst
+*.sym
+*.map
+*.lk
+*.dep
+*.pdb
+*.wdb
+*.wed
+*.cdb
+*.ihx
