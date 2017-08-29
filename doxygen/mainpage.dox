@@ -1,0 +1,37 @@
+/**
+
+\mainpage Project Overview
+
+\brief     flash tool to program STM8 via serial port and ROM bootloader
+
+\author    Georg Icking-Konert
+\version   1.0
+\date      2015/01/05
+
+\copyright Apache License 2.0
+
+\pre       Windows, Linux or MacOSX (see Github Wiki)
+\pre       connection between RS232 or USB port and STM8 UART (see Github Wiki)
+
+\warning   functionality not fully tested
+
+\bug       none known (yet)
+
+\par Overview
+
+PC tool for uplading hexfiles to the STM8 microcontroller via COM port or USB using the built-in ROM bootloader (BSL) of the STM8. I wrote this tool, because the similar "Flash Loader Demonstrator" tool by STMicroelectronics (STM) only supports Windows.
+
+Notes:
+  \li for the popular STM8 Discovery Board an additional UART->USB adapter is required (e.g. see UM232R by Farnell), since the board connects to the PC only via SWIM (=debug interface)
+  \li the tool has been tested under various operating systems. For a complete list see https://github.com/gicking/stm8gal/wiki/Supported-Platforms
+  \li the STM8 bootloader has to be enabled for uploading code (see Github Wiki)
+  \li this software includes some RAM code by STM, which is required for flash programming. This code was copied from the freely available "Flash Loader Demonstrator" tool by STM. All rights to the contained RAM code remain with STM.
+
+For more details and instructions on building and using the tool see the Wiki under https://github.com/gicking/stm8gal/wiki
+
+If you find any bugs or for feature requests, please send me a note.
+
+Have fun!
+Georg
+
+*/

@@ -1,0 +1,40 @@
+# Project: stm8gal
+# Makefile created by Dev-C++ 5.11
+
+CPP      = g++.exe
+CC       = gcc.exe
+WINDRES  = windres.exe
+OBJ      = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o
+LINKOBJ  = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o
+LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib32" -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib32" -static-libgcc -m32
+INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"./STM8_Routines"
+CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include/c++" -I"./STM8_Routines"
+BIN      = stm8gal.exe
+CXXFLAGS = $(CXXINCS) -m32
+CFLAGS   = $(INCS) -m32
+RM       = rm.exe -f
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before $(BIN) all-after
+
+clean: clean-custom
+	${RM} $(OBJ) $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(LINKOBJ) -o $(BIN) $(LIBS)
+
+Objects/main.o: main.c
+	$(CC) -c main.c -o Objects/main.o $(CFLAGS)
+
+Objects/misc.o: misc.c
+	$(CC) -c misc.c -o Objects/misc.o $(CFLAGS)
+
+Objects/serial_comm.o: serial_comm.c
+	$(CC) -c serial_comm.c -o Objects/serial_comm.o $(CFLAGS)
+
+Objects/bootloader.o: bootloader.c
+	$(CC) -c bootloader.c -o Objects/bootloader.o $(CFLAGS)
+
+Objects/hexfile.o: hexfile.c
+	$(CC) -c hexfile.c -o Objects/hexfile.o $(CFLAGS)
