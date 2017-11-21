@@ -45,7 +45,7 @@ tool_validation.*
 # Others
 .DS_Store
 *.rel
-*.asm
+#*.asm
 *.lst
 *.rst
 *.sym
