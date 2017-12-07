@@ -493,18 +493,17 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
    
   \brief generate low pulse on Raspberry pin in [ms] to reset STM8
    
-  \param[in] wiringPin  GPIO following the wiringPi convention
+  \param[in] pin        reset pin (use connector numbering)
   \param[in] duration   duration of DTR low pulse in ms
 
   Generate low pulse on GPIO in [ms] to reset STM8.
   Note: for non-root access add user to group gpio. See https://stackoverflow.com/questions/33831336/wiringpi-non-root-access-to-gpio
-        to get the pin mapping of your respective board, call 'gpio readall' from commandline
 */
 #if defined(__ARMEL__) && defined(USE_WIRING)
 void pulse_GPIO(int pin, uint32_t duration) {
   
-  // initialize wiringPi 
-  wiringPiSetup();
+  // initialize wiringPi. Use connector numbering scheme
+  wiringPiSetupPhys();
   
   // set direction of GPIO to output
   pinMode (pin, OUTPUT);

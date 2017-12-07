@@ -92,7 +92,7 @@ int main(int argc, char ** argv) {
   char      *appname;             // name of application without path
   char      portname[STRLEN];     // name of communication port
   int       baudrate;             // communication baudrate [Baud]
-  uint8_t   resetSTM8;            // 0=no reset; 1=HW reset via DTR (RS232/USB) or GPIO18 (Raspi); 2=SW reset by sending 0x55+0xAA
+  uint8_t   resetSTM8;            // 0=no reset; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=connector pin 12 (Raspi only)
   uint8_t   enableBSL;            // don't enable ROM bootloader after upload (caution!)
   uint8_t   flashErase;           // erase P-flash and D-flash prior to upload
   uint8_t   jumpFlash;            // jump to flash after upload
@@ -187,7 +187,7 @@ int main(int argc, char ** argv) {
       }
     }
 
-    // HW reset STM8 via DTR line (RS232/USB) or GPIO18 (Raspi only)
+    // reset STM8 method: 0=no reset; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=connector pin 12 (Raspi only)
     else if (!strcmp(argv[i], "-R")) {
       if (i<argc-1) {
         sscanf(argv[++i], "%d", &j);
@@ -266,7 +266,7 @@ int main(int argc, char ** argv) {
       printf("  -b rate                communication baudrate in Baud (default: 230400)\n");
       printf("  -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex)\n");
       #ifdef __ARMEL__
-        printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=pin1/GPIO18 (Raspi) (default: no reset)\n");
+        printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=connector pin 12 (Raspi) (default: no reset)\n");
       #else
         printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud (default: no reset)\n");
       #endif
@@ -402,11 +402,11 @@ int main(int argc, char ** argv) {
     set_baudrate(ptrPort, baudrate);  // restore specified baudrate
   }
   
-  // HW reset STM8 using wiringPi pin 1 (=GPIO18) (only Raspberry Pi!)
+  // HW reset STM8 using connector pin 12 (only Raspberry Pi!)
   #ifdef __ARMEL__
     else if (resetSTM8 == 3) {
-      printf("  reset via GPIO18 ... ");
-      pulse_GPIO(1, 10);
+      printf("  reset via connector pin 12 ... ");
+      pulse_GPIO(12, 10);
       printf("ok\n");
       SLEEP(5);                       // allow BSL to initialize
     }
