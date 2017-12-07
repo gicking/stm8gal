@@ -356,7 +356,10 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
   int       linecount, idx, i;
   uint8_t   type, len, chkRead, chkCalc;
   uint32_t  addr, addrMin, addrMax, addrOff, addrJumpStart, val;
-  
+
+  // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
+  (void) (addrJumpStart);
+
   // print message (if present, strip path)
   /*
   printf("  convert hex ... ");
