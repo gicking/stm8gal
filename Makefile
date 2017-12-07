@@ -12,6 +12,14 @@ OBJECTS       = $(patsubst %.c, $(OBJDIR)/%.o, $(SOURCES))
 BIN           = stm8gal
 RM            = rm -fr
 
+# for Raspberry add wiringPi library
+UNAME_M := $(shell uname -m)
+ifneq ($(filter arm%,$(UNAME_M)),)
+  CFLAGS  += -DUSE_WIRING
+  LDFLAGS += -lwiringPi
+endif
+
+
 .PHONY: clean all default objects
 
 .PRECIOUS: $(BIN) $(OBJECTS)

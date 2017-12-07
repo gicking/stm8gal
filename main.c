@@ -266,7 +266,7 @@ int main(int argc, char ** argv) {
       printf("  -b rate                communication baudrate in Baud (default: 230400)\n");
       printf("  -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex)\n");
       #ifdef __ARMEL__
-        printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=GPIO18 pin (Raspi) (default: no reset)\n");
+        printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=pin1/GPIO18 (Raspi) (default: no reset)\n");
       #else
         printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud (default: no reset)\n");
       #endif
@@ -402,11 +402,11 @@ int main(int argc, char ** argv) {
     set_baudrate(ptrPort, baudrate);  // restore specified baudrate
   }
   
-  // HW reset STM8 using GPIO18 pin (only Raspberry Pi!)
+  // HW reset STM8 using wiringPi pin 1 (=GPIO18) (only Raspberry Pi!)
   #ifdef __ARMEL__
     else if (resetSTM8 == 3) {
       printf("  reset via GPIO18 ... ");
-      pulse_GPIO(18, 10);
+      pulse_GPIO(1, 10);
       printf("ok\n");
       SLEEP(5);                       // allow BSL to initialize
     }
