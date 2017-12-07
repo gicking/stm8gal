@@ -493,32 +493,53 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
   \param[in] duration   duration of DTR low pulse in ms
 
   Generate low pulse on GPIO in [ms] to reset STM8.
-  Note: needs sudo permission, see http://unix.stackexchange.com/questions/118716/unable-to-write-to-a-gpio-pin-despite-file-permissions-on-sys-class-gpio-gpio18
+  Note: for non-root access add user to group gpio. See https://stackoverflow.com/questions/33831336/wiringpi-non-root-access-to-gpio
 */
 #ifdef __ARMEL__
 void pulse_GPIO(int pin, uint32_t duration) {
   
-  // use GPIO on Raspberry ()
-  char  str[200];
-    
-  // capture GPIO
-  sprintf(str, "sudo sh -c 'echo %d > /sys/class/gpio/export'", pin); system(str);
+  char str[200], pathPin[100];
 
-  // set direction of GPIO
-  sprintf(str, "sudo sh -c 'echo out > /sys/class/gpio/gpio%d/direction'", pin); system(str);
+  // virtual path to pin structure
+  sprintf(pathPin, "/sys/class/gpio/gpio%d", pin);
+
+  // export GPIO to user-space, if not already done
+  if (access(pathPin, 0) != 0) { 
+    sprintf(str, "sh -c 'echo %d > /sys/class/gpio/export'", pin);
+    int a = system(str);
+    fprintf(stderr, "\ntest: %d\n", a);
+    SLEEP(50);
+  } 
+
+  // re-check GPIO is exported
+  if (access(pathPin, 0) != 0) { 
+    fprintf(stderr,"\n\nerror in pulse_GPIO(): access to %s not possible, check permissions!\n\n", pathPin);
+    exit(1);
+  } 
+
+  // set direction of GPIO to output
+  sprintf(str, "sh -c 'echo out > %s/direction'", pathPin);
+  system(str);
+  SLEEP(5);      // just to be sure...
 
   // set GPIO low --> reset STM8
-  sprintf(str, "sudo sh -c 'echo 0 > /sys/class/gpio/gpio%d/value'", pin); system(str);
+  sprintf(str, "sh -c 'echo 0 > %s/value'", pathPin);
+  system(str);
+  SLEEP(5);      // just to be sure...
 
   // wait specified duration
   SLEEP(duration);
 
   // set GPIO high --> start STM8
-  sprintf(str, "sudo sh -c 'echo 1 > /sys/class/gpio/gpio%d/value'", pin); system(str);
+  sprintf(str, "sh -c 'echo 1 > %s/value'", pathPin);
+  system(str);
+  SLEEP(5);      // just to be sure...
 
-  // release GPIO again
-  sprintf(str, "sudo sh -c 'echo %d > /sys/class/gpio/unexport'", pin); system(str);
-
+  // release GPIO from user-space
+  sprintf(str, "sh -c 'echo %d > /sys/class/gpio/unexport'", pin);
+  system(str);
+  SLEEP(5);      // just to be sure...
+  
 } // pulse_GPIO
 #endif // __ARMEL__
 

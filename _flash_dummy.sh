@@ -9,8 +9,8 @@ cd `dirname $0`
 LOADER=./stm8gal
 #PORT=/dev/tty.usbserial-A4009I0O
 #PORT=/dev/tty.usbserial-000042FA 
-PORT=/dev/tty.wchusbserialfa410
-#PORT=/dev/ttyUSB0
+#PORT=/dev/tty.wchusbserialfa410
+PORT=/dev/ttyUSB0
 #PORT=/dev/ttyAMA0
 FIRMWARE=./dummy.s19
 
