@@ -19,6 +19,10 @@ Georg
 Revision History
 ----------------
 
+v1.1.4 (2017-12-xx)
+  - add user-space access to RasPi GPIOs via wiringPi. Use connector numbering scheme (="physical")
+
+----------------
 v1.1.3 (2017-08-29)
   - renamed from "STM8_serial_flasher" to "stm8gal", following a proposal by Philipp Krause (see https://github.com/gicking/STM8_serial_flasher/issues/10)
 

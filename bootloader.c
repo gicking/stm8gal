@@ -66,7 +66,7 @@ uint8_t bsl_sync(HANDLE ptrPort) {
     len = send_port(ptrPort, lenTx, Tx);
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_sync()': sending command failed, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_sync()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
         
@@ -220,7 +220,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': sending command failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
     
@@ -228,7 +228,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': ACK timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': ACK timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
     
@@ -368,7 +368,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     len = send_port(ptrPort, lenTx, Tx);
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending command failed, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -405,7 +405,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     len = send_port(ptrPort, lenTx, Tx);
     if (len != lenTx) {      
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending address failed, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
 
@@ -413,7 +413,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     len = receive_port(ptrPort, lenRx, Rx);
     if (len != lenRx) {      
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK2 timeout, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -439,7 +439,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     len = send_port(ptrPort, lenTx, Tx);
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending range failed, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending range failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
 
@@ -447,7 +447,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     len = receive_port(ptrPort, lenRx, Rx);
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': data timeout, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memRead()': data timeout (expect %d, received %d), exit!\n\n", lenRx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -553,7 +553,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending command failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
     
@@ -561,7 +561,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK1 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
     
@@ -590,7 +590,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {      
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending address failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
@@ -598,7 +598,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {      
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK2 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
     
@@ -622,7 +622,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending range failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending range failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
@@ -630,7 +630,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': data timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': data timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
     
@@ -706,7 +706,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending command failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
@@ -714,7 +714,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK1 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
   
@@ -741,7 +741,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending sector failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending sector failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
@@ -754,7 +754,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK2 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
   
@@ -824,7 +824,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending command failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
@@ -832,7 +832,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK1 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
   
@@ -858,7 +858,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending trigger failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending trigger failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
@@ -873,7 +873,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK2 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
   
@@ -981,7 +981,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     len = send_port(ptrPort, lenTx, Tx);
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending command failed, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -989,7 +989,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     len = receive_port(ptrPort, lenRx, Rx);
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK1 timeout, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -1018,7 +1018,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     len = send_port(ptrPort, lenTx, Tx);
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending address failed, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -1026,7 +1026,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     len = receive_port(ptrPort, lenRx, Rx);
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK2 timeout, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -1060,7 +1060,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     len = send_port(ptrPort, lenTx, Tx);
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending data failed, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending data failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -1068,7 +1068,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     len = receive_port(ptrPort, lenRx, Rx);
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK3 timeout, exit!\n\n");
+      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK3 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
       Exit(1, g_pauseOnExit);
     }
     
@@ -1156,7 +1156,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending command failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
     
@@ -1164,7 +1164,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK1 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
   
@@ -1193,7 +1193,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr) {
   len = send_port(ptrPort, lenTx, Tx);
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending address failed, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
   
@@ -1201,7 +1201,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr) {
   len = receive_port(ptrPort, lenRx, Rx);
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK2 timeout, exit!\n\n");
+    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
   

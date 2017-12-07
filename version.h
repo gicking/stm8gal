@@ -19,13 +19,16 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (1<<6) | (3<<1) | 1)     // -> v1.1.3
+#define VERSION     ((1<<14) | (1<<6) | (4<<1) | 1)     // -> v1.1.4
 
 #endif // _SW_VERSION_H_
 
 
 /********************
  *  add description of changes below
+
+  v1.1.4 (2017-12-xx)
+    - add user-space access to RasPi GPIOs via wiringPi. Use connector numbering scheme (="physical")
 
   v1.1.3 (2017-08-29)
     - renamed from "STM8_serial_flasher" to "stm8gal", following a proposal by Philipp Krause (see https://github.com/gicking/STM8_serial_flasher/issues/10)
