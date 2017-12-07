@@ -17,6 +17,10 @@
 #include "serial_comm.h"
 #include "misc.h"
 #include "globals.h"
+#ifdef __ARMEL__
+  #include <wiringPi.h>       // for reset via GPIO
+#endif // __ARMEL__
+
 
 
 /**
@@ -489,59 +493,33 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
    
   \brief generate low pulse on Raspberry pin in [ms] to reset STM8
    
-  \param[in] pin        Raspberry GPIO (see http://www.elektronik-kompendium.de/sites/raspberry-pi/1907101.htm) 
+  \param[in] wiringPin  GPIO following the wiringPi convention
   \param[in] duration   duration of DTR low pulse in ms
 
   Generate low pulse on GPIO in [ms] to reset STM8.
   Note: for non-root access add user to group gpio. See https://stackoverflow.com/questions/33831336/wiringpi-non-root-access-to-gpio
+        to get the pin mapping of your respective board, call 'gpio readall' from commandline
 */
-#ifdef __ARMEL__
+#if defined(__ARMEL__) && defined(USE_WIRING)
 void pulse_GPIO(int pin, uint32_t duration) {
   
-  char str[200], pathPin[100];
-
-  // virtual path to pin structure
-  sprintf(pathPin, "/sys/class/gpio/gpio%d", pin);
-
-  // export GPIO to user-space, if not already done
-  if (access(pathPin, 0) != 0) { 
-    sprintf(str, "sh -c 'echo %d > /sys/class/gpio/export'", pin);
-    int a = system(str);
-    fprintf(stderr, "\ntest: %d\n", a);
-    SLEEP(50);
-  } 
-
-  // re-check GPIO is exported
-  if (access(pathPin, 0) != 0) { 
-    fprintf(stderr,"\n\nerror in pulse_GPIO(): access to %s not possible, check permissions!\n\n", pathPin);
-    exit(1);
-  } 
-
+  // initialize wiringPi 
+  wiringPiSetup();
+  
   // set direction of GPIO to output
-  sprintf(str, "sh -c 'echo out > %s/direction'", pathPin);
-  system(str);
-  SLEEP(5);      // just to be sure...
+  pinMode (pin, OUTPUT);
 
   // set GPIO low --> reset STM8
-  sprintf(str, "sh -c 'echo 0 > %s/value'", pathPin);
-  system(str);
-  SLEEP(5);      // just to be sure...
-
-  // wait specified duration
+  digitalWrite (pin,  LOW);
+  
+  // wait specified duration [ms]
   SLEEP(duration);
 
   // set GPIO high --> start STM8
-  sprintf(str, "sh -c 'echo 1 > %s/value'", pathPin);
-  system(str);
-  SLEEP(5);      // just to be sure...
-
-  // release GPIO from user-space
-  sprintf(str, "sh -c 'echo %d > /sys/class/gpio/unexport'", pin);
-  system(str);
-  SLEEP(5);      // just to be sure...
+  digitalWrite (pin,  HIGH);
   
 } // pulse_GPIO
-#endif // __ARMEL__
+#endif // __ARMEL__ && USE_WIRING
 
 
 
