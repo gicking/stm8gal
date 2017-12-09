@@ -27,8 +27,9 @@
 /********************
  *  add description of changes below
 
-  v1.1.4 (2017-12-xx)
-    - add user-space access to RasPi GPIOs via wiringPi. Use connector numbering scheme (="physical")
+  v1.1.4 (2017-12-09)
+    - add user-space access to RasPi GPIOs via wiringPi for automatic reset. Use connector numbering scheme (="physical")
+    - added listing of /dev/serial0 (new in Pi3, see https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3)
 
   v1.1.3 (2017-08-29)
     - renamed from "STM8_serial_flasher" to "stm8gal", following a proposal by Philipp Krause (see https://github.com/gicking/STM8_serial_flasher/issues/10)

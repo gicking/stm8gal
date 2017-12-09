@@ -7,11 +7,12 @@ cd `dirname $0`
 
 # set path to STM flash loader, serial port name, etc.
 LOADER=./stm8gal
-PORT=/dev/tty.usbserial-A4009I0O
+#PORT=/dev/tty.usbserial-A4009I0O
 #PORT=/dev/tty.usbserial-000042FA 
 #PORT=/dev/tty.wchusbserialfa410
-#PORT=/dev/ttyUSB0
+PORT=/dev/ttyUSB0
 #PORT=/dev/ttyAMA0
+#PORT=/dev/serial0
 ADDRSTART=0x8000
 ADDRSTOP=0x8002
 OUTFILE=./dump.txt

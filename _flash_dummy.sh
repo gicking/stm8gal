@@ -12,6 +12,7 @@ LOADER=./stm8gal
 #PORT=/dev/tty.wchusbserialfa410
 PORT=/dev/ttyUSB0
 #PORT=/dev/ttyAMA0
+#PORT=/dev/serial0
 FIRMWARE=./dummy.s19
 
 # set UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
