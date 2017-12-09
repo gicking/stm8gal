@@ -8,7 +8,8 @@ DEVICE = STM8S105
 
 # comm port for serial flasher. For STM8S Discovery Board use UART
 ifeq ($(DEVICE),STM8S105)
-	PORT = /dev/ttyAMA0
+	# RasPi 1+2: /dev/ttyAMA0;  RasPi 3: /dev/serial0 (ttyAMA0 connects to Bluetooth)
+	PORT = /dev/serial0
 else
 	PORT = /dev/ttyUSB0
 endif	
@@ -60,9 +61,9 @@ swim:
 
 # upload via UART bootloader (https://github.com/gicking/stm8gal)
 serial:
-ifeq ($(PORT),/dev/ttyAMA0)
-	../stm8gal -p $(PORT) -f $(TARGET) -q -Q -r -u 2
+ifeq ($(PORT),/dev/serial0) || ($(PORT),/dev/ttyAMA0) 
+	../stm8gal -p $(PORT) -w $(TARGET) -Q -R 3 -u 2
 else
-	../stm8gal -p $(PORT) -f $(TARGET) -q
+	../stm8gal -p $(PORT) -w $(TARGET) -q
 endif	
 

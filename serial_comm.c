@@ -74,7 +74,7 @@ void list_ports(void) {
 /////////
 #if defined(__APPLE__) || defined(__unix__) 
 
-  // list all /dev/tty.usbserial-* (see http://bytes.com/groups/net-vc/545618-list-files-current-directory)
+  // list all  (see http://bytes.com/groups/net-vc/545618-list-files-current-directory)
   uint16_t        i;
   struct dirent   *ent;
   DIR             *dir = opendir("/dev");
@@ -103,8 +103,15 @@ void list_ports(void) {
         i++;
       }
       
-      // direct UART under Raspberry Pi / Raspbian
+      // direct UART under Raspberry Pi / Raspbian 1+2
       if (strstr(ent->d_name, "ttyAMA")) {
+        if (i!=1) printf(", ");
+        printf("/dev/%s", ent->d_name);
+        i++;
+      }
+
+      // direct UART under Raspberry Pi / Raspbian 3 (see https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3)
+      if (strstr(ent->d_name, "serial0")) {
         if (i!=1) printf(", ");
         printf("/dev/%s", ent->d_name);
         i++;
