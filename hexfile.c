@@ -101,15 +101,13 @@ void load_hexfile(const char *filename, char *buf, uint32_t bufsize) {
   buf[len++] = 0;
   
   // print message
-  if (g_verbose) {
-    if (len>2048)
-      printf("ok (%1.1fkB)\n", (float) len/1024.0);
-    else if (len>0)
-      printf("ok (%dB)\n", len);
-    else
-      printf("ok, no data read\n");
-    fflush(stdout);
-  }
+  if (len>2048)
+    printf("ok (%1.1fkB)\n", (float) len/1024.0);
+  else if (len>0)
+    printf("ok (%dB)\n", len);
+  else
+    printf("ok, no data read\n");
+  fflush(stdout);
 
 } // load_hexfile
 
@@ -152,16 +150,14 @@ void load_binfile(const char *filename, char *buf, uint32_t *addrStart, uint32_t
   *numBytes  = len;
   
   // print message
-  if (g_verbose) {
-    if (len>2048)
-      printf("ok (%1.1fkB)\n", (float) len/1024.0);
-    else if (len>0)
-      printf("ok (%ldB)\n", len);
-    else
-      printf("ok, no data read\n");
-    fflush(stdout);
-  }
-
+  if (len>2048)
+    printf("ok (%1.1fkB)\n", (float) len/1024.0);
+  else if (len>0)
+    printf("ok (%ldB)\n", len);
+  else
+    printf("ok, no data read\n");
+  fflush(stdout);
+ 
 } // load_binfile
 
 

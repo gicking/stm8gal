@@ -33,13 +33,18 @@
 
 // OS specific: Posix
 #elif defined(__APPLE__) || defined(__unix__)
-  #define HANDLE  int     // comm port handler is int
+  #ifndef HANDLE 
+    #define HANDLE  int     // comm port handler is int
+  #endif
   #include <fcntl.h>      // File control definitions
   #include <termios.h>    // Posix terminal control definitions
   #include <getopt.h>
   #include <errno.h>    /* Error number definitions */
   #include <dirent.h>
   #include <sys/ioctl.h>
+  #ifdef __ARMEL__
+    #include <wiringPi.h>       // for reset via GPIO
+  #endif // __ARMEL__
 
 #else
   #error OS not supported
@@ -51,6 +56,7 @@
 #include "main.h"
 #include "misc.h"
 #include "serial_comm.h"
+#include "spi_comm.h"
 #include "bootloader.h"
 #include "hexfile.h"
 #include "version.h"
@@ -90,15 +96,17 @@
 int main(int argc, char ** argv) {
  
   char      *appname;             // name of application without path
+  uint8_t   interface;            // bootloader interface: 0=UART (default), 1=SPI
+  uint8_t   uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   char      portname[STRLEN];     // name of communication port
+  HANDLE    ptrPort;              // handle to communication port
   int       baudrate;             // communication baudrate [Baud]
-  uint8_t   resetSTM8;            // 0=no reset; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=connector pin 12 (Raspi only)
+  uint8_t   resetSTM8;            // 0=no reset; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=header pin 12 (Raspi only)
   uint8_t   enableBSL;            // don't enable ROM bootloader after upload (caution!)
   uint8_t   flashErase;           // erase P-flash and D-flash prior to upload
   uint8_t   jumpFlash;            // jump to flash after upload
   uint8_t   verifyUpload;         // verify memory after upload
   uint8_t   pauseOnLaunch;        // prompt for <return> prior to upload
-  HANDLE    ptrPort;              // handle to communication port
   char      *ptr=NULL;            // pointer to memory
   int       i, j;                 // generic variables  
   char      buf[1000];            // misc buffer
@@ -124,12 +132,13 @@ int main(int argc, char ** argv) {
 
   
   // initialize global variables
-  g_verbose     = false;        // verbose output when requested only
   g_pauseOnExit = 0;            // no wait for <return> before terminating
-  g_UARTmode    = 0;            // 2-wire interface with UART duplex mode
   
+
   // initialize default arguments
   portname[0] = '\0';           // no default port name
+  interface  = 0;               // bootloader interface: 0=UART (default), 1=SPI
+  uartMode   = 0;               // UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   baudrate   = 230400;          // default baudrate
   resetSTM8  = 0;               // don't automatically reset STM8
   flashErase = 0;               // erase P-flash and D-flash prior to upload
@@ -167,8 +176,16 @@ int main(int argc, char ** argv) {
     // debug: print argument
     //printf("arg %d: '%s'\n", (int) i, argv[i]);
     
+    // interface type: 0=UART (default); 1=SPI
+    if (!strcmp(argv[i], "-i")) {
+      if (i<argc-1) {
+        sscanf(argv[++i], "%d", &j);
+        interface = j;
+      }
+    }    
+
     // name of communication port
-    if (!strcmp(argv[i], "-p")) {
+    else if (!strcmp(argv[i], "-p")) {
       if (i<argc-1)
         strncpy(portname, argv[++i], STRLEN-1);
     }
@@ -183,11 +200,11 @@ int main(int argc, char ** argv) {
     else if (!strcmp(argv[i], "-u")) {
       if (i<argc-1) {
         sscanf(argv[++i], "%d", &j);
-        g_UARTmode = j;
+        uartMode = j;
       }
     }
 
-    // reset STM8 method: 0=no reset; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=connector pin 12 (Raspi only)
+    // reset STM8 method: 0=no reset; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=header pin 12 (Raspi only)
     else if (!strcmp(argv[i], "-R")) {
       if (i<argc-1) {
         sscanf(argv[++i], "%d", &j);
@@ -245,11 +262,6 @@ int main(int argc, char ** argv) {
       g_pauseOnExit = 1;
     }
 
-    // g_verbose output
-    else if (!strcmp(argv[i], "-V")) {
-      g_verbose = true;
-    }
-
     // else print list of commandline arguments and language commands
     else {
       if (strrchr(argv[0],'\\'))
@@ -260,13 +272,18 @@ int main(int argc, char ** argv) {
         appname = argv[0];
       printf("\n");
 
-      printf("usage: %s [-h] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-Q] [-q] [-V]\n", appname);
+      printf("usage: %s [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-Q] [-q]\n", appname);
       printf("  -h                     print this help\n");
+      #ifdef USE_SPI
+        printf("  -i interface           communication interface: 0=UART, 1=SPI (default: UART)\n");
+      #else
+        printf("  -i interface           communication interface: 0=UART (default: UART)\n");
+      #endif
       printf("  -p port                name of communication port (default: list available ports)\n");
       printf("  -b rate                communication baudrate in Baud (default: 230400)\n");
       printf("  -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex)\n");
       #ifdef __ARMEL__
-        printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=connector pin 12 (Raspi) (default: no reset)\n");
+        printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=header pin 12 (Raspi) (default: no reset)\n");
       #else
         printf("  -R ch                  reset STM8: 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud (default: no reset)\n");
       #endif
@@ -278,12 +295,20 @@ int main(int argc, char ** argv) {
       printf("  -j                     don't jump to flash before exit (default: jump to flash)\n");
       printf("  -Q                     don't prompt for <return> prior to bootloader entry (default: prompt)\n");
       printf("  -q                     prompt for <return> prior to exit (default: no prompt)\n");
-      printf("  -V                     verbose output\n");
       printf("\n");
       Exit(0, 0);
     }
 
   } // process commandline arguments
+  
+  
+
+  ////////
+  // some parameter post-processing
+  ////////
+  if (interface == 1) uartMode = 0;             // echo mode is n/a for SPI
+  if (interface == 1) verifyUpload = 0;         // read back after writing doesn't work for SPI (don't know why)
+  if (resetSTM8 >= 1) pauseOnLaunch = 0;        // with automatic reset proceed immediately afterwards  
   
   
 
@@ -315,21 +340,21 @@ int main(int argc, char ** argv) {
 
     // convert to memory image, depending on file type
     const char *dot = strrchr (fileIn, '.');
-    if (dot && !strcmp(dot, ".s19")) {
-      if (g_verbose)
-        printf("  load Motorola S-record file '%s' ... ", shortname);
+    if (dot && (!strcmp(dot, ".s19") || !strcmp(dot, ".S19"))) {
+      printf("  load Motorola S-record file '%s' ... ", shortname);
+      fflush(stdout);
       load_hexfile(fileIn, fileBufIn, BUFSIZE);
       convert_s19(fileBufIn, &imageInStart, &imageInBytes, imageIn);
     }
-    else if (dot && (!strcmp(dot, ".hex") || !strcmp(dot, ".ihx"))) {
-      if (g_verbose)
-        printf("  load Intel hex file '%s' ... ", shortname);
+    else if (dot && (!strcmp(dot, ".hex") || !strcmp(dot, ".HEX") || !strcmp(dot, ".ihx") || !strcmp(dot, ".IHX"))) {
+      printf("  load Intel hex file '%s' ... ", shortname);
+      fflush(stdout);
       load_hexfile(fileIn, fileBufIn, BUFSIZE);
       convert_hex(fileBufIn, &imageInStart, &imageInBytes, imageIn);
     }
     else {
-      if (g_verbose)
-        printf("  load binary file '%s' ... ", shortname);
+      printf("  load binary file '%s' ... ", shortname);
+      fflush(stdout);
       load_binfile(fileIn, imageIn, &imageInStart, &imageInBytes, BUFSIZE);
     }
   }
@@ -338,22 +363,51 @@ int main(int argc, char ** argv) {
   ////////
   // open port with given properties
   ////////
-  if (g_verbose) {
+  
+  // UART interface (default)
+  if (interface == 0) {
+  
     printf("  open port '%s' with %gkBaud ... ", portname, (float) baudrate / 1000.0);
     fflush(stdout);
-  }
-  if (g_UARTmode == 0)
-    ptrPort = init_port(portname, baudrate, 1000, 8, 2, 1, 0, 0);   // use even parity
-  else
-    ptrPort = init_port(portname, baudrate, 1000, 8, 0, 1, 0, 0);   // use no parity
-  if (g_verbose) {
+    if (uartMode == 0)
+      ptrPort = init_port(portname, baudrate, 1000, 8, 2, 1, 0, 0);   // use even parity
+    else
+      ptrPort = init_port(portname, baudrate, 1000, 8, 0, 1, 0, 0);   // use no parity
     printf("ok\n");
     fflush(stdout);
+    
+    // flush receive buffer
+    flush_port(ptrPort);
+  
+  } // UART
+  
+  // SPI interface
+  #if defined(USE_SPI)
+	  else if (interface == 1) {
+		
+		if (baudrate < 1000000.0)
+      printf("  open SPI '%s' with %gkBaud ... ", portname, (float) baudrate / 1000.0);
+		else
+      printf("  open SPI '%s' with %gMBaud ... ", portname, (float) baudrate / 1000000.0);
+		fflush(stdout);
+		ptrPort = init_spi(portname, baudrate);
+		printf("ok\n");
+		fflush(stdout);
+	  
+	  } // SPI
+  #endif // USE_SPI
+
+  // unknown interface -> error
+  else {
+    setConsoleColor(PRM_COLOR_RED);
+    #if defined(USE_SPI)
+      fprintf(stderr, "\n\nerror: interface %d not supported (0=UART, 1=SPI), exit!\n\n", interface);
+    #else
+      fprintf(stderr, "\n\nerror: interface %d not supported (0=UART), exit!\n\n", interface);
+    #endif
+    Exit(1, g_pauseOnExit);
   }
   
-  // flush receive buffer
-  flush_port(ptrPort);
-
  
   // debug: communication test (echo+1 test-SW on STM8)
   /*
@@ -384,31 +438,38 @@ int main(int argc, char ** argv) {
   // HW reset STM8 using DTR line (USB/RS232)
   if (resetSTM8 == 1) {
     printf("  reset via DTR ... ");
+    fflush(stdout);
     pulse_DTR(ptrPort, 10);
     printf("ok\n");
-    SLEEP(5);                       // allow BSL to initialize
+    fflush(stdout);
+    SLEEP(20);                        // allow BSL to initialize
   }
   
   // SW reset STM8 via command 'Re5eT!' at 115.2kBaud (requires respective STM8 SW)
   else if (resetSTM8 == 2) {
     set_baudrate(ptrPort, 115200);    // expect STM8 SW to receive at 115.2kBaud
     printf("  reset via UART command ... ");
+    fflush(stdout);
     sprintf(buf, "Re5eT!");           // reset command (same as in STM8 SW!)
     for (i=0; i<6; i++) {
-      send_port(ptrPort, 1, buf+i);   // send reset command bytewise to account for slow handling
+      send_port(ptrPort, uartMode, 1, buf+i);   // send reset command bytewise to account for possible slow handling on STM8 side
       SLEEP(10);
     }
     printf("ok\n");
+    fflush(stdout);
     set_baudrate(ptrPort, baudrate);  // restore specified baudrate
+    SLEEP(20);                        // allow BSL to initialize
   }
   
-  // HW reset STM8 using connector pin 12 (only Raspberry Pi!)
+  // HW reset STM8 using header pin 12 (only Raspberry Pi!)
   #ifdef __ARMEL__
     else if (resetSTM8 == 3) {
-      printf("  reset via connector pin 12 ... ");
-      pulse_GPIO(12, 10);
+      printf("  reset via header pin 12 ... ");
+      fflush(stdout);
+      pulse_GPIO(12, 20);
       printf("ok\n");
-      SLEEP(5);                       // allow BSL to initialize
+      fflush(stdout);
+      SLEEP(20);                      // allow BSL to initialize
     }
   #endif // __ARMEL__
   
@@ -419,12 +480,11 @@ int main(int argc, char ** argv) {
   ////////
 
   // synchronize baudrate
-  bsl_sync(ptrPort);
+  bsl_sync(ptrPort, interface, uartMode);
   
 
   // get bootloader info for selecting RAM w/e routines for flash
-  bsl_getInfo(ptrPort, &flashsize, &versBSL, &family);
-
+  bsl_getInfo(ptrPort, interface, uartMode, &flashsize, &versBSL, &family);
 
   // for STM8S and 8kB STM8L upload RAM routines, else skip
   if ((family == STM8S) || (flashsize==8)) {
@@ -523,11 +583,11 @@ int main(int argc, char ** argv) {
 
       convert_s19(ptr, &ramImageStart, &numRamBytes, ramImage);
 
-      if (g_verbose)
-        printf("  Uploading RAM routines ... ");
-      bsl_memWrite(ptrPort, ramImageStart, numRamBytes, ramImage, 0);
-      if (g_verbose)
-        printf("ok\n");
+      printf("  Uploading RAM routines ... ");
+      fflush(stdout);
+      bsl_memWrite(ptrPort, interface, uartMode, ramImageStart, numRamBytes, ramImage, 0);
+      printf("ok (%dB from 0x%04x)\n", numRamBytes, ramImageStart);
+      fflush(stdout);
     }
   
   } // if STM8S or low-density STM8L -> upload RAM code
@@ -536,7 +596,7 @@ int main(int argc, char ** argv) {
 
   // if flash mass erase
   if (flashErase) 
-    bsl_flashMassErase(ptrPort);
+    bsl_flashMassErase(ptrPort, interface, uartMode);
     
         
         
@@ -544,16 +604,18 @@ int main(int argc, char ** argv) {
   if (strlen(fileIn)>0) {
   
     // upload memory image to STM8
-    bsl_memWrite(ptrPort, imageInStart, imageInBytes, imageIn, 1);
-
-
+    bsl_memWrite(ptrPort, interface, uartMode, imageInStart, imageInBytes, imageIn, 1);
+    //export_txt("write.txt", imageIn, imageInStart, imageInBytes);   // debug
+    
     // optionally verify upload
     if (verifyUpload==1) {
-      bsl_memRead(ptrPort, imageInStart, imageInBytes, imageOut, 1);
+      bsl_memRead(ptrPort, interface, uartMode, imageInStart, imageInBytes, imageOut, 1);
+      //export_txt("read.txt", imageOut, imageInStart, imageInBytes);   // debug
       printf("  verify memory ... ");
       for (i=0; i<imageInBytes; i++) {
         if (imageIn[i] != imageOut[i]) {
-          printf("failed at address 0x%04x (0x%02x vs 0x%02x), exit!\n", (uint32_t) (imageInStart+i), (uint8_t) (imageIn[i]), (uint8_t) (imageOut[i]));
+          setConsoleColor(PRM_COLOR_RED);
+          printf("\nfailed at address 0x%04x (0x%02x vs 0x%02x), exit!\n", (uint32_t) (imageInStart+i), (uint8_t) (imageIn[i]), (uint8_t) (imageOut[i]));
           Exit(1, g_pauseOnExit);
         }        
       }
@@ -563,11 +625,11 @@ int main(int argc, char ** argv) {
     
     // enable ROM bootloader after upload (option bytes always on same address)
     if (enableBSL==1) {
-      if (g_verbose)
-        printf("  activate bootloader ... ");
-      bsl_memWrite(ptrPort, 0x487E, 2, (char*)"\x55\xAA", 0);
-      if (g_verbose)
-        printf("ok\n");
+      printf("  activate bootloader ... ");
+      fflush(stdout);
+      bsl_memWrite(ptrPort, interface, uartMode, 0x487E, 2, (char*)"\x55\xAA", 0);
+      printf("ok\n");
+      fflush(stdout);
     }
   
   } // if file upload to flash
@@ -584,25 +646,23 @@ int main(int argc, char ** argv) {
       shortname = fileOut;
 
     // read memory
-    bsl_memRead(ptrPort, imageOutStart, imageOutBytes, imageOut, 1);
+    bsl_memRead(ptrPort, interface, uartMode, imageOutStart, imageOutBytes, imageOut, 1);
   
     // save to file, depending on file type
     const char *dot = strrchr (fileOut, '.');
     if (dot && !strcmp(dot, ".s19")) {
-      if (g_verbose)
-        printf("  save as Motorola S-record file '%s' ... ", shortname);
-      else
-        printf("  save to '%s' ... ", shortname);
+      printf("  save as Motorola S-record file '%s' ... ", shortname);
+      fflush(stdout);
       export_s19(fileOut, imageOut, imageOutStart, imageOutBytes);
       printf("ok\n");
+      fflush(stdout);
     }
     else if (dot && !strcmp(dot, ".txt")) {
-      if (g_verbose)
-        printf("  save as plain file to '%s' ... ", shortname);
-      else
-        printf("  save to '%s' ... ", shortname);
+      printf("  save as plain file to '%s' ... ", shortname);
+      fflush(stdout);
       export_txt(fileOut, imageOut, imageOutStart, imageOutBytes);
       printf("ok\n");
+      fflush(stdout);
     }
     else {
       setConsoleColor(PRM_COLOR_RED);
@@ -611,12 +671,13 @@ int main(int argc, char ** argv) {
     }
   }
   
-  
 
   // jump to flash start address after done (reset vector always on same address)
-  if (jumpFlash)
-    bsl_jumpTo(ptrPort, PFLASH_START);
-
+  if (jumpFlash) {
+    if (interface == 1)       // don't know why, but seems to be required for SPI
+      SLEEP(500);
+    bsl_jumpTo(ptrPort, interface, uartMode, PFLASH_START);
+  }
 
   ////////
   // clean up and exit

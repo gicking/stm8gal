@@ -57,13 +57,13 @@ clean:
 # upload via stm8flash / SWIM (https://github.com/vdudouyt/stm8flash)
 # stm8flash requires device in lower-case -> http://gnu-make.2324884.n4.nabble.com/how-to-achieve-conversion-to-uppercase-td14496.html 
 swim:
-	stm8flash -c stlink -w $(TARGET) -p $(shell echo $(DEVICE) | tr A-Z a-z)
+	#stm8flash -c stlink -w $(TARGET) -p $(shell echo $(DEVICE) | tr A-Z a-z)
+	stm8flash -c stlink -w $(TARGET) -p stm8s105?6
 
 # upload via UART bootloader (https://github.com/gicking/stm8gal)
 serial:
-ifeq ($(PORT),/dev/serial0) || ($(PORT),/dev/ttyAMA0) 
+ifeq ($(PORT),$(filter $(PORT),/dev/serial0 /dev/ttyAMA0)) 
 	../stm8gal -p $(PORT) -w $(TARGET) -Q -R 3 -u 2
 else
 	../stm8gal -p $(PORT) -w $(TARGET) -q
-endif	
-
+endif

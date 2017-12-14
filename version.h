@@ -27,8 +27,10 @@
 /********************
  *  add description of changes below
 
-  v1.1.4 (2017-12-09)
-    - add user-space access to RasPi GPIOs via wiringPi for automatic reset. Use connector numbering scheme (="physical")
+  v1.1.4 (2017-12-20)
+    - added SPI support via spidev (currently only POSIX)
+    - add user-space access to RasPi GPIOs via wiringPi for automatic reset. Use header numbering scheme (="physical")
+    - removed verbose commandline option (-V). Always print verbose 
     - added listing of /dev/serial0 (new in Pi3, see https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3)
 
   v1.1.3 (2017-08-29)

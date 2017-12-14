@@ -13,6 +13,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "version.h"
 #include "misc.h"
 
@@ -85,6 +86,12 @@ void Error(const char *format, ...)
 */
 void Exit(uint8_t code, uint8_t pause) {
 
+  // on error code !=0 ring bell
+  if (code) {
+    printf("\a");
+    fflush(stdout);
+  }
+  
   // reset text color to default
   setConsoleColor(PRM_COLOR_DEFAULT);
 
