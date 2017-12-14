@@ -10,7 +10,6 @@
   implementation of of routines for RS232 communication using the Win32 or Posix API.
   For Win32, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
   For Posix see http://www.easysw.com/~mike/serial/serial.html
-  
 */
 
 // include files
@@ -193,6 +192,7 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
     fprintf(stderr, "\n\nerror in 'init_port(%s)': get port attributes failed with code %d, exit!\n\n", port, (int) GetLastError());
     Exit(1, g_pauseOnExit);
   }
+
 
   // change port settings
   fDCB.BaudRate = baudrate;         // set the baud rate (19200, 57600, 115200)
@@ -500,7 +500,7 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
    
   \brief generate low pulse on Raspberry pin in [ms] to reset STM8
    
-  \param[in] pin        reset pin (use connector numbering)
+  \param[in] pin        reset pin (use header numbering)
   \param[in] duration   duration of DTR low pulse in ms
 
   Generate low pulse on GPIO in [ms] to reset STM8.
@@ -509,7 +509,7 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
 #if defined(__ARMEL__) && defined(USE_WIRING)
 void pulse_GPIO(int pin, uint32_t duration) {
   
-  // initialize wiringPi. Use connector numbering scheme
+  // initialize wiringPi. Use header numbering scheme
   wiringPiSetupPhys();
   
   // set direction of GPIO to output
@@ -1057,21 +1057,22 @@ void set_timeout(HANDLE fpCom, uint32_t timeout) {
 
 
 /**
-  \fn uint32_t send_port(HANDLE fpCom, uint32_t lenTx, char *Tx)
+  \fn uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx)
    
   \brief send data via comm port
   
-  \param[in] fpCom    handle to comm port
-  \param[in] lenTx    number of bytes to send
-  \param[in] Tx       array of bytes to send
+  \param[in] fpCom      handle to comm port
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] lenTx      number of bytes to send
+  \param[in] Tx         array of bytes to send
 
   \return number of sent bytes
   
   send data via comm port. Use this function to facilitate serial communication
   on different platforms, e.g. Win32 and Posix.
-  If g_UARTmode==1 (1-wire interface), read back LIN echo 
+  If uartMode==1 (1-wire interface), read back LIN echo 
 */
-uint32_t send_port(HANDLE fpCom, uint32_t lenTx, char *Tx) {
+uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
 
   // for reading back LIN echo 
   char      Rx[1000];
@@ -1106,8 +1107,8 @@ uint32_t send_port(HANDLE fpCom, uint32_t lenTx, char *Tx) {
 
 
   // for 1-wire interface, read back LIN echo and ignore
-  if (g_UARTmode == 1) {
-    lenRx = receive_port(fpCom, numChars, Rx);
+  if (uartMode == 1) {
+    lenRx = receive_port(fpCom, uartMode, numChars, Rx);
     if (lenRx != numChars) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'send_port()': read 1-wire echo failed, exit!\n\n");
@@ -1124,21 +1125,22 @@ uint32_t send_port(HANDLE fpCom, uint32_t lenTx, char *Tx) {
 
 
 /**
-  \fn uint32_t receive_port(HANDLE fpCom, uint32_t lenRx, char *Rx)
+  \fn uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx)
    
   \brief receive data via comm port
   
-  \param[in]  fpCom   handle to comm port
-  \param[in]  lenRx   number of bytes to receive
-  \param[out] Rx      array containing bytes received
+  \param[in]  fpCom     handle to comm port
+  \param[in]  uartMode  UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in]  lenRx     number of bytes to receive
+  \param[out] Rx        array containing bytes received
   
   \return number of received bytes
   
   receive data via comm port. Use this function to facilitate serial communication
   on different platforms, e.g. Win32 and Posix
-  If g_UARTmode==2 (UART reply mode with 2-wire interface), reply each byte from STM8 -> SLOW
+  If uartMode==2 (UART reply mode with 2-wire interface), reply each byte from STM8 -> SLOW
 */
-uint32_t receive_port(HANDLE fpCom, uint32_t lenRx, char *Rx) {
+uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) {
 
   
 /////////
@@ -1150,7 +1152,7 @@ uint32_t receive_port(HANDLE fpCom, uint32_t lenRx, char *Rx) {
   uint32_t  i, numRx;
   
   // for UART reply mode with 2-wire interface echo each received bytes -> SLOW
-  if (g_UARTmode==2) {
+  if (uartMode==2) {
     
     // echo each byte as it is received
     numChars = 0;
@@ -1164,7 +1166,7 @@ uint32_t receive_port(HANDLE fpCom, uint32_t lenRx, char *Rx) {
         break;
     } // loop i
   
-  } // g_UARTmode==2
+  } // uartMode==2
   
   
   // UART duplex mode or 1-wire interface -> receive all bytes in single block -> fast
@@ -1227,9 +1229,9 @@ uint32_t receive_port(HANDLE fpCom, uint32_t lenRx, char *Rx) {
     else if (got > 0) {
       
       // for UART reply mode with 2-wire interface echo each byte
-      if (g_UARTmode==2) {
+      if (uartMode==2) {
         //fprintf(stderr,"sent echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
-        send_port(fpCom, 1, dest);
+        send_port(fpCom, uartMode, 1, dest);
       }
       
       // figure out how many bytes are left and increment dest pointer through buffer

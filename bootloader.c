@@ -12,24 +12,28 @@
 
 
 #include "bootloader.h"
+#include "main.h"
 #include "serial_comm.h"
+#include "spi_comm.h"
 #include "misc.h"
 #include "globals.h"
 
 
 /**
-  \fn uint8_t bsl_sync(HANDLE ptrPort)
+  \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t interface, uint8_t uartMode)
    
   \brief synchronize to microcontroller BSL
    
   \param[in] ptrPort    handle to communication port
+  \param[in] interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
 
   \return synchronization status (0=ok, 1=fail)
   
   synchronize to microcontroller BSL, e.g. baudrate. If already synchronized
   checks for NACK
 */
-uint8_t bsl_sync(HANDLE ptrPort) {
+uint8_t bsl_sync(HANDLE ptrPort, uint8_t interface, uint8_t uartMode) {
   
   int   i, count;
   int   lenTx, lenRx, len;
@@ -51,8 +55,10 @@ uint8_t bsl_sync(HANDLE ptrPort) {
   }
   
   
-  // purge input buffer
-  flush_port(ptrPort); 
+  // purge UART input buffer
+  if (interface == 0) {
+    flush_port(ptrPort); 
+  }
   
   // construct SYNC command
   lenTx = 1;
@@ -63,23 +69,31 @@ uint8_t bsl_sync(HANDLE ptrPort) {
   do {
     
     // send command
-    len = send_port(ptrPort, lenTx, Tx);
+    if (interface == 0)
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = send_spi(ptrPort, lenTx, Tx);
+    #endif
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_sync()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
         
-    // receive response with timeout
-    len = receive_port(ptrPort, lenRx, Rx);
-
+    // receive response
+    if (interface == 0)
+      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = receive_spi(ptrPort, lenRx, Rx);
+    #endif
+    
     // increase retry counter
     count++;
     
-    // just to make sure
+    // avoid flooding the STM8
     SLEEP(10);
-    
-    //printf("test %d\n", count);
     
   } while ((count<15) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
   
@@ -111,11 +125,13 @@ uint8_t bsl_sync(HANDLE ptrPort) {
 
 
 /**
-  \fn uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers))
+  \fn uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, int *flashsize, uint8_t *vers)
    
   \brief get microcontroller type and BSL version (for correct w/e routines)
    
   \param[in]  ptrPort     handle to communication port
+  \param[in]  interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in]  uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[out] flashsize   size of flashsize in kB (required for correct W/E routines)
   \param[out] vers        BSL version number (required for correct W/E routines)
   \param[out] family      STM8 family (STM8S=1, STM8L=2)
@@ -125,17 +141,14 @@ uint8_t bsl_sync(HANDLE ptrPort) {
   query microcontroller type and BSL version info. This information is required
   to select correct version of flash write/erase routines
 */
-uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *family) {
+uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family) {
   
   int   i;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
 
   // print message
-  if (g_verbose) {
-    printf("  determine device ... ");
-    fflush(stdout);
-  }
+  printf("  determine device ... "); fflush(stdout);
 
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -151,7 +164,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   
   // purge input buffer
   flush_port(ptrPort); 
-  SLEEP(50);              // required for some reason
+  SLEEP(50);              // seems to be required for some reason
   
   
   /////////
@@ -159,22 +172,24 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   /////////
 
   // reduce timeout for faster check
-  set_timeout(ptrPort, 200);
+  if (interface == 0) {
+    set_timeout(ptrPort, 200);
+  }
   
   // check address of EEPROM. STM8L starts at 0x1000, STM8S starts at 0x4000
-  if (bsl_memCheck(ptrPort, 0x004000))       // STM8S
+  if (bsl_memCheck(ptrPort, interface, uartMode, 0x004000))       // STM8S
   {
     *family = STM8S;
-#ifdef DEBUG
-    printf("family STM8S\n");
-#endif
+    #ifdef DEBUG
+      printf("family STM8S\n");
+    #endif
   }
-  else if (bsl_memCheck(ptrPort, 0x00100))   // STM8L
+  else if (bsl_memCheck(ptrPort, interface, uartMode, 0x00100))   // STM8L
   {
     *family = STM8L;
-#ifdef DEBUG
-    printf("family STM8L\n");
-#endif
+    #ifdef DEBUG
+      printf("family STM8L\n");
+    #endif
   }
   else {
     setConsoleColor(PRM_COLOR_RED);
@@ -184,26 +199,28 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
 
 
   // check if adress in flash exists. Check highest flash address to determine size
-  if (bsl_memCheck(ptrPort, 0x047FFF))       // extreme density (256kB)
+  if (bsl_memCheck(ptrPort, interface, uartMode, 0x047FFF))       // extreme density (256kB)
     *flashsize = 256;
-  else if (bsl_memCheck(ptrPort, 0x027FFF))  // high density (128kB)
+  else if (bsl_memCheck(ptrPort, interface, uartMode, 0x027FFF))  // high density (128kB)
     *flashsize = 128;
-  else if (bsl_memCheck(ptrPort, 0x00FFFF))  // medium density (32kB)
+  else if (bsl_memCheck(ptrPort, interface, uartMode, 0x00FFFF))  // medium density (32kB)
     *flashsize = 32;
-  else if (bsl_memCheck(ptrPort, 0x009FFF))  // low density (8kB)
+  else if (bsl_memCheck(ptrPort, interface, uartMode, 0x009FFF))  // low density (8kB)
     *flashsize = 8;
   else {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_getInfo()': cannot identify device, exit!\n\n");
     Exit(1, g_pauseOnExit);
   }
-#ifdef DEBUG
-  printf("flash size: %d\n", (int) (*flashsize));
-#endif
+  #ifdef DEBUG
+    printf("flash size: %d\n", (int) (*flashsize));
+  #endif
   
 
   // restore timeout to avoid timeouts during flash operation
-  set_timeout(ptrPort, 1000);
+  if (interface == 0) {
+    set_timeout(ptrPort, 1000);
+  }
   
   
   /////////
@@ -217,15 +234,25 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   lenRx = 9;
   
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_getInfo()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
     
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_getInfo()': ACK timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -243,27 +270,27 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   // check if command codes are correct (just to be sure)
   if (Rx[3] != GET) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong GET code (expect 0x%02x), exit!\n\n", GET);
+    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong GET code (expect 0x%02x, received 0x%02x), exit!\n\n", GET, Rx[3]);
     Exit(1, g_pauseOnExit);
   }
   if (Rx[4] != READ) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong READ code (expect 0x%02x), exit!\n\n", READ);
+    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong READ code (expect 0x%02x, received 0x%02x), exit!\n\n", READ, Rx[4]);
     Exit(1, g_pauseOnExit);
   }
   if (Rx[5] != GO) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong GO code (expect 0x%02x), exit!\n\n", GO);
+    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong GO code (expect 0x%02x, received 0x%02x), exit!\n\n", GO, Rx[5]);
     Exit(1, g_pauseOnExit);
   }
   if (Rx[6] != WRITE) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong WRITE code (expect 0x%02x), exit!\n\n", WRITE);
+    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong WRITE code (expect 0x%02x, received 0x%02x), exit!\n\n", WRITE, Rx[6]);
     Exit(1, g_pauseOnExit);
   }
   if (Rx[7] != ERASE) {
     setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong ERASE code (expect 0x%02x), exit!\n\n", ERASE);
+    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong ERASE code (expect 0x%02x, received 0x%02x), exit!\n\n", ERASE, Rx[7]);
     Exit(1, g_pauseOnExit);
   }
   
@@ -283,13 +310,11 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   *vers = Rx[2];
   
   // print message
-  if (g_verbose) {
-    if (*family == STM8S)
-      printf("ok (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
-    else
-      printf("ok (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
-    fflush(stdout);
-  }
+  if (*family == STM8S)
+    printf("ok (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+  else
+    printf("ok (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+  fflush(stdout);
   
   // avoid compiler warnings
   return(0);
@@ -299,11 +324,13 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
 
 
 /**
-  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char *buf)
+  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf)
    
   \brief read from microcontroller memory
    
   \param[in] ptrPort    handle to communication port
+  \param[in] interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in] addrStart  starting address to read from
   \param[in] numBytes   number of bytes to read
   \param[in] buf        buffer to store data to
@@ -312,7 +339,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, int *flashsize, uint8_t *vers, uint8_t *fami
   
   read from microcontroller memory via READ command
 */
-uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose) {
+uint8_t bsl_memRead(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -365,15 +392,25 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     lenRx = 1;
   
     // send command
-    len = send_port(ptrPort, lenTx, Tx);
+    if (interface == 0)
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = send_spi(ptrPort, lenTx, Tx);
+    #endif
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
-    // receive response with timeout
-    len = receive_port(ptrPort, lenRx, Rx);
+    // receive response
+    if (interface == 0)
+      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = receive_spi(ptrPort, lenRx, Rx);
+    #endif
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK1 timeout, exit!\n\n");
@@ -402,15 +439,25 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     lenRx = 1;
   
     // send command
-    len = send_port(ptrPort, lenTx, Tx);
+    if (interface == 0)
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = send_spi(ptrPort, lenTx, Tx);
+    #endif
     if (len != lenTx) {      
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
 
-    // receive response with timeout
-    len = receive_port(ptrPort, lenRx, Rx);
+    // receive response
+    if (interface == 0)
+      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = receive_spi(ptrPort, lenRx, Rx);
+    #endif
     if (len != lenRx) {      
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -436,15 +483,28 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     lenRx = addrStep + 1;
   
     // send command
-    len = send_port(ptrPort, lenTx, Tx);
+    if (interface == 0)
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = send_spi(ptrPort, lenTx, Tx);
+    #endif
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending range failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
 
-    // receive response with timeout
-    len = receive_port(ptrPort, lenRx, Rx);
+     
+    // receive response
+    if (interface == 0)
+      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    #if defined(USE_SPI)
+      else if (interface == 1) {
+        len = receive_spi(ptrPort, lenRx, Rx);
+        //printf("0x%02x  0x%02x  0x%02x\n", Rx[0], Rx[1], Rx[2]); fflush(stdout); getchar();
+      }
+    #endif
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memRead()': data timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -461,7 +521,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
     // copy data to buffer
     for (i=1; i<lenRx; i++) {
       buf[idx++] = Rx[i];
-      //printf("%d 0x%02x\n", i, (uint8_t) (Rx[i])); fflush(stdout);
+      //printf("%d 0x%02x\n", i, (uint8_t) (Rx[i])); fflush(stdout); getchar();
     }
     
     // print progress
@@ -509,11 +569,13 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
 
 
 /**
-  \fn uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr)
+  \fn uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr)
    
   \brief check if address exists
       
   \param[in] ptrPort    handle to communication port
+  \param[in] interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in] addr       address to check
   
   \return communication status (0=ok, 1=fail)
@@ -521,7 +583,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char 
   check if microcontrolles address exists. Specifically read 1B from microcontroller 
   memory via READ command. If it fails, memory doesn't exist. Used to get STM8 type
 */
-uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
+uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -550,15 +612,25 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   lenRx = 1;
   
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
     
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -587,15 +659,25 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   lenRx = 1;
   
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {      
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {      
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -619,15 +701,25 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
   lenRx = 2;
   
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending range failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': data timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -649,18 +741,20 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint32_t addr) {
 
 
 /**
-  \fn uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr)
+  \fn uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr)
    
   \brief erase one microcontroller flash sector
   
-  \param[in] ptrPort      handle to communication port
-  \param[in] addr         adress within 1kB sector to erase
+  \param[in] ptrPort    handle to communication port
+  \param[in] interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] addr       adress within 1kB sector to erase
   
   \return communication status (0=ok, 1=fail)
   
   sector erase for microcontroller flash
 */
-uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
+uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr) {
 
   int       i;
   int       lenTx, lenRx, len;
@@ -703,15 +797,26 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
   lenRx = 1;
   
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -732,26 +837,34 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
 
   // construct pattern
   lenTx = 3;
-  Tx[0] = 0x00;
+  Tx[0] = 0x00;      // number of sectors to erase -1 (here only 1 sector)
   Tx[1] = sector;
   Tx[2] = (Tx[0] ^ Tx[1]);
   lenRx = 1;
 
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending sector failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
-
-  
-  // wait for erase to avoid communication timeout
-  //SLEEP(10000);
   
   
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1) {
+      SLEEP(40);                              // wait >30ms*(N=0+1) for sector erase before requesting response (see UM0560, SPI timing)
+      len = receive_spi(ptrPort, lenRx, Rx);
+    }
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenTx, len);
@@ -778,17 +891,19 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint32_t addr) {
 
 
 /**
-  \fn uint8_t bsl_flashMassErase(HANDLE ptrPort)
+  \fn uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t interface, uint8_t uartMode)
    
   \brief mass erase microcontroller flash
   
-  \param[in] ptrPort      handle to communication port
+  \param[in] ptrPort    handle to communication port
+  \param[in] interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   
   \return communication status (0=ok, 1=fail)
   
   mass erase microcontroller P-flash and D-flash/EEPROM
 */
-uint8_t bsl_flashMassErase(HANDLE ptrPort) {
+uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t interface, uint8_t uartMode) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -821,15 +936,25 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
   lenRx = 1;
   
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
 
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -855,22 +980,28 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
   lenRx = 1;
 
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending trigger failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
-
   
-  // wait for erase to avoid communication timeout
-  //SLEEP(10000);
   
-  // mass erase takes longer -> increase timeout
-  set_timeout(ptrPort, 5000);
-  
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1) {
+      SLEEP(1100);                              // wait >30ms*(N=32+1) for sector erase before requesting response (see UM0560, SPI timing)
+      len = receive_spi(ptrPort, lenRx, Rx);
+    }
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -884,10 +1015,6 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
     Exit(1, g_pauseOnExit);
   }
 
-  // restore timeout
-  set_timeout(ptrPort, 1000);
-
-    
   // print message
   printf("ok\n");
   fflush(stdout);
@@ -900,11 +1027,13 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
 
 
 /**
-  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char *buf)
+  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf)
    
   \brief upload to microcontroller flash or RAM
    
   \param[in] ptrPort    handle to communication port
+  \param[in] interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in] addrStart  starting address to upload to
   \param[in] numBytes   number of bytes to upload
   \param[in] buf        buffer containing data
@@ -914,20 +1043,19 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort) {
   
   upload data to microcontroller memory via WRITE command
 */
-uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose) {
+uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint32_t  addrTmp, addrStep, idx=0, idx2=0;
   uint8_t   chk, flagEmpty;
 
-
   // print message
   if (verbose) {
     if (numBytes > 1024)
-      printf("  write %1.1fkB starting from 0x%04x ", (float) idx2/1024.0, (int) addrStart);
+      printf("  write %1.1fkB starting from 0x%04x ", (float) numBytes/1024.0, (int) addrStart);
     else
-      printf("  write %dB starting from 0x%04x ", idx2, (int) addrStart);
+      printf("  write %dB starting from 0x%04x ", numBytes, (int) addrStart);
     fflush(stdout);
   }
   
@@ -978,15 +1106,25 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     lenRx = 1;
   
     // send command
-    len = send_port(ptrPort, lenTx, Tx);
+    if (interface == 0)
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = send_spi(ptrPort, lenTx, Tx);
+    #endif
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
-    // receive response with timeout
-    len = receive_port(ptrPort, lenRx, Rx);
+    // receive response
+    if (interface == 0)
+      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = receive_spi(ptrPort, lenRx, Rx);
+    #endif
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -1015,15 +1153,26 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
     lenRx = 1;
   
     // send command
-    len = send_port(ptrPort, lenTx, Tx);
+    if (interface == 0)
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = send_spi(ptrPort, lenTx, Tx);
+    #endif
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
-    // receive response with timeout
-    len = receive_port(ptrPort, lenRx, Rx);
+  
+    // receive response
+    if (interface == 0)
+      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = receive_spi(ptrPort, lenRx, Rx);
+    #endif
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -1057,15 +1206,31 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
 
       
     // send command
-    len = send_port(ptrPort, lenTx, Tx);
+    if (interface == 0)
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    #if defined(USE_SPI)
+      else if (interface == 1)
+        len = send_spi(ptrPort, lenTx, Tx);
+    #endif
     if (len != lenTx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending data failed (expect %d, sent %d), exit!\n\n", lenTx, len);
       Exit(1, g_pauseOnExit);
     }
     
-    // receive response with timeout
-    len = receive_port(ptrPort, lenRx, Rx);
+        
+    // receive response
+    if (interface == 0)
+      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    #if defined(USE_SPI)
+      else if (interface == 1) {
+        if ((addrTmp >= 0x8000) && (addrTmp % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
+          SLEEP(1200);                               // for not 128-aligned data wait >1.1s
+        else
+          SLEEP(20);                                 // for 128-aligned data wait >8.5ms
+        len = receive_spi(ptrPort, lenRx, Rx);
+      }
+    #endif
     if (len != lenRx) {
       setConsoleColor(PRM_COLOR_RED);
       fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK3 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -1107,11 +1272,13 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
 
 
 /**
-  \fn uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr)
+  \fn uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr)
    
   \brief jump to flash or RAM
    
   \param[in] ptrPort    handle to communication port
+  \param[in] interface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in] addr       address to jump to
   
   \return communication status (0=ok, 1=fail)
@@ -1119,7 +1286,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint32_t addrStart, uint32_t numBytes, char
   jump to address and continue code execution. Generally RAM or flash
   starting address
 */
-uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr) {
+uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr) {
 
   int       i;
   int       lenTx, lenRx, len;
@@ -1153,15 +1320,25 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr) {
   lenRx = 1;
   
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
     
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
@@ -1190,15 +1367,25 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint32_t addr) {
   lenRx = 1;
 
   // send command
-  len = send_port(ptrPort, lenTx, Tx);
+  if (interface == 0)
+    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = send_spi(ptrPort, lenTx, Tx);
+  #endif
   if (len != lenTx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
   
-  // receive response with timeout
-  len = receive_port(ptrPort, lenRx, Rx);
+  // receive response
+  if (interface == 0)
+    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  #if defined(USE_SPI)
+    else if (interface == 1)
+      len = receive_spi(ptrPort, lenRx, Rx);
+  #endif
   if (len != lenRx) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);

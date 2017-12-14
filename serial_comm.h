@@ -2,14 +2,14 @@
   \file serial_comm.h
    
   \author G. Icking-Konert
-  \date 2009-03-01
+  \date 2008-11-02
   \version 0.1
    
   \brief declaration of RS232 comm port routines
    
-  declaration of routines for RS232 communication using the Win32.
-  For Win32 API, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
-  
+  declaration of of routines for RS232 communication using the Win32 or Posix API.
+  For Win32, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
+  For Posix see http://www.easysw.com/~mike/serial/serial.html
 */
 
 // for including file only once
@@ -74,10 +74,10 @@ void        set_baudrate(HANDLE fpCom, uint32_t baudrate);
 void        set_timeout(HANDLE fpCom, uint32_t timeout);
 
 /// send data
-uint32_t    send_port(HANDLE fpCom, uint32_t lenTx, char *Tx);
+uint32_t    send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx);
 
 /// receive data
-uint32_t    receive_port(HANDLE fpCom, uint32_t lenRx, char *Rx);
+uint32_t    receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx);
 
 /// flush port buffers
 void        flush_port(HANDLE fpCom);
