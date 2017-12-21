@@ -257,4 +257,60 @@ uint32_t receive_spi_spidev(HANDLE fp, uint32_t lenRx, char *Rx) {
 
 } // receive_spi_spidev
 
+
+
+/**
+  \fn void spi_transfer(HANDLE fp, int len, uint8_t *Tx, uint8_t *Rx)
+   
+  \brief send & receive data via SPI (parallel send)
+  
+  \param[in]  fp      handle to SPI port
+  \param[in]  len     number of bytes to send & receive
+  \param[in]  Tx      array containing bytes to send
+  \param[out] Rx      array containing bytes received
+  
+  \return number of received bytes
+  
+  send & receive data via SPI port. Use this function to facilitate SPI communication
+  on different platforms, e.g. Win32 and Posix
+*/
+void spi_transfer(HANDLE fp, int len, uint8_t *Tx, uint8_t *Rx) {
+
+  
+/////////
+// Win32
+/////////
+#ifdef WIN32
+  #error Windows not yet supported (which API?)
+
+#endif // WIN32
+
+
+/////////
+// Posix
+/////////
+#if defined(__APPLE__) || defined(__unix__) 
+
+  // fill SPI data structure
+  struct spi_ioc_transfer tr = {
+    .tx_buf = (unsigned long)Tx,
+    .rx_buf = (unsigned long)Rx,
+    .len = len,
+    .delay_usecs = 4,
+    .speed_hz = 0,
+    .bits_per_word = 0,
+  };
+
+  // send & receive data
+  int ret = ioctl(fp, SPI_IOC_MESSAGE(1), &tr);
+  if (ret != 0){
+    setConsoleColor(PRM_COLOR_RED);
+    fprintf(stderr, "\n\nerror in 'spi_transfer': cannot transfer data (code %d), exit!\n\n", ret);
+    Exit(1, g_pauseOnExit);
+  }
+  
+#endif // __APPLE__ || __unix__
+
+} // receive_spi_spidev
+
 // end of file

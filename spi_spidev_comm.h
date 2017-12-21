@@ -61,6 +61,9 @@
   /// receive data via SPI (no parallel send)
   uint32_t    receive_spi_spidev(HANDLE fp, uint32_t lenRx, char *Rx);
   
+  /// send & receive data via SPI (parallel send)
+  void        spi_transfer(HANDLE fp, int len, uint8_t *Tx, uint8_t *Rx);
+  
 #endif // USE_SPIDEV
   
 #endif // _SPI_SPIDEV_COMM_H_
