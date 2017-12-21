@@ -4,8 +4,8 @@
 CPP      = g++.exe
 CC       = gcc.exe
 WINDRES  = windres.exe
-OBJ      = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o
-LINKOBJ  = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o
+OBJ      = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o Objects/spi_Arduino_comm.o
+LINKOBJ  = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o Objects/spi_Arduino_comm.o
 LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib32" -L"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib32" -static-libgcc -m32
 INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"./STM8_Routines"
 CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"C:/Program Files (x86)/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include/c++" -I"./STM8_Routines"
@@ -38,3 +38,6 @@ Objects/bootloader.o: bootloader.c
 
 Objects/hexfile.o: hexfile.c
 	$(CC) -c hexfile.c -o Objects/hexfile.o $(CFLAGS)
+
+Objects/spi_Arduino_comm.o: spi_Arduino_comm.c
+	$(CC) -c spi_Arduino_comm.c -o Objects/spi_Arduino_comm.o $(CFLAGS)

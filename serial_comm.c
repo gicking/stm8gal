@@ -1106,7 +1106,7 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
 #endif // __APPLE__ || __unix__
 
 
-  // for 1-wire interface, read back LIN echo and ignore
+  // for 1-wire UART interface, read back LIN echo and ignore
   if (uartMode == 1) {
     lenRx = receive_port(fpCom, uartMode, numChars, Rx);
     if (lenRx != numChars) {
@@ -1160,7 +1160,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
       ReadFile(fpCom, Rx+i, 1, &numTmp, NULL);
       if (numTmp == 1) {
         numChars++;
-        send_port(fpCom, 1, Rx+i);
+        send_port(fpCom, uartMode, 1, Rx+i);
       }
       else
         break;
@@ -1230,7 +1230,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
       
       // for UART reply mode with 2-wire interface echo each byte
       if (uartMode==2) {
-        //fprintf(stderr,"sent echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
+        //fprintf(stderr,"\nsent echo 0x%02x\n", *dest);
         send_port(fpCom, uartMode, 1, dest);
       }
       

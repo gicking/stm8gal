@@ -1,7 +1,7 @@
 [Project]
 FileName=stm8gal.dev
 Name=stm8gal
-UnitCount=21
+UnitCount=23
 Type=1
 Ver=2
 ObjFiles=
@@ -252,6 +252,26 @@ BuildCmd=
 
 [Unit21]
 FileName=version.h
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit22]
+FileName=spi_Arduino_comm.c
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit23]
+FileName=spi_Arduino_comm.h
 CompileCpp=0
 Folder=
 Compile=1
