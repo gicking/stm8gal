@@ -8,7 +8,7 @@
   \brief declaration of SPI routines voa Arduino USB<->SPI bridge
    
   declaration of routines for SPI communication using the Arduino 
-  USB<->SPI bridge available from xxx
+  USB<->SPI bridge available from https://github.com/gicking/Arduino_SPI_bridge
 */
 
 // for including file only once

@@ -8,7 +8,7 @@
   \brief implementation of SPI routines voa Arduino USB<->SPI bridge
    
   implementation of routines for SPI communication using the Arduino 
-  USB<->SPI bridge available from xxx
+  USB<->SPI bridge available from https://github.com/gicking/Arduino_SPI_bridge
 */
 
 // include files
@@ -52,7 +52,7 @@ uint8_t checksum_Arduino(uint8_t *buf) {
   \param[in] mode          SPI polarity & clock phase (see Arduino SPI reference)
   
   configure SPI interface of Arduino SPI bridge
-  For serial protocol see xxx 
+  For serial protocol see https://github.com/gicking/Arduino_SPI_bridge/protocol.ods 
 */
 void configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_t mode) {
 
@@ -119,7 +119,7 @@ void configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_
   \param[in] state  state for pin
   
   set pin on Arduino SPI bridge using serial command. 
-  For serial protocol see xxx 
+  For serial protocol see https://github.com/gicking/Arduino_SPI_bridge/protocol.ods  
 */
 void setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state) {
 
@@ -186,7 +186,7 @@ void setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state) {
   \return number of received SPI bytes
 
   send/receive SPI frames via Arduino USB<->SPI bridge
-  For serial protocol see xxx 
+  For serial protocol see https://github.com/gicking/Arduino_SPI_bridge/protocol.ods  
 */
 uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char *bufTx, char *bufRx) {
 
