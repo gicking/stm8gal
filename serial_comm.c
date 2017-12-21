@@ -329,7 +329,7 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
     toptions.c_cflag &= ~CSTOPB;    // one stop bit
   else
     toptions.c_cflag |= CSTOPB;     // two stop bit
-  //toptions.c_cflag &= ~CSIZE;       // xxx clear data bits entry. Doesn't work on RasPi -> skip
+  //toptions.c_cflag &= ~CSIZE;       // clear data bits entry. Doesn't work on RasPi -> skip
 
   // disable flow control
   toptions.c_cflag &= ~CRTSCTS;

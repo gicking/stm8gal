@@ -28,7 +28,7 @@
  *  add description of changes below
 
   v1.1.5 (2017-12-20)
-    - added SPI support via Arduino bridge (see xxx)
+    - added SPI support via Arduino bridge (see https://github.com/gicking/Arduino_SPI_bridge)
     - replace manual reset parameter "-Q" with "-R 0"
     - fixed bug in "2-wire reply mode" (wrong echo)
 
