@@ -44,30 +44,29 @@
 #define PFLASH_BLOCKSIZE  1024      // size of flash block for erase or block write (same for all STM8 devices)
 
 
-
 /// synchronize to microcontroller BSL
-uint8_t bsl_sync(HANDLE ptrPort, uint8_t interface, uint8_t uartMode);
+uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode);
 
 /// get microcontroller type and BSL version
-uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family);
+uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family);
 
 /// read from microcontroller memory
-uint8_t bsl_memRead(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose);
+uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose);
 
 /// check if address exists
-uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr);
+uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr);
 
 /// erase microcontroller flash sector
-uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr);
+uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr);
 
 /// mass erase microcontroller P- and D-flash
-uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t interface, uint8_t uartMode);
+uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode);
 
 /// upload to microcontroller flash or RAM
-uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose);
+uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose);
 
 /// jump to flash or RAM
-uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t interface, uint8_t uartMode, uint32_t addr);
+uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr);
 
 #endif // _BOOTLOADER_H_
 

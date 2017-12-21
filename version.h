@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (1<<6) | (4<<1) | 1)     // -> v1.1.4
+#define VERSION     ((1<<14) | (1<<6) | (5<<1) | 1)     // -> v1.1.5
 
 #endif // _SW_VERSION_H_
 
@@ -27,7 +27,12 @@
 /********************
  *  add description of changes below
 
-  v1.1.4 (2017-12-20)
+  v1.1.5 (2017-12-20)
+    - added SPI support via Arduino bridge (see xxx)
+    - replace manual reset parameter "-Q" with "-R 0"
+    - fixed bug in "2-wire reply mode" (wrong echo)
+
+  v1.1.4 (2017-12-14)
     - added SPI support via spidev (currently only POSIX)
     - add user-space access to RasPi GPIOs via wiringPi for automatic reset. Use header numbering scheme (="physical")
     - removed verbose commandline option (-V). Always print verbose 
