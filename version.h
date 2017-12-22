@@ -19,13 +19,16 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (1<<6) | (5<<1) | 1)     // -> v1.1.5
+#define VERSION     ((1<<14) | (1<<6) | (6<<1) | 1)     // -> v1.1.6
 
 #endif // _SW_VERSION_H_
 
 
 /********************
  *  add description of changes below
+
+  v1.1.6 (2017-12-22)
+    - fixed bug in SPI using Arduino bridge (see https://github.com/gicking/Arduino_SPI_bridge)
 
   v1.1.5 (2017-12-20)
     - added SPI support via Arduino bridge (see https://github.com/gicking/Arduino_SPI_bridge)

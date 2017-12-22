@@ -175,8 +175,6 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 ### Program [STM8S Discovery Board](http://www.st.com/en/evaluation-tools/stm8s-discovery.html) via [Arduino SPI bridge](https://github.com/gicking/Arduino_SPI_bridge) and reset via GPIO
 
-**ARDUINO BRIDGE DOES NOT WORK YET. DEBUGGING IS ONGOING**
-
 1. Supply the [Arduino](https://www.arduino.cc) to the PC via USB. This also establishes an USB connection to the on-board microcontroller.
 
 2. Program the Arduino to act an an USB<->SPI bridge using [this](https://github.com/gicking/Arduino_SPI_bridge) software. Note that this software is currently only compatible with Atmega boards, i.e. **requires 5V GPIOs**
@@ -274,11 +272,14 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 - On RasPi 3 and SPI (via spidev) communication works reliably only up to 250kBaud
 
-- Arduino SPI bridge doesn't yet work. Debugging is ongoing. Any feedback is highy appreciated
-
 ***
 
 # Revision History
+
+v1.1.6 (2017-12-22)
+  - fixed bug in SPI using [Arduino bridge](https://github.com/gicking/Arduino_SPI_bridge)
+
+----------------
 
 v1.1.5 (2017-12-20)
   - added SPI support via [Arduino bridge](https://github.com/gicking/Arduino_SPI_bridge)
@@ -286,6 +287,7 @@ v1.1.5 (2017-12-20)
   - fixed bug in "2-wire reply mode" (wrong echo)
 
 ----------------
+
 v1.1.4 (2017-12-14)
   - added SPI support via spidev (currently only POSIX)
   - add user-space access to RasPi GPIOs via wiringPi for automatic reset. Use header numbering scheme (="physical")
@@ -293,24 +295,29 @@ v1.1.4 (2017-12-14)
   - added listing of /dev/serial0 (new in Pi3, see https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3)
 
 ----------------
+
 v1.1.3 (2017-08-29)
   - renamed from "STM8_serial_flasher" to "stm8gal", following a proposal by Philipp Krause (see https://github.com/gicking/STM8_serial_flasher/issues/10)
 
 ----------------
+
 v1.1.2 (2016-05-25)
   - add optional flash mass erase prior to upload
 
 ----------------
+
 v1.1.1 (2016-02-03):
   - add support for STM8L family (skip RAM code upload)
   - add memory dump to file
 
 ----------------
+
 v1.1.0 (2015-06-22):
   - add support for STM8 bootloader “reply mode“
   - add optional reset of STM8 via DTR (RS232/USB) or GPIO18 (Raspberry)
 
 ----------------
+
 v1.0.0 (2014-12-21):
   - initial release by Georg Icking-Konert under the Apache License 2.0
 

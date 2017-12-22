@@ -37,12 +37,12 @@
 #define ARDUINO_ERROR_ILLEGAL_CMD    0x04   //< command unknown
 #define ARDUINO_ERROR_ILLEGAL_PARAM  0x05   //< error with command parameters
 
-#define ARDUINO_LSBFIRST             0      //< bit order LSB first
+//#define ARDUINO_LSBFIRST             0      //< bit order LSB first
 #define ARDUINO_MSBFIRST             1      //< bit order MSB first
 #define ARDUINO_SPI_MODE0            0x00   //< SPI mode (see Arduino SPI reference)
-#define ARDUINO_SPI_MODE1            0x04
-#define ARDUINO_SPI_MODE2            0x08
-#define ARDUINO_SPI_MODE3            0x0C
+//#define ARDUINO_SPI_MODE1            0x04
+//#define ARDUINO_SPI_MODE2            0x08
+//#define ARDUINO_SPI_MODE3            0x0C
 
 #define send_spi_Arduino(port,len,buf)     sendReceiveSPI_Arduino(port,ARDUINO_CSN_PIN,len,buf,NULL)
 #define receive_spi_Arduino(port,len,buf)  sendReceiveSPI_Arduino(port,ARDUINO_CSN_PIN,len,NULL,buf)

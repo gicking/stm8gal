@@ -299,8 +299,8 @@ int main(int argc, char ** argv) {
   ////////
   // some parameter post-processing
   ////////
-  if ((physInterface == 1) || (physInterface == 2)) uartMode = 0;   // echo mode is n/a for SPI
-  if (physInterface == 1) verifyUpload = 0;                         // read back after writing doesn't work for SPI (don't know why)
+  if ((physInterface == 1) || (physInterface == 2)) uartMode = 0;     // echo mode is n/a for SPI
+  if ((physInterface == 1) || (physInterface == 2)) verifyUpload = 0; // read back after writing doesn't work for SPI (don't know why)
   
 
   ////////
@@ -412,7 +412,7 @@ int main(int argc, char ** argv) {
       printf("  init SPI with %gMBaud... ", (float) baudrate / 1000000.0);
     fflush(stdout);
     setPin_Arduino(ptrPort, ARDUINO_CSN_PIN, 1);
-    configSPI_Arduino(ptrPort, baudrate, ARDUINO_LSBFIRST, ARDUINO_SPI_MODE0);
+    configSPI_Arduino(ptrPort, baudrate, ARDUINO_MSBFIRST, ARDUINO_SPI_MODE0);
 		printf("ok\n");
 		fflush(stdout);
 
@@ -718,7 +718,7 @@ int main(int argc, char ** argv) {
 
   // jump to flash start address after done (reset vector always on same address)
   if (jumpFlash) {
-    if (physInterface == 1)       // don't know why, but seems to be required for SPI
+    if ((physInterface==1) || (physInterface==2))       // don't know why, but seems to be required for SPI
       SLEEP(500);
     bsl_jumpTo(ptrPort, physInterface, uartMode, PFLASH_START);
   }

@@ -29,12 +29,12 @@ long_line_column=72
 
 [files]
 current_page=17
-FILE_NAME_0=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fbootloader.c;0;2
+FILE_NAME_0=42032;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fbootloader.c;0;2
 FILE_NAME_1=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fbootloader.h;0;2
 FILE_NAME_2=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fglobals.h;0;2
 FILE_NAME_3=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fhexfile.c;0;2
 FILE_NAME_4=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fhexfile.h;0;2
-FILE_NAME_5=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fmain.c;0;2
+FILE_NAME_5=10767;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fmain.c;0;2
 FILE_NAME_6=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fmain.h;0;2
 FILE_NAME_7=0;Make;0;EUTF-8;1;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2FMakefile;0;2
 FILE_NAME_8=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fmisc.c;0;2
@@ -42,11 +42,11 @@ FILE_NAME_9=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%
 FILE_NAME_10=0;Markdown;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2FREADME.md;0;2
 FILE_NAME_11=10356;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fserial_comm.c;0;2
 FILE_NAME_12=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fserial_comm.h;0;2
-FILE_NAME_13=1362;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fspi_Arduino_comm.c;0;2
-FILE_NAME_14=247;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fspi_Arduino_comm.h;0;2
-FILE_NAME_15=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fspi_spidev_comm.c;0;2
+FILE_NAME_13=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fspi_Arduino_comm.c;0;2
+FILE_NAME_14=1541;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fspi_Arduino_comm.h;0;2
+FILE_NAME_15=2739;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fspi_spidev_comm.c;0;2
 FILE_NAME_16=0;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fspi_spidev_comm.h;0;2
-FILE_NAME_17=936;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fversion.h;0;2
+FILE_NAME_17=723;C;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FÖffentlich%2FGitHub%2Fstm8gal%2Fversion.h;0;2
 
 [VTE]
 last_dir=/home/georg/Dokumente/stm8gal/stm8gal
