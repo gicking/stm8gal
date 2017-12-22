@@ -270,7 +270,7 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 - SPI verify after write does not work (READ command only returns ACK) -> verify after write is disabled for SPI. Strangely, memory read-out works via SPI
 
-- On RasPi 3 and SPI (via spidev) communication works reliably only up to 250kBaud
+- On RasPi 3 SPI communication via spidev works reliably only up to 250kBaud. With Arduino and setup above, upload is ok up to 2MBaud
 
 ***
 
