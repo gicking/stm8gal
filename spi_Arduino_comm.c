@@ -192,12 +192,13 @@ uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char 
 
   uint8_t  Tx[150], Rx[150];
   uint8_t  lenRx, num;
+  int      i;
   
   // assemble frame
   Tx[0] = 4+lenFrame;                 // frame length
   Tx[1] = ARDUINO_CMD_SEND_RECEIVE;   // command code
   Tx[2] = CSN;                        // chip select pin
-  for (int i=0; i<lenFrame; i++) {    // copy MOSI bytes 
+  for (i=0; i<lenFrame; i++) {    // copy MOSI bytes 
     if (bufTx != NULL)
       Tx[3+i] = bufTx[i];
     else
@@ -242,14 +243,14 @@ uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char 
   
   // copy MISO bytes
   if (bufRx != NULL) {
-    for (int i=0; i<lenFrame; i++)
+    for (i=0; i<lenFrame; i++)
       bufRx[i] = Rx[2+i];
   }
   
   // debug SPI data
   #if defined(DEBUG)
     fprintf(stderr, "n  MOSI  MISO\n");
-    for (int i=0; i<lenFrame; i++)
+    for (i=0; i<lenFrame; i++)
       fprintf(stderr, "%d  0x%02x  0x%02x\n", i, Tx[3+i], Rx[2+i]);
     fprintf(stderr, "\n");  
   #endif
