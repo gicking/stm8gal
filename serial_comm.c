@@ -1282,7 +1282,7 @@ void flush_port(HANDLE fpCom) {
   
   // purge all port buffers (see http://linux.die.net/man/3/tcflush)
   tcflush(fpCom, TCIOFLUSH);
-
+  
 #endif // __APPLE__ || __unix__
 
 } // flush_port

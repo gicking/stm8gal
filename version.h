@@ -29,6 +29,7 @@
 
   v1.1.7 (2018-01-04)
     - added option to skip reset (-R 0) via commandline
+    - reset STM8 before opening port to avoid flushing issue under Linux (see https://stackoverflow.com/questions/13013387/clearing-the-serial-ports-buffer)
 
   v1.1.6 (2017-12-22)
     - fixed bug in SPI using Arduino bridge (see https://github.com/gicking/Arduino_SPI_bridge)
