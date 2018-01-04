@@ -351,6 +351,88 @@ int main(int argc, char ** argv) {
   }
 
 
+
+  ////////
+  // reset STM8
+  // Note: prior to opening port to avoid flushing issue under Linux, see https://stackoverflow.com/questions/13013387/clearing-the-serial-ports-buffer
+  ////////
+
+  // skip reset of STM8
+  if (resetSTM8 == 0) {
+
+  }
+  
+  // manually reset STM8
+  else if (resetSTM8 == 1) {
+    printf("  reset STM8 and press <return>");
+    fflush(stdout);
+    fflush(stdin);
+    getchar();
+  }
+  
+  // HW reset STM8 using DTR line (USB/RS232)
+  else if (resetSTM8 == 2) {
+    printf("  reset via DTR ... ");
+    fflush(stdout);
+    pulse_DTR(ptrPort, 10);
+    printf("ok\n");
+    fflush(stdout);
+    SLEEP(20);                        // allow BSL to initialize
+  }
+  
+  // SW reset STM8 via command 'Re5eT!' at 115.2kBaud (requires respective STM8 SW)
+  else if (resetSTM8 == 3) {
+    set_baudrate(ptrPort, 115200);    // expect STM8 SW to receive at 115.2kBaud
+    printf("  reset via UART command ... ");
+    fflush(stdout);
+    sprintf(buf, "Re5eT!");           // reset command (same as in STM8 SW!)
+    for (i=0; i<6; i++) {
+      send_port(ptrPort, uartMode, 1, buf+i);   // send reset command bytewise to account for possible slow handling on STM8 side
+      SLEEP(10);
+    }
+    printf("ok\n");
+    fflush(stdout);
+    set_baudrate(ptrPort, baudrate);  // restore specified baudrate
+    SLEEP(20);                        // allow BSL to initialize
+  }
+  
+  // HW reset STM8 using Arduino pin 8
+  else if (resetSTM8 == 4) {
+    printf("  reset via Arduino pin %d ... ", ARDUINO_RESET_PIN);
+    fflush(stdout);
+    setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 0);
+    SLEEP(1);
+    setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 1);
+    printf("ok\n");
+    fflush(stdout);
+    SLEEP(20);                      // allow BSL to initialize
+  }
+  
+  // HW reset STM8 using header pin 12 (only Raspberry Pi!)
+  #ifdef __ARMEL__
+    else if (resetSTM8 == 5) {
+      printf("  reset via Raspi pin 12 ... ");
+      fflush(stdout);
+      pulse_GPIO(12, 20);
+      printf("ok\n");
+      fflush(stdout);
+      SLEEP(20);                      // allow BSL to initialize
+    }
+  #endif // __ARMEL__
+
+  // unknown reset method -> error
+  else {
+    setConsoleColor(PRM_COLOR_RED);
+    #ifdef __ARMEL__
+      fprintf(stderr, "\n\nerror: reset method %d not supported (0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8), 5=Raspi pin 12, exit!\n\n", resetSTM8);
+    #else
+      fprintf(stderr, "\n\nerror: reset method %d not supported (0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8), exit!\n\n", resetSTM8);
+    #endif
+    Exit(1, g_pauseOnExit);
+  }
+  
+  
+
   ////////
   // open port with given properties
   ////////
@@ -445,89 +527,13 @@ int main(int argc, char ** argv) {
   
 
   ////////
-  // reset STM8
-  ////////
-
-  // skip reset of STM8
-  if (resetSTM8 == 0) {
-
-  }
-  
-  // manually reset STM8 and press <return>
-  else if (resetSTM8 == 1) {
-    printf("  reset STM8 and press <return>");
-    fflush(stdout);
-    fflush(stdin);
-    getchar();
-  }
-  
-  // HW reset STM8 using DTR line (USB/RS232)
-  else if (resetSTM8 == 2) {
-    printf("  reset via DTR ... ");
-    fflush(stdout);
-    pulse_DTR(ptrPort, 10);
-    printf("ok\n");
-    fflush(stdout);
-    SLEEP(20);                        // allow BSL to initialize
-  }
-  
-  // SW reset STM8 via command 'Re5eT!' at 115.2kBaud (requires respective STM8 SW)
-  else if (resetSTM8 == 3) {
-    set_baudrate(ptrPort, 115200);    // expect STM8 SW to receive at 115.2kBaud
-    printf("  reset via UART command ... ");
-    fflush(stdout);
-    sprintf(buf, "Re5eT!");           // reset command (same as in STM8 SW!)
-    for (i=0; i<6; i++) {
-      send_port(ptrPort, uartMode, 1, buf+i);   // send reset command bytewise to account for possible slow handling on STM8 side
-      SLEEP(10);
-    }
-    printf("ok\n");
-    fflush(stdout);
-    set_baudrate(ptrPort, baudrate);  // restore specified baudrate
-    SLEEP(20);                        // allow BSL to initialize
-  }
-  
-  // HW reset STM8 using Arduino pin 8
-  else if (resetSTM8 == 4) {
-    printf("  reset via Arduino pin %d ... ", ARDUINO_RESET_PIN);
-    fflush(stdout);
-    setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 0);
-    SLEEP(1);
-    setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 1);
-    printf("ok\n");
-    fflush(stdout);
-    SLEEP(20);                      // allow BSL to initialize
-  }
-  
-  // HW reset STM8 using header pin 12 (only Raspberry Pi!)
-  #ifdef __ARMEL__
-    else if (resetSTM8 == 5) {
-      printf("  reset via Raspi pin 12 ... ");
-      fflush(stdout);
-      pulse_GPIO(12, 20);
-      printf("ok\n");
-      fflush(stdout);
-      SLEEP(20);                      // allow BSL to initialize
-    }
-  #endif // __ARMEL__
-
-  // unknown reset method -> error
-  else {
-    setConsoleColor(PRM_COLOR_RED);
-    #ifdef __ARMEL__
-      fprintf(stderr, "\n\nerror: reset method %d not supported (0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8), 5=Raspi pin 12, exit!\n\n", resetSTM8);
-    #else
-      fprintf(stderr, "\n\nerror: reset method %d not supported (0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8), exit!\n\n", resetSTM8);
-    #endif
-    Exit(1, g_pauseOnExit);
-  }
-  
-  
-
-  ////////
   // communicate with STM8 bootloader
   ////////
 
+  //required to make flush work, for some reason
+  usleep(200000);
+  flush_port(ptrPort);
+  
   // synchronize baudrate
   bsl_sync(ptrPort, physInterface, uartMode);
   
