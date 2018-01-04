@@ -102,7 +102,7 @@ int main(int argc, char ** argv) {
   char      portname[STRLEN];     // name of communication port
   HANDLE    ptrPort;              // handle to communication port
   int       baudrate;             // communication baudrate [Baud]
-  uint8_t   resetSTM8;            // 0=manual; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=Raspi pin 12, 4=Arduino pin 8
+  uint8_t   resetSTM8;            // reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
   uint8_t   enableBSL;            // don't enable ROM bootloader after upload (caution!)
   uint8_t   flashErase;           // erase P-flash and D-flash prior to upload
   uint8_t   jumpFlash;            // jump to flash after upload
@@ -140,7 +140,7 @@ int main(int argc, char ** argv) {
   physInterface  = 0;           // bootloader interface: 0=UART (default), 1=SPI via spidev, 2=SPI via Arduino
   uartMode   = 0;               // UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   baudrate   = 230400;          // default baudrate
-  resetSTM8  = 0;               // don't automatically reset STM8
+  resetSTM8  = 1;               // manual reset of STM8
   flashErase = 0;               // erase P-flash and D-flash prior to upload
   jumpFlash  = 1;               // jump to flash after uploade
   enableBSL  = 1;               // enable bootloader after upload
@@ -203,7 +203,7 @@ int main(int argc, char ** argv) {
       }
     }
 
-    // reset STM8 method: 0=manual; 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=Raspi pin 12, 4=Arduino pin 8
+    // reset STM8 method: 0=skip, 1=manual; 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12
     else if (!strcmp(argv[i], "-R")) {
       if (i<argc-1) {
         sscanf(argv[++i], "%d", &j);
@@ -277,9 +277,9 @@ int main(int argc, char ** argv) {
       printf("  -b rate                communication baudrate in Baud (default: 230400)\n");
       printf("  -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex)\n");
       #ifdef __ARMEL__
-        printf("  -R ch                  reset STM8: 0=manual, 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=Raspi pin 12, 4=Arduino pin 8 (default: manual)\n");
+        printf("  -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)\n");
       #else
-        printf("  -R ch                  reset STM8: 0=manual, 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8 (default: manual)\n");
+        printf("  -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8 (default: manual)\n");
       #endif
       printf("  -e                     erase P-flash and D-flash prior to upload (default: skip)\n");
       printf("  -w infile              upload s19 or intel-hex file to flash (default: skip)\n");
@@ -448,8 +448,13 @@ int main(int argc, char ** argv) {
   // reset STM8
   ////////
 
-  // manually reset STM8 and press <return>
+  // skip reset of STM8
   if (resetSTM8 == 0) {
+
+  }
+  
+  // manually reset STM8 and press <return>
+  else if (resetSTM8 == 1) {
     printf("  reset STM8 and press <return>");
     fflush(stdout);
     fflush(stdin);
@@ -457,7 +462,7 @@ int main(int argc, char ** argv) {
   }
   
   // HW reset STM8 using DTR line (USB/RS232)
-  else if (resetSTM8 == 1) {
+  else if (resetSTM8 == 2) {
     printf("  reset via DTR ... ");
     fflush(stdout);
     pulse_DTR(ptrPort, 10);
@@ -467,7 +472,7 @@ int main(int argc, char ** argv) {
   }
   
   // SW reset STM8 via command 'Re5eT!' at 115.2kBaud (requires respective STM8 SW)
-  else if (resetSTM8 == 2) {
+  else if (resetSTM8 == 3) {
     set_baudrate(ptrPort, 115200);    // expect STM8 SW to receive at 115.2kBaud
     printf("  reset via UART command ... ");
     fflush(stdout);
@@ -482,18 +487,6 @@ int main(int argc, char ** argv) {
     SLEEP(20);                        // allow BSL to initialize
   }
   
-  // HW reset STM8 using header pin 12 (only Raspberry Pi!)
-  #ifdef __ARMEL__
-    else if (resetSTM8 == 3) {
-      printf("  reset via Raspi pin 12 ... ");
-      fflush(stdout);
-      pulse_GPIO(12, 20);
-      printf("ok\n");
-      fflush(stdout);
-      SLEEP(20);                      // allow BSL to initialize
-    }
-  #endif // __ARMEL__
-  
   // HW reset STM8 using Arduino pin 8
   else if (resetSTM8 == 4) {
     printf("  reset via Arduino pin %d ... ", ARDUINO_RESET_PIN);
@@ -505,14 +498,26 @@ int main(int argc, char ** argv) {
     fflush(stdout);
     SLEEP(20);                      // allow BSL to initialize
   }
+  
+  // HW reset STM8 using header pin 12 (only Raspberry Pi!)
+  #ifdef __ARMEL__
+    else if (resetSTM8 == 5) {
+      printf("  reset via Raspi pin 12 ... ");
+      fflush(stdout);
+      pulse_GPIO(12, 20);
+      printf("ok\n");
+      fflush(stdout);
+      SLEEP(20);                      // allow BSL to initialize
+    }
+  #endif // __ARMEL__
 
   // unknown reset method -> error
   else {
     setConsoleColor(PRM_COLOR_RED);
     #ifdef __ARMEL__
-      fprintf(stderr, "\n\nerror: reset method %d not supported (0=manual, 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 3=Raspi pin 12, 4=Arduino pin 8), exit!\n\n", resetSTM8);
+      fprintf(stderr, "\n\nerror: reset method %d not supported (0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8), 5=Raspi pin 12, exit!\n\n", resetSTM8);
     #else
-      fprintf(stderr, "\n\nerror: reset method %d not supported (0=manual, 1=DTR line (RS232), 2=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8), exit!\n\n", resetSTM8);
+      fprintf(stderr, "\n\nerror: reset method %d not supported (0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8), exit!\n\n", resetSTM8);
     #endif
     Exit(1, g_pauseOnExit);
   }
