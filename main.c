@@ -348,8 +348,17 @@ int main(int argc, char ** argv) {
       fflush(stdout);
       load_binfile(fileIn, imageIn, &imageInStart, &imageInBytes, BUFSIZE);
     }
-  }
+    
+    // print size of imported data
+    if (imageInBytes>2048)
+      printf("ok (%1.1fkB)\n", (float) imageInBytes/1024.0);
+    else if (imageInBytes>0)
+      printf("ok (%dB)\n", imageInBytes);
+    else
+      printf("ok, no data read\n");
+    fflush(stdout);
 
+  } // import hexfile
 
 
   ////////
@@ -587,7 +596,7 @@ int main(int argc, char ** argv) {
       ptr = (char*) STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19;
       ptr[STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19_len]=0;
     }
-/*
+    /*
     else if ((flashsize==128) && (versBSL==0x20)) {
       #ifdef DEBUG
         printf("header STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19 \n");
@@ -595,7 +604,7 @@ int main(int argc, char ** argv) {
       ptr = (char*) STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19;
       ptr[STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19_len]=0;
     }
-*/
+    */
     else if ((flashsize==128) && (versBSL==0x21)) {
       #ifdef DEBUG
         printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19 \n");
@@ -659,8 +668,8 @@ int main(int argc, char ** argv) {
   if (strlen(fileIn)>0) {
   
     // upload memory image to STM8
-    bsl_memWrite(ptrPort, physInterface, uartMode, imageInStart, imageInBytes, imageIn, 1);
     //export_txt("write.txt", imageIn, imageInStart, imageInBytes);   // debug
+    bsl_memWrite(ptrPort, physInterface, uartMode, imageInStart, imageInBytes, imageIn, 1);
     
     // optionally verify upload
     if (verifyUpload==1) {
