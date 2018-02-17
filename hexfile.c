@@ -99,15 +99,6 @@ void load_hexfile(const char *filename, char *buf, uint32_t bufsize) {
 
   // attach 0 to buffer to detect EOF
   buf[len++] = 0;
-  
-  // print message
-  if (len>2048)
-    printf("ok (%1.1fkB)\n", (float) len/1024.0);
-  else if (len>0)
-    printf("ok (%dB)\n", len);
-  else
-    printf("ok, no data read\n");
-  fflush(stdout);
 
 } // load_hexfile
 
@@ -148,15 +139,6 @@ void load_binfile(const char *filename, char *buf, uint32_t *addrStart, uint32_t
 
   *addrStart = 0x8000;    // fixed for all STM8 devices
   *numBytes  = len;
-  
-  // print message
-  if (len>2048)
-    printf("ok (%1.1fkB)\n", (float) len/1024.0);
-  else if (len>0)
-    printf("ok (%ldB)\n", len);
-  else
-    printf("ok, no data read\n");
-  fflush(stdout);
  
 } // load_binfile
 
@@ -318,17 +300,6 @@ void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
   Exit(1,1);      
   */
   
-  // print message
-  /*
-  if ((*numBytes)>2048)
-    printf("ok (%1.1fkB @ 0x%04x)\n", (float) (*numBytes)/1024.0, addrMin);
-  else if ((*numBytes)>0)
-    printf("ok (%dB @ 0x%04x)\n", *numBytes, addrMin);
-  else
-    printf("ok, no data read\n");
-  fflush(stdout);
-  */
-  
 } // convert_s19
 
   
@@ -411,6 +382,13 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
         chkCalc += val;                 // increase checksum
         idx+=2;                         // advance 2 chars in line
       }
+    
+      // store min/max address
+      if (addr < addrMin)
+        addrMin = addr;
+      if (addr+len-1 > addrMax)
+        addrMax = addr+len-1;
+
     } // type==0
 
     // EOF indicator
@@ -420,7 +398,7 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
     // extended address (=upper 16b of address for following data records)
     else if (type==4) {
       sprintf(tmp,"0x0000");
-      strncpy(tmp+2, line+9, 4);        // get next 4 chars as string
+      strncpy(tmp+2, line+9, 4);      // get next 4 chars as string
       sscanf(tmp, "%x", &val);        // interpret as hex data
       chkCalc += (uint8_t) (val >> 8);
       chkCalc += (uint8_t)  val;
@@ -446,20 +424,14 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
     
     // checksum
     sprintf(tmp,"0x00");
-    strncpy(tmp+2, line+idx, 2);
+    strncpy(tmp+2, line+9+2*len, 2);
     sscanf(tmp, "%x", &val);
     chkRead = val;
     
-    // assert checksum (0xFF xor (sum over all except record type)
+    // assert checksum (0xFF xor (sum over all except record type))
     chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
     if (chkCalc != chkRead)
       Error("Line %d of Intel hex file has wrong checksum (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
-    
-    // store min/max address
-    if (addr < addrMin)
-      addrMin = addr;
-    if (addr+len-1 > addrMax)
-      addrMax = addr+len-1;
     
   } // while !EOF
     
@@ -527,10 +499,14 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
     
   } // if numBytes!=0
   
+
+  // debug: print memory image
   /*
   printf("\n");
-  for (i=0; i<(*numBytes); i++)
-    printf("%3d   0x%04x   0x%02x\n", i, addrMin+i, (int) (image[i]) & 0xFF);
+  for (i=0; i<(*numBytes); i++) {
+    if (image[i])
+      printf("%3d   0x%04x   0x%02x\n", i, addrMin+i, (int) (image[i]) & 0xFF);
+  }
   printf("\n");
   Exit(1,1);      
   */

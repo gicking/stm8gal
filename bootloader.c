@@ -358,9 +358,9 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // print message
   if (verbose) {
     if (numBytes > 1024)
-      printf("  read  %1.1fkB starting from 0x%04x ", (float) numBytes/1024.0, (int) addrStart);
+      printf("  read  %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
-      printf("  read  %dB starting from 0x%04x ", numBytes, (int) addrStart);
+      printf("  read  %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) (addrStart+numBytes));
     fflush(stdout);
   }
   
@@ -549,9 +549,9 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     if (verbose) {
       if ((idx % 1024) == 0) {
         if (numBytes > 1024)
-          printf("%c  read  %1.1fkB starting from 0x%04x ", '\r', (float) idx/1024.0, (int) addrStart);
+          printf("%c  read  %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx/1024.0, (int) addrStart, (int) (addrStart+numBytes));
         else
-          printf("%c  read  %dB starting from 0x%04x ", '\r', idx, (int) addrStart);
+          printf("%c  read  %dB (0x%04x to 0x%04x) ", '\r', idx, (int) addrStart, (int) (addrStart+numBytes));
         fflush(stdout);
       }
     }
@@ -562,9 +562,9 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // print message
   if (verbose) {
     if (numBytes > 1024)
-      printf("%c  read  %1.1fkB starting from 0x%04x ... ", '\r', (float) idx/1024.0, (int) addrStart);
+      printf("%c  read  %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
-      printf("%c  read  %dB starting from 0x%04x ... ", '\r', idx, (int) addrStart);
+      printf("%c  read  %dB (0x%04x to 0x%04x) ... ", '\r', idx, (int) addrStart, (int) (addrStart+numBytes));
     printf("ok\n");
     fflush(stdout);
   }
@@ -1106,9 +1106,9 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   // print message
   if (verbose) {
     if (numBytes > 1024)
-      printf("  write %1.1fkB starting from 0x%04x ", (float) numBytes/1024.0, (int) addrStart);
+      printf("  write %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
-      printf("  write %dB starting from 0x%04x ", numBytes, (int) addrStart);
+      printf("  write %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) (addrStart+numBytes));
     fflush(stdout);
   }
   
@@ -1317,9 +1317,9 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     // print progress
     if (((idx2 % 1024) == 0) && (verbose)){
       if (numBytes > 1024)
-        printf("%c  write %1.1fkB starting from 0x%04x ", '\r', (float) idx2/1024.0, (int) addrStart);
+        printf("%c  write %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx2/1024.0, (int) addrStart, (int) (addrStart+numBytes));
       else
-        printf("%c  write %dB starting from 0x%04x ", '\r', idx2, (int) addrStart);
+        printf("%c  write %dB (0x%04x to 0x%04x) ", '\r', idx2, (int) addrStart, (int) (addrStart+numBytes));
       fflush(stdout);
     }
 
@@ -1328,9 +1328,9 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   // print message
   if (verbose) {
     if (numBytes > 1024)
-      printf("%c  write %1.1fkB starting from 0x%04x ... ok   \n", '\r', (float) idx2/1024.0, (int) addrStart);
+      printf("%c  write %1.1fkB (0x%04x to 0x%04x) ... ok   \n", '\r', (float) idx2/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
-      printf("%c  write %dB starting from 0x%04x ... ok   \n", '\r', idx2, (int) addrStart);
+      printf("%c  write %dB (0x%04x to 0x%04x) ... ok   \n", '\r', idx2, (int) addrStart, (int) (addrStart+numBytes));
     fflush(stdout);
   }
   
