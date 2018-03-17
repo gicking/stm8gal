@@ -325,9 +325,17 @@ int main(int argc, char ** argv) {
 
   // If specified import hexfile - do it early here to be able to report file read errors before others
   if (strlen(fileIn) > 0) {
-    const char *shortname = strrchr(fileIn, '/');
+    
+    // strip path from filename for readability
+    #if defined(WIN32)
+      const char *shortname = strrchr(fileIn, '\\');
+    #else
+      const char *shortname = strrchr(fileIn, '/');
+    #endif
     if (!shortname)
       shortname = fileIn;
+    else
+      shortname++;
 
     // convert to memory image, depending on file type
     const char *dot = strrchr (fileIn, '.');
