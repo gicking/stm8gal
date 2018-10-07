@@ -395,6 +395,10 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
     else if (type==1)
       continue; 
     
+    // start segment address (only relevant for 80x86 processors, ignore here) 
+    else if (type==3)
+      continue;
+    
     // extended address (=upper 16b of address for following data records)
     else if (type==4) {
       sprintf(tmp,"0x0000");
@@ -484,6 +488,10 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
       else if (type==1)
         continue; 
     
+      // start segment address (only relevant for 80x86 processors, ignore here) 
+      else if (type==3)
+        continue;
+
       // extended address (=upper 16b of address for following data records)
       else if (type==4) {
         sprintf(tmp,"0x0000");

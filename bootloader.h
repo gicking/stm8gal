@@ -51,7 +51,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode);
 uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family);
 
 /// read from microcontroller memory
-uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose);
+uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf);
 
 /// check if address exists
 uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr);
@@ -63,7 +63,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode);
 
 /// upload to microcontroller flash or RAM
-uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose);
+uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, int verbose);
 
 /// jump to flash or RAM
 uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr);

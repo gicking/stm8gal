@@ -132,21 +132,22 @@ int main(int argc, char ** argv) {
 
   
   // initialize global variables
-  g_pauseOnExit = 0;            // no wait for <return> before terminating
-  
+  g_verbose               = 2;    // high verbosity
+  g_pauseOnExit           = 0;    // no wait for <return> before terminating
+  g_backgroungOperation   = 0;    // by default assume foreground application
 
   // initialize default arguments
-  portname[0] = '\0';           // no default port name
-  physInterface  = 0;           // bootloader interface: 0=UART (default), 1=SPI via spidev, 2=SPI via Arduino
-  uartMode   = 0;               // UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
-  baudrate   = 230400;          // default baudrate
-  resetSTM8  = 1;               // manual reset of STM8
-  flashErase = 0;               // erase P-flash and D-flash prior to upload
-  jumpFlash  = 1;               // jump to flash after uploade
-  enableBSL  = 1;               // enable bootloader after upload
-  verifyUpload = 1;             // verify memory content after upload
-  fileIn[0] = '\0';             // no default file to upload to flash
-  fileOut[0] = '\0';            // no default file to download from flash
+  portname[0] = '\0';             // no default port name
+  physInterface  = 0;             // bootloader interface: 0=UART (default), 1=SPI via spidev, 2=SPI via Arduino
+  uartMode   = 0;                 // UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  baudrate   = 230400;            // default baudrate
+  resetSTM8  = 1;                 // manual reset of STM8
+  flashErase = 0;                 // erase P-flash and D-flash prior to upload
+  jumpFlash  = 1;                 // jump to flash after uploade
+  enableBSL  = 1;                 // enable bootloader after upload
+  verifyUpload = 1;               // verify memory content after upload
+  fileIn[0] = '\0';               // no default file to upload to flash
+  fileOut[0] = '\0';              // no default file to download from flash
   
   // required for strncpy()
   portname[STRLEN-1] = '\0';
@@ -164,16 +165,21 @@ int main(int argc, char ** argv) {
   }
   
   
-  // reset console color (needs to be called once for Win32)      
-  setConsoleColor(PRM_COLOR_DEFAULT);
+  // debug: print arguments
+  /*
+  printf("\n\narguments:\n");
+  for (i=0; i<argc; i++) { 
+    //printf("  %d: '%s'\n", (int) i, argv[i]);
+    printf("%s ", argv[i]);
+  }
+  printf("\n\n");
+  exit(1);
+  */
 
   ////////
   // parse commandline arguments
   ////////
   for (i=1; i<argc; i++) {
-    
-    // debug: print argument
-    //printf("arg %d: '%s'\n", (int) i, argv[i]);
     
     // interface type: 0=UART (default); 1=SPI via spidev, 2=SPI via Arduino
     if (!strcmp(argv[i], "-i")) {
@@ -251,6 +257,19 @@ int main(int argc, char ** argv) {
       jumpFlash = 0;
     }
 
+    // verbosity level (0..2)
+    else if (!strcmp(argv[i], "-V")) {
+      if (i<argc-1)
+        sscanf(argv[++i],"%d",&g_verbose);
+      if (g_verbose < 0) g_verbose = 0;
+      if (g_verbose > 2) g_verbose = 2;
+    }
+
+    // optimize for background operation, e.g. skip prompts and colors
+    else if (!strcmp(argv[i], "-B")) {
+      g_backgroungOperation = 1;
+    }
+
     // prompt for <return> prior to exit
     else if (!strcmp(argv[i], "-q")) {
       g_pauseOnExit = 1;
@@ -266,7 +285,7 @@ int main(int argc, char ** argv) {
         appname = argv[0];
       printf("\n");
 
-      printf("usage: %s [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-q]\n", appname);
+      printf("usage: %s [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]\n", appname);
       printf("  -h                     print this help\n");
       #ifdef USE_SPIDEV
         printf("  -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)\n");
@@ -287,6 +306,8 @@ int main(int argc, char ** argv) {
       printf("    -v                   don't verify code in flash after upload (default: verify)\n");
       printf("  -r start stop outfile  read memory range (in hex) to s19 file or table (default: skip)\n");
       printf("  -j                     don't jump to flash before exit (default: jump to flash)\n");
+      printf("  -V                     verbosity level 0..2 (default: 2)\n");
+      printf("  -B                     optimize for background operation, e.g. skip prompts and colors (default: forefront use)\n");
       printf("  -q                     prompt for <return> prior to exit (default: no prompt)\n");
       printf("\n");
       Exit(0, 0);
@@ -294,14 +315,20 @@ int main(int argc, char ** argv) {
 
   } // process commandline arguments
   
-  
 
   ////////
   // some parameter post-processing
   ////////
   if ((physInterface == 1) || (physInterface == 2)) uartMode = 0;     // echo mode is n/a for SPI
   if ((physInterface == 1) || (physInterface == 2)) verifyUpload = 0; // read back after writing doesn't work for SPI (don't know why)
-  
+  if (g_backgroungOperation) g_pauseOnExit = 0;                       // for background operation avoid prompt on exit
+
+
+  ////////
+  // reset console color (needs to be called once for Win32)      
+  ////////
+  setConsoleColor(PRM_COLOR_DEFAULT);
+
 
   ////////
   // print app name & version, and change console title
@@ -315,11 +342,19 @@ int main(int argc, char ** argv) {
   // if no port name is given, list all available ports and query
   ////////
   if (strlen(portname) == 0) {
-    printf("  enter comm port name ( ");
-    list_ports();
-    printf(" ): ");
-    scanf("%s", portname);
-    getchar();
+    if (!g_backgroungOperation) {
+      printf("  enter comm port name ( ");
+      list_ports();
+      printf(" ): ");
+      scanf("%s", portname);
+      getchar();
+    }
+    else {
+      printf("  available comm ports ( ");
+      list_ports();
+      printf(" ), exit!");
+      Exit(1, 0);
+    }
   } // if no comm port name
 
 
@@ -340,31 +375,42 @@ int main(int argc, char ** argv) {
     // convert to memory image, depending on file type
     const char *dot = strrchr (fileIn, '.');
     if (dot && (!strcmp(dot, ".s19") || !strcmp(dot, ".S19"))) {
-      printf("  load Motorola S-record file '%s' ... ", shortname);
+      if (g_verbose == 1)
+        printf("  load file '%s' ... ", shortname);
+      else if (g_verbose == 2)
+        printf("  load Motorola S-record file '%s' ... ", shortname);
       fflush(stdout);
       load_hexfile(fileIn, fileBufIn, BUFSIZE);
       convert_s19(fileBufIn, &imageInStart, &imageInBytes, imageIn);
     }
     else if (dot && (!strcmp(dot, ".hex") || !strcmp(dot, ".HEX") || !strcmp(dot, ".ihx") || !strcmp(dot, ".IHX"))) {
-      printf("  load Intel hex file '%s' ... ", shortname);
+      if (g_verbose == 1)
+  printf("  load file '%s' ... ", shortname);
+      else if (g_verbose == 2)
+  printf("  load Intel hex file '%s' ... ", shortname);
       fflush(stdout);
       load_hexfile(fileIn, fileBufIn, BUFSIZE);
       convert_hex(fileBufIn, &imageInStart, &imageInBytes, imageIn);
     }
     else {
-      printf("  load binary file '%s' ... ", shortname);
+      if (g_verbose == 1)
+  printf("  load file '%s' ... ", shortname);
+      else if (g_verbose == 2)
+  printf("  load binary file '%s' ... ", shortname);
       fflush(stdout);
       load_binfile(fileIn, imageIn, &imageInStart, &imageInBytes, BUFSIZE);
     }
     
     // print size of imported data
-    if (imageInBytes>2048)
-      printf("ok (%1.1fkB)\n", (float) imageInBytes/1024.0);
-    else if (imageInBytes>0)
-      printf("ok (%dB)\n", imageInBytes);
-    else
-      printf("ok, no data read\n");
-    fflush(stdout);
+    if (g_verbose > 0) {
+      if (imageInBytes>2048)
+        printf("ok (%1.1fkB)\n", (float) imageInBytes/1024.0);
+      else if (imageInBytes>0)
+        printf("ok (%dB)\n", imageInBytes);
+      else
+        printf("ok, no data read\n");
+      fflush(stdout);
+    }
 
   } // import hexfile
 
@@ -381,10 +427,16 @@ int main(int argc, char ** argv) {
   
   // manually reset STM8
   else if (resetSTM8 == 1) {
-    printf("  reset STM8 and press <return>");
-    fflush(stdout);
-    fflush(stdin);
-    getchar();
+    if (!g_backgroungOperation) {
+      printf("  reset STM8 and press <return>");
+      fflush(stdout);
+      fflush(stdin);
+      getchar();
+    }
+    else {
+      printf("  reset STM8 now\n");
+      fflush(stdout);
+    }
   }
   
   // HW reset STM8 using DTR line (USB/RS232)
@@ -457,13 +509,15 @@ int main(int argc, char ** argv) {
   // UART interface (default)
   if (physInterface == 0) {
   
-    printf("  open serial port '%s' with %gkBaud ... ", portname, (float) baudrate / 1000.0);
+    if (g_verbose == 2)
+      printf("  open serial port '%s' with %gkBaud ... ", portname, (float) baudrate / 1000.0);
     fflush(stdout);
     if (uartMode == 0)
       ptrPort = init_port(portname, baudrate, 1000, 8, 2, 1, 0, 0);   // use even parity
     else
       ptrPort = init_port(portname, baudrate, 1000, 8, 0, 1, 0, 0);   // use no parity
-    printf("ok\n");
+    if (g_verbose == 2)
+      printf("ok\n");
     fflush(stdout);
     
     // flush receive buffer
@@ -473,47 +527,61 @@ int main(int argc, char ** argv) {
   
   // SPI via spidev
   #if defined(USE_SPIDEV)
-	  else if (physInterface == 1) {
-		
-		if (baudrate < 1000000.0)
-      printf("  open SPI '%s' with %gkBaud ... ", portname, (float) baudrate / 1000.0);
-		else
-      printf("  open SPI '%s' with %gMBaud ... ", portname, (float) baudrate / 1000000.0);
-		fflush(stdout);
-		ptrPort = init_spi_spidev(portname, baudrate);
-		printf("ok\n");
-		fflush(stdout);
-	  
-	  } // SPI via spidev
+    else if (physInterface == 1) {
+  
+      if (g_verbose == 1)
+        printf("  open SPI '%s' ... ", portname);
+      else if (g_verbose == 2) {
+        if (baudrate < 1000000.0)
+          printf("  open SPI '%s' with %gkBaud ... ", portname, (float) baudrate / 1000.0);
+        else
+          printf("  open SPI '%s' with %gMBaud ... ", portname, (float) baudrate / 1000000.0);
+      }
+      fflush(stdout);
+      ptrPort = init_spi_spidev(portname, baudrate);
+      if (g_verbose >= 0)
+        printf("ok\n");
+      fflush(stdout);
+  
+    } // SPI via spidev
   #endif // USE_SPIDEV
 
-	// SPI via Arduino
-	else if (physInterface == 2) {
-		
- 		// open port
-    printf("  open Arduino port '%s' with %gkBaud SPI ... ", portname, (float) ARDUINO_BAUDRATE / 1000.0);
-		fflush(stdout);
-    ptrPort = init_port(portname, ARDUINO_BAUDRATE, 100, 8, 0, 1, 0, 0);
-		printf("ok\n");
-		fflush(stdout);
-	  
-		// wait until after Arduino bootloader
-    printf("  wait for Arduino bootloader ... ");
+  // SPI via Arduino
+  else if (physInterface == 2) {
+  
+    // open port
+    if (g_verbose == 1)
+      printf("  open Arduino port '%s' ... ", portname);
+    else if (g_verbose == 2)
+      printf("  open Arduino port '%s' with %gkBaud SPI ... ", portname, (float) ARDUINO_BAUDRATE / 1000.0);
     fflush(stdout);
-		SLEEP(2000);
-		printf("ok\n");
-		fflush(stdout);
+    ptrPort = init_port(portname, ARDUINO_BAUDRATE, 100, 8, 0, 1, 0, 0);
+    if (g_verbose > 0)
+      printf("ok\n");
+    fflush(stdout);
+    
+    // wait until after Arduino bootloader
+    if (g_verbose == 2)
+      printf("  wait for Arduino bootloader ... ");
+    fflush(stdout);
+    SLEEP(2000);
+    if (g_verbose == 2)
+      printf("ok\n");
+    fflush(stdout);
 
     // init SPI interface and set NSS pin to high
-    if (baudrate < 1000000L)
-      printf("  init SPI with %gkBaud... ", (float) baudrate / 1000.0);
-    else
-      printf("  init SPI with %gMBaud... ", (float) baudrate / 1000000.0);
+    if (g_verbose == 2) {
+      if (baudrate < 1000000L)
+        printf("  init SPI with %gkBaud... ", (float) baudrate / 1000.0);
+      else
+        printf("  init SPI with %gMBaud... ", (float) baudrate / 1000000.0);
+    }
     fflush(stdout);
     setPin_Arduino(ptrPort, ARDUINO_CSN_PIN, 1);
     configSPI_Arduino(ptrPort, baudrate, ARDUINO_MSBFIRST, ARDUINO_SPI_MODE0);
-		printf("ok\n");
-		fflush(stdout);
+    if (g_verbose == 2)
+      printf("ok\n");
+    fflush(stdout);
 
   } // SPI via Arduino
 
@@ -536,7 +604,7 @@ int main(int argc, char ** argv) {
     Tx[0] = i;
     send_port(ptrPort, 1, Tx);
     receive_port(ptrPort, 1, Rx);
-	printf("%d  %d\n", (int) Tx[0], (int) Rx[0]);
+  printf("%d  %d\n", (int) Tx[0], (int) Rx[0]);
   }
   printf("ok\n");
   Exit(1,0);
@@ -655,10 +723,12 @@ int main(int argc, char ** argv) {
 
       convert_s19(ptr, &ramImageStart, &numRamBytes, ramImage);
 
-      printf("  Uploading RAM routines ... ");
+      if (g_verbose == 2)
+        printf("  Uploading RAM routines ... ");
       fflush(stdout);
-      bsl_memWrite(ptrPort, physInterface, uartMode, ramImageStart, numRamBytes, ramImage, 0);
-      printf("ok (%dB from 0x%04x)\n", numRamBytes, ramImageStart);
+      bsl_memWrite(ptrPort, physInterface, uartMode, ramImageStart, numRamBytes, ramImage, -1);
+      if (g_verbose == 2)
+        printf("ok (%dB from 0x%04x)\n", numRamBytes, ramImageStart);
       fflush(stdout);
     }
   
@@ -677,11 +747,11 @@ int main(int argc, char ** argv) {
   
     // upload memory image to STM8
     //export_txt("write.txt", imageIn, imageInStart, imageInBytes);   // debug
-    bsl_memWrite(ptrPort, physInterface, uartMode, imageInStart, imageInBytes, imageIn, 1);
+    bsl_memWrite(ptrPort, physInterface, uartMode, imageInStart, imageInBytes, imageIn, g_verbose);
     
     // optionally verify upload
     if (verifyUpload==1) {
-      bsl_memRead(ptrPort, physInterface, uartMode, imageInStart, imageInBytes, imageOut, 1);
+      bsl_memRead(ptrPort, physInterface, uartMode, imageInStart, imageInBytes, imageOut);
       //export_txt("read.txt", imageOut, imageInStart, imageInBytes);   // debug
       printf("  verify memory ... ");
       for (i=0; i<imageInBytes; i++) {
@@ -697,10 +767,12 @@ int main(int argc, char ** argv) {
     
     // enable ROM bootloader after upload (option bytes always on same address)
     if (enableBSL==1) {
-      printf("  activate bootloader ... ");
+      if (g_verbose == 2)
+        printf("  activate bootloader ... ");
       fflush(stdout);
-      bsl_memWrite(ptrPort, physInterface, uartMode, 0x487E, 2, (char*)"\x55\xAA", 0);
-      printf("ok\n");
+      bsl_memWrite(ptrPort, physInterface, uartMode, 0x487E, 2, (char*)"\x55\xAA", -1);
+      if (g_verbose == 2)
+        printf("ok\n");
       fflush(stdout);
     }
   
@@ -718,7 +790,7 @@ int main(int argc, char ** argv) {
       shortname = fileOut;
 
     // read memory
-    bsl_memRead(ptrPort, physInterface, uartMode, imageOutStart, imageOutBytes, imageOut, 1);
+    bsl_memRead(ptrPort, physInterface, uartMode, imageOutStart, imageOutBytes, imageOut);
   
     // save to file, depending on file type
     const char *dot = strrchr (fileOut, '.');
@@ -746,10 +818,21 @@ int main(int argc, char ** argv) {
 
   // jump to flash start address after done (reset vector always on same address)
   if (jumpFlash) {
-    if ((physInterface==1) || (physInterface==2))       // don't know why, but seems to be required for SPI
+
+    // don't know why, but seems to be required for SPI
+    if ((physInterface==1) || (physInterface==2))
       SLEEP(500);
+    
+    // jumpt to application
+    if (g_verbose == 2)
+      printf("  jump to address 0x%04x ... ", (int) PFLASH_START);
+    fflush(stdout);
     bsl_jumpTo(ptrPort, physInterface, uartMode, PFLASH_START);
-  }
+    if (g_verbose == 2)
+      printf("ok\n");
+    fflush(stdout);
+  
+  } // jump to flash
 
   ////////
   // clean up and exit

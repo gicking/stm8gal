@@ -28,7 +28,8 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=-1
+current_page=0
+FILE_NAME_0=0;Python;0;EUTF-8;0;1;0;%2Fhome%2Fgeorg%2FDokumente%2Fpython%2Fmodules%2FmuBoardRC%2FmuBoardRC.py;0;2
 
 [VTE]
 last_dir=/home/georg/Dokumente/stm8gal/stm8gal

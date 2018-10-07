@@ -19,13 +19,17 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (1<<6) | (7<<1) | 1)     // -> v1.1.6
+#define VERSION     ((1<<14) | (1<<6) | (8<<1) | 1)     // -> v1.1.8
 
 #endif // _SW_VERSION_H_
 
 
 /********************
  *  add description of changes below
+
+  v1.1.8 (2018-10-07)
+    - add option for background operation for IDE usage. Skip prompts and setting console color & title
+    - add different verbosity levels (0..2) for IDE usage
 
   v1.1.7 (2018-01-04)
     - added option to skip reset (-R 0) via commandline

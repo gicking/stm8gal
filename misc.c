@@ -16,6 +16,7 @@
 #include <unistd.h>
 #include "version.h"
 #include "misc.h"
+#include "globals.h"
 
 
 // WIN32 specific
@@ -96,7 +97,7 @@ void Exit(uint8_t code, uint8_t pause) {
   setConsoleColor(PRM_COLOR_DEFAULT);
 
   // optionally prompt for <return>
-  if (pause) {
+  if ((pause) && (!g_backgroungOperation)) {
     printf("\npress <return> to exit");
     fflush(stdout);
     fflush(stdin);
@@ -226,6 +227,11 @@ void get_app_name(char *in, uint16_t vers, char *out) {
 #if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
 void setConsoleTitle(const char *title) {
   
+  // for background operation skip to avoid strange control characters 
+  if (g_backgroungOperation)
+    return;
+
+
 #if defined(WIN32)
   SetConsoleTitle(title);
 
@@ -255,6 +261,11 @@ void setConsoleTitle(const char *title) {
 */
 void setConsoleColor(uint8_t color) {
   
+  // for background operation skip to avoid strange control characters 
+  if (g_backgroungOperation)
+    return;
+
+
 #if defined(WIN32)
 
   static WORD                   oldColor, colorBck;
