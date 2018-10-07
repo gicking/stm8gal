@@ -39,9 +39,14 @@
   #define global extern
 #endif
 
+/// verbosity level (0..2)
+global int            g_verbose;
+
 /// wait for \<return\> prior to closing console window
 global uint8_t        g_pauseOnExit;
 
+/// optimize for background operation, e.g. skip prompts and colors
+global uint8_t        g_backgroungOperation;
 
 // undefine global again
 #undef global

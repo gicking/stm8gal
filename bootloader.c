@@ -42,7 +42,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
 
   // print message
   printf("  synchronize ... ");
-    fflush(stdout);
+  fflush(stdout);
   
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -130,7 +130,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
 
 
 /**
-  \fn uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers)
+  \fn uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family)
    
   \brief get microcontroller type and BSL version (for correct w/e routines)
    
@@ -153,7 +153,9 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   char  Tx[1000], Rx[1000];
 
   // print message
-  printf("  determine device ... "); fflush(stdout);
+  if (g_verbose == 2)
+    printf("  determine device ... ");
+  fflush(stdout);
 
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -319,10 +321,18 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   *vers = Rx[2];
   
   // print message
-  if (*family == STM8S)
-    printf("ok (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
-  else
-    printf("ok (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+  if (g_verbose == 1) {
+    if (*family == STM8S)
+      printf("  found STM8S; %dkB flash; BSL v%x.%x\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+    else
+      printf("  found STM8L; %dkB flash; BSL v%x.%x\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+  }
+  else if (g_verbose == 2) {
+    if (*family == STM8S)
+      printf("ok (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+    else
+      printf("ok (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+  }
   fflush(stdout);
   
   // avoid compiler warnings
@@ -333,7 +343,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 
 
 /**
-  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf)
+  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf) 
    
   \brief read from microcontroller memory
    
@@ -343,12 +353,12 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   \param[in] addrStart      starting address to read from
   \param[in] numBytes       number of bytes to read
   \param[in] buf            buffer to store data to
-  
+
   \return communication status (0=ok, 1=fail)
   
   read from microcontroller memory via READ command
 */
-uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose) {
+uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -356,13 +366,22 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
 
 
   // print message
-  if (verbose) {
+  if (g_verbose == 2) {
     if (numBytes > 1024)
       printf("  read  %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
       printf("  read  %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) (addrStart+numBytes));
-    fflush(stdout);
   }
+  else if (g_verbose == 1) {
+    if (numBytes > 1024)
+      printf("  read  %1.1fkB ", (float) numBytes/1024.0);
+    else
+      printf("  read  %dB ", numBytes);
+  }
+  else if (g_verbose == 0) {
+    printf("  read ");
+  }
+  fflush(stdout);
   
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -546,28 +565,47 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     }
     
     // print progress
-    if (verbose) {
-      if ((idx % 1024) == 0) {
+    if ((idx % 1024) == 0) {
+      if (g_verbose == 2) {
         if (numBytes > 1024)
           printf("%c  read  %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx/1024.0, (int) addrStart, (int) (addrStart+numBytes));
         else
           printf("%c  read  %dB (0x%04x to 0x%04x) ", '\r', idx, (int) addrStart, (int) (addrStart+numBytes));
-        fflush(stdout);
       }
+      else if (g_verbose == 1) {
+        if (numBytes > 1024)
+          printf("%c  read  %1.1fkB ", '\r', (float) idx/1024.0);
+        else
+          printf("%c  read  %dB ", '\r', idx);
+      }
+      else if (g_verbose == 0) {
+        printf(".");
+      }
+      fflush(stdout);
     }
 
   } // loop over address range 
   
   
   // print message
-  if (verbose) {
+  if (g_verbose == 2) {
     if (numBytes > 1024)
       printf("%c  read  %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
       printf("%c  read  %dB (0x%04x to 0x%04x) ... ", '\r', idx, (int) addrStart, (int) (addrStart+numBytes));
     printf("ok\n");
-    fflush(stdout);
   }
+  else if (g_verbose == 1) {
+    if (numBytes > 1024)
+      printf("%c  read  %1.1fkB ... ", '\r', (float) idx/1024.0);
+    else
+      printf("%c  read  %dB ... ", '\r', idx);
+    printf("ok\n");
+  }
+  else if (g_verbose == 0) {
+    printf(" ok\n");
+  }
+  fflush(stdout);
   
   
   // debug: print buffer
@@ -1080,7 +1118,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
 
 
 /**
-  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf)
+  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, int verbose)
    
   \brief upload to microcontroller flash or RAM
    
@@ -1090,13 +1128,13 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   \param[in] addrStart      starting address to upload to
   \param[in] numBytes       number of bytes to upload
   \param[in] buf            buffer containing data
-  \param[in] verbose        print output to console?
+  \param[in] verbose        verbosity of console output (-1=none)
   
   \return communication status (0=ok, 1=fail)
   
   upload data to microcontroller memory via WRITE command
 */
-uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, uint8_t verbose) {
+uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, int verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -1104,13 +1142,21 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   uint8_t   chk, flagEmpty;
 
   // print message
-  if (verbose) {
+  if (verbose == 2) {
     if (numBytes > 1024)
       printf("  write %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
       printf("  write %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) (addrStart+numBytes));
-    fflush(stdout);
   }
+  else if (verbose == 1) {
+    if (numBytes > 1024)
+      printf("  write %1.1fkB ", (float) numBytes/1024.0);
+    else
+      printf("  write %dB ", numBytes);
+  }
+  else if (verbose == 0)
+    printf("  write ");
+  fflush(stdout);
   
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -1315,24 +1361,42 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     }
     
     // print progress
-    if (((idx2 % 1024) == 0) && (verbose)){
-      if (numBytes > 1024)
-        printf("%c  write %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx2/1024.0, (int) addrStart, (int) (addrStart+numBytes));
-      else
-        printf("%c  write %dB (0x%04x to 0x%04x) ", '\r', idx2, (int) addrStart, (int) (addrStart+numBytes));
+    if ((idx2 % 1024) == 0) {
+      if (verbose == 2) {
+        if (numBytes > 1024)
+          printf("%c  write %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx2/1024.0, (int) addrStart, (int) (addrStart+numBytes));
+        else
+          printf("%c  write %dB (0x%04x to 0x%04x) ", '\r', idx2, (int) addrStart, (int) (addrStart+numBytes));
+      }
+      else if (verbose == 1) {
+        if (numBytes > 1024)
+          printf("%c  write %1.1fkB ", '\r', (float) idx2/1024.0);
+        else
+          printf("%c  write %dB ", '\r', idx2);
+      }
+      else if (verbose == 0)
+        printf(".");
       fflush(stdout);
     }
-
+    
   } // loop over address range 
   
   // print message
-  if (verbose) {
+  if (verbose == 2) {
     if (numBytes > 1024)
       printf("%c  write %1.1fkB (0x%04x to 0x%04x) ... ok   \n", '\r', (float) idx2/1024.0, (int) addrStart, (int) (addrStart+numBytes));
     else
       printf("%c  write %dB (0x%04x to 0x%04x) ... ok   \n", '\r', idx2, (int) addrStart, (int) (addrStart+numBytes));
-    fflush(stdout);
   }
+  else if (verbose == 1) {
+    if (numBytes > 1024)
+      printf("%c  write %1.1fkB ... ok   \n", '\r', (float) idx2/1024.0);
+    else
+      printf("%c  write %dB ... ok   \n", '\r', idx2);
+  }
+  else if (verbose == 0)
+    printf(" ok\n");
+  fflush(stdout);
   
   // avoid compiler warnings
   return(0);
@@ -1363,10 +1427,6 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
   char      Tx[1000], Rx[1000];
 
 
-  // print message
-  printf("  jump to address 0x%04x ... ", (int) addr);
-  fflush(stdout);
-  
   // init receive buffer
   for (i=0; i<1000; i++)
     Rx[i] = 0;
@@ -1478,10 +1538,6 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
   }
 
     
-  // print message
-  printf("ok\n");
-  fflush(stdout);
-  
   // avoid compiler warnings
   return(0);
   
