@@ -89,7 +89,7 @@ Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested.
 
 _stm8gal_ is a commandline tool without graphical interface (volunteers...?). The application is called from the command line or via shell script using the following syntax:
 
-`stm8gal [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-q]`
+`stm8gal [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]`
 
     -h                     print this help
     -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)
@@ -103,6 +103,8 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
       -v                   don't verify code in flash after upload (default: verify)
     -r start stop outfile  read memory range (in hex) to s19 file or table (default: skip)
     -j                     don't jump to flash before exit (default: jump to flash)
+    -V                     verbosity level 0..2 (default: 2)
+    -B                     optimize for background operation, e.g. skip prompts and colors (default: forefront use)
     -q                     prompt for <return> prior to exit (default: no prompt)
 
 ***
@@ -275,6 +277,12 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 ***
 
 # Revision History
+
+v1.1.8 (2018-10-07)
+  - add option for background operation for IDE usage. Skip prompts and setting console color & title
+  - add different verbosity levels (0..2) for IDE usage
+
+----------------
 
 v1.1.7 (2018-01-04)
   - added option to skip reset (-R 0) via commandline
