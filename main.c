@@ -42,9 +42,9 @@
   #include <errno.h>    /* Error number definitions */
   #include <dirent.h>
   #include <sys/ioctl.h>
-  #ifdef __ARMEL__
+  #if defined(__ARMEL__) && defined(USE_WIRING)
     #include <wiringPi.h>       // for reset via GPIO
-  #endif // __ARMEL__
+  #endif // __ARMEL__ && USE_WIRING
 
 #else
   #error OS not supported
@@ -295,7 +295,7 @@ int main(int argc, char ** argv) {
       printf("  -p port                name of communication port (default: list available ports)\n");
       printf("  -b rate                communication baudrate in Baud (default: 230400)\n");
       printf("  -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex)\n");
-      #ifdef __ARMEL__
+      #if defined(__ARMEL__) && defined(USE_WIRING)
         printf("  -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)\n");
       #else
         printf("  -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8 (default: manual)\n");
@@ -478,7 +478,7 @@ int main(int argc, char ** argv) {
   }
   
   // HW reset STM8 using header pin 12 (only Raspberry Pi!)
-  #ifdef __ARMEL__
+  #if defined(__ARMEL__) && defined(USE_WIRING)
     else if (resetSTM8 == 5) {
       printf("  reset via Raspi pin 12 ... ");
       fflush(stdout);
@@ -487,7 +487,7 @@ int main(int argc, char ** argv) {
       fflush(stdout);
       SLEEP(20);                      // allow BSL to initialize
     }
-  #endif // __ARMEL__
+  #endif // __ARMEL__ && USE_WIRING
 
   // unknown reset method -> error
   else {

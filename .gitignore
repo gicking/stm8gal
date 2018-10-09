@@ -21,8 +21,8 @@
 *.dylib
 
 # Executables
-stm8gal
-*.exe
+#stm8gal
+#*.exe
 *.out
 *.app
 *.i*86
