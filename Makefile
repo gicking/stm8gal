@@ -21,8 +21,8 @@ endif
 # add optional GPIO reset via wiringPi library (Raspberry only) 
 UNAME_M := $(shell uname -m)
 ifneq ($(filter arm%,$(UNAME_M)),)
-  CFLAGS  += -DUSE_WIRING
-  LDFLAGS += -lwiringPi
+  #CFLAGS  += -DUSE_WIRING
+  #LDFLAGS += -lwiringPi
 endif
 
 

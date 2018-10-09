@@ -16,9 +16,9 @@
 #include "serial_comm.h"
 #include "misc.h"
 #include "globals.h"
-#ifdef __ARMEL__
+#if defined(__ARMEL__) && defined(USE_WIRING)
   #include <wiringPi.h>       // for reset via GPIO
-#endif // __ARMEL__
+#endif // __ARMEL__ && USE_WIRING
 
 
 
