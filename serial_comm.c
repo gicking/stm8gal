@@ -1149,7 +1149,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 #ifdef WIN32
 
   DWORD     numChars, numTmp;
-  uint32_t  i, numRx;
+  uint32_t  i;
   
   // for UART reply mode with 2-wire interface echo each received bytes -> SLOW
   if (uartMode==2) {
