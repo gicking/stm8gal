@@ -294,7 +294,7 @@ int main(int argc, char ** argv) {
       #endif
       printf("  -p port                name of communication port (default: list available ports)\n");
       printf("  -b rate                communication baudrate in Baud (default: 230400)\n");
-      printf("  -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex)\n");
+      printf("  -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex). For details see setion 2 in UM0560 AppNote\n");
       #if defined(__ARMEL__) && defined(USE_WIRING)
         printf("  -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)\n");
       #else

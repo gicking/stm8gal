@@ -17,3 +17,8 @@ stm8gal_windows32.exe
   - built on Windows Vista (32 Bit)
   - skip -DUSE_SPIDEV   -> no upload via SPI (not supported)
   - skip -DUSE_WIRINGPI -> no reset via GPIO and WiringPi  
+
+stm8gal_windows64.exe
+  - built on Windows 10 (64 Bit)
+  - skip -DUSE_SPIDEV   -> no upload via SPI (not supported)
+  - skip -DUSE_WIRINGPI -> no reset via GPIO and WiringPi  
