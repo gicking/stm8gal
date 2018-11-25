@@ -98,7 +98,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
     -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)
     -p port                name of communication port (default: list available ports)
     -b rate                communication baudrate in Baud (default: 230400)
-    -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex)
+    -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex). For details see setion 2 in UM0560 AppNote
     -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
     -e                     erase P-flash and D-flash prior to upload (default: skip)
     -w infile              upload s19 or intel-hex file to flash (default: skip)
