@@ -7,8 +7,8 @@ REM set path to flash loader, COM port number, etc.
 set LOADER=".\stm8gal.exe"
 set PORT=6
 set ADDRSTART="0x8000"
-set ADDRSTOP="0x8002"
-set OUTFILE=".\dump.s19"
+set ADDRSTOP="0x8100"
+set OUTFILE=".\dump.txt"
 
 REM set UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
 set MODE=0
@@ -22,15 +22,8 @@ REM set BAUD=57600
 REM set BAUD=115200 
 set BAUD=230400 
 
-echo.
-echo.
-echo enter STM8 bootloader and press return
-echo.
-echo.
-PAUSE 
-
 REM use flash loader to read out memory
-%LOADER% -p COM%PORT% -b %BAUD% -u %MODE% -r %ADDRSTART% %ADDRSTOP% %OUTFILE% -Q
+%LOADER% -p COM%PORT% -b %BAUD% -u %MODE% -r %ADDRSTART% %ADDRSTOP% %OUTFILE% -V 2
 
 echo.
 PAUSE 
