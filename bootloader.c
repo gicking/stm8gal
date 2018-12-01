@@ -362,21 +362,23 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
-  uint32_t  addrTmp, addrStep, idx=0;
+  uint32_t  addrTmp, addrStep, addrEnd, idx=0;
 
+  // for printing progress
+  addrEnd = addrStart+numBytes-1;
 
   // print message
   if (g_verbose == 2) {
     if (numBytes > 1024)
-      printf("  read  %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) (addrStart+numBytes));
+      printf("  read %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) addrEnd);
     else
-      printf("  read  %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) (addrStart+numBytes));
+      printf("  read %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) addrEnd);
   }
   else if (g_verbose == 1) {
     if (numBytes > 1024)
-      printf("  read  %1.1fkB ", (float) numBytes/1024.0);
+      printf("  read %1.1fkB ", (float) numBytes/1024.0);
     else
-      printf("  read  %dB ", numBytes);
+      printf("  read %dB ", numBytes);
   }
   else if (g_verbose == 0) {
     printf("  read ");
@@ -402,7 +404,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // loop over addresses in <=256B steps
   idx = 0;
   addrStep = 256;
-  for (addrTmp=addrStart; addrTmp<addrStart+numBytes; addrTmp+=addrStep) {  
+  for (addrTmp=addrStart; addrTmp<=addrEnd; addrTmp+=addrStep) {  
     
     // if addr too close to end of range reduce stepsize
     if (addrTmp+256 > addrStart+numBytes)
@@ -568,15 +570,15 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     if ((idx % 1024) == 0) {
       if (g_verbose == 2) {
         if (numBytes > 1024)
-          printf("%c  read  %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx/1024.0, (int) addrStart, (int) (addrStart+numBytes));
+          printf("%c  read %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrEnd);
         else
-          printf("%c  read  %dB (0x%04x to 0x%04x) ", '\r', idx, (int) addrStart, (int) (addrStart+numBytes));
+          printf("%c  read %dB (0x%04x to 0x%04x) ", '\r', idx, (int) addrStart, (int) addrEnd);
       }
       else if (g_verbose == 1) {
         if (numBytes > 1024)
-          printf("%c  read  %1.1fkB ", '\r', (float) idx/1024.0);
+          printf("%c  read %1.1fkB ", '\r', (float) idx/1024.0);
         else
-          printf("%c  read  %dB ", '\r', idx);
+          printf("%c  read %dB ", '\r', idx);
       }
       else if (g_verbose == 0) {
         printf(".");
@@ -590,9 +592,9 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // print message
   if (g_verbose == 2) {
     if (numBytes > 1024)
-      printf("%c  read  %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) (addrStart+numBytes));
+      printf("%c  read %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrEnd);
     else
-      printf("%c  read  %dB (0x%04x to 0x%04x) ... ", '\r', idx, (int) addrStart, (int) (addrStart+numBytes));
+      printf("%c  read %dB (0x%04x to 0x%04x) ... ", '\r', idx, (int) addrStart, (int) addrEnd);
     printf("ok\n");
   }
   else if (g_verbose == 1) {
