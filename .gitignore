@@ -43,6 +43,7 @@ STM8_Datasheets/*
 tool_validation.*
 
 # Others
+dump.txt
 .DS_Store
 *.rel
 #*.asm
