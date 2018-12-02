@@ -84,7 +84,7 @@ Note: Windows commandline (cmd.exe) requires a path on a mounted drive, i.e. pat
 
 Same as for Linux above. However, for double-click rename files "*.sh" to "*.command"
  
-Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested. Therefore, please provide feedback if you have experience with _stm8gal_ on a Mac. Thanks! 
+Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested. Therefore, please provide feedback if you have experience with _stm8gal_ on a Mac. Also a Mac binary for distribution is highly appreciated. Thanks! 
  
 ***
 
@@ -92,13 +92,12 @@ Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested.
 
 _stm8gal_ is a commandline tool without graphical interface (volunteers...?). The application is called from the command line or via shell script using the following syntax:
 
-`stm8gal [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]`
+`stm8gal [-h] [-i interface] [-p port] [-b rate] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]`
 
     -h                     print this help
     -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)
     -p port                name of communication port (default: list available ports)
-    -b rate                communication baudrate in Baud (default: 230400)
-    -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex). For details see setion 2 in UM0560 AppNote
+    -b rate                communication baudrate in Baud (default: 19200)
     -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
     -e                     erase P-flash and D-flash prior to upload (default: skip)
     -w infile              upload s19 or intel-hex file to flash (default: skip)
@@ -107,7 +106,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
     -r start stop outfile  read memory range (in hex) to s19 file or table (default: skip)
     -j                     don't jump to flash before exit (default: jump to flash)
     -V                     verbosity level 0..2 (default: 2)
-    -B                     optimize for background operation, e.g. skip prompts and colors (default: forefront use)
+    -B                     optimize for background operation, e.g. skip prompts and colors (default: interactive use)
     -q                     prompt for <return> prior to exit (default: no prompt)
 
 ***
@@ -150,9 +149,9 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 2. software usage:
 
-   -`stm8gal -p /dev/ttyAMA0 -b 57600 -u 2 -w main.ihx -R 3`   (RasPi 1+2)
+   -`stm8gal -p /dev/ttyAMA0 -b 57600 -w main.ihx -R 3`   (RasPi 1+2)
    
-   -`stm8gal -p /dev/serial0 -b 57600 -u 2 -w main.ihx -R 3`   (RasPi 3)
+   -`stm8gal -p /dev/serial0 -b 57600 -w main.ihx -R 3`   (RasPi 3)
 
 ***
 
@@ -271,15 +270,23 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 ***
 
-# Known Issues / Limitations
+# Limitations
 
 - SPI verify after write does not work (READ command only returns ACK) -> verify after write is disabled for SPI. Strangely, memory read-out works via SPI
 
 - On RasPi 3 SPI communication via spidev works reliably only up to 250kBaud. With Arduino and setup above, upload is ok up to 2MBaud
 
+- UART reply mode seems to work reliably only up to 33.4kBaud
+
 ***
 
 # Revision History
+
+v1.2.0b (2018-12-02)
+  - add automatic UART mode detection (duplex, 1-wire, 2-wire reply). See [UART mode issue](https://github.com/gicking/stm8gal/issues/7)
+  - changed default UART baudrate to 19.2kBaud due to 1-wire speed limitation
+
+----------------
 
 v1.1.8 (2018-10-07)
   - add option for background operation for IDE usage. Skip prompts and setting console color & title
