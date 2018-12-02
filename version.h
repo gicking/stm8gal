@@ -19,13 +19,17 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (1<<6) | (8<<1) | 1)     // -> v1.1.8
+#define VERSION     ((1<<14) | (2<<6) | (0<<1) | 0)     // -> v1.2.0b
 
 #endif // _SW_VERSION_H_
 
 
 /********************
  *  add description of changes below
+
+  v1.2.0b (2018-12-02)
+    - add automatic UART mode detection (duplex, 1-wire, 2-wire reply). See https://github.com/gicking/stm8gal/issues/7 
+    - changed default UART baudrate to 19.2kBaud due to 1-wire speed limitation
 
   v1.1.8 (2018-10-07)
     - add option for background operation for IDE usage. Skip prompts and setting console color & title
