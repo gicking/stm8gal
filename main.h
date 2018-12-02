@@ -16,5 +16,7 @@
 #ifndef _MAIN_H_
 #define _MAIN_H_
 
+#define TIMEOUT  1000
+#define RETRY    15
 
 #endif // _MAIN_H_
