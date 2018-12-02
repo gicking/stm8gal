@@ -58,3 +58,4 @@ dump.txt
 *.wed
 *.cdb
 *.ihx
+/stm8gal.exe
