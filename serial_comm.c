@@ -136,9 +136,9 @@ void list_ports(void) {
   \brief open comm port
    
   \param[in] port       name of port as string
-  \param[in] baudrate   comm port speed in Baud
+  \param[in] baudrate   comm port speed in Baud (must be supported by port)
   \param[in] timeout    timeout between chars in ms
-  \param[in] numBits    number of data bits per byte
+  \param[in] numBits    number of data bits per byte (7 or 8)
   \param[in] parity     parity control by HW (0=none, 1=odd, 2=even)
   \param[in] numStop    number of stop bits (1=1; 2=2; other=1.5)
   \param[in] RTS        Request To Send (required for some multimeter optocouplers)
@@ -147,11 +147,9 @@ void list_ports(void) {
   \return           handle to comm port
   
   open comm port for communication, set properties (baudrate, timeout,...). 
-  Note: baudrate must be supported by COM port driver. 
 */
 HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
 
-  
 /////////
 // Win32
 /////////
@@ -159,9 +157,6 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 
   char          port_tmp[100];
   HANDLE        fpCom = NULL;
-  DCB           fDCB;
-  BOOL          fSuccess;
-  COMMTIMEOUTS  fTimeout;
     
   // required to allow COM ports >COM9
   sprintf(port_tmp,"\\\\.\\%s", port);    
@@ -184,64 +179,6 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 
   // reset COM port error buffer
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
-  
-  // get the current port configuration
-  fSuccess = GetCommState(fpCom, &fDCB);
-  if (!fSuccess) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_port(%s)': get port attributes failed with code %d, exit!\n\n", port, (int) GetLastError());
-    Exit(1, g_pauseOnExit);
-  }
-
-
-  // change port settings
-  fDCB.BaudRate = baudrate;         // set the baud rate (19200, 57600, 115200)
-  fDCB.ByteSize = numBits;          // number of data bits per byte
-  if (parity) {
-    fDCB.fParity = TRUE;            // Enable parity checking
-    fDCB.Parity  = parity;          // 0-4=no,odd,even,mark,space
-  }
-  else {
-    fDCB.fParity  = FALSE;          // disable parity checking
-    fDCB.Parity   = NOPARITY;       // just to make sure
-  }
-  if (numStop == 1) 
-    fDCB.StopBits = ONESTOPBIT;     // one stop bit
-  else if (numStop == 2) 
-    fDCB.StopBits = TWOSTOPBITS;    // two stop bit
-  else
-    fDCB.StopBits = ONE5STOPBITS;   // 1.5 stop bit
-  fDCB.fRtsControl = (RTS != 0);    // RTS off(=0=-12V) or on(=1=+12V)
-  fDCB.fDtrControl = (DTR != 0);    // DTR off(=0=-12V) or on(=1=+12V)
-
-  // set new COM state
-  fSuccess = SetCommState(fpCom, &fDCB);
-  if (!fSuccess) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_port(%s)': set port attributes failed with code %d, exit!\n\n", port, (int) GetLastError());
-    Exit(1, g_pauseOnExit);
-  }
-
-
-  // set timeouts for port to avoid hanging of program. For simplicity set all timeouts to same value.
-  // For timeout=0 set values to query for buffer content
-  if (timeout == 0)
-    fTimeout.ReadIntervalTimeout        = MAXDWORD;    // --> no read timeout
-  else
-    fTimeout.ReadIntervalTimeout        = 0;           // max. ms between following read bytes (0=not used)
-  fTimeout.ReadTotalTimeoutMultiplier   = 0;           // time per read byte (use contant timeout instead)
-  fTimeout.ReadTotalTimeoutConstant     = timeout;     // total read timeout in ms
-  fTimeout.WriteTotalTimeoutMultiplier  = 0;           // time per write byte (use contant timeout instead) 
-  fTimeout.WriteTotalTimeoutConstant    = timeout;
-  fSuccess = SetCommTimeouts(fpCom, &fTimeout);
-  if (!fSuccess) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_port(%s)': set port timeout failed with code %d, exit!\n\n", port, (int) GetLastError());
-    Exit(1, g_pauseOnExit);
-  }
-
-  // return hande
-  return(fpCom);
 
 #endif // WIN32
 
@@ -252,8 +189,6 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 #if defined(__APPLE__) || defined(__unix__) 
 
   HANDLE          fpCom;
-  struct termios  toptions;
-  int             status;
 
   // open port
   fpCom = open(port, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
@@ -263,117 +198,14 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
     fprintf(stderr, "\n\nerror in 'init_port(%s)': open port failed, exit!\n\n", port);
     Exit(1, g_pauseOnExit);
   }
-  //fcntl(fpCom, F_SETFL, O_RDWR);    // makes communication VERY slow -> skip
+
+#endif // __APPLE__ || __unix__
   
-  // get attributes
-  if (tcgetattr(fpCom, &toptions) < 0) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_port(%s)': get port attributes failed, exit!\n\n", port);
-    Exit(1, g_pauseOnExit);
-  }
-
-  // set baudrate
-  speed_t brate = baudrate; // let you override switch below if needed
-  switch(baudrate) {
-#ifdef B4800
-    case 4800:   brate=B4800;   break;
-#endif
-#ifdef B9600
-    case 9600:   brate=B9600;   break;
-#endif
-#ifdef B14400
-    case 14400:  brate=B14400;  break;
-#endif
-#ifdef B19200
-    case 19200:  brate=B19200;  break;
-#endif
-#ifdef B28800
-    case 28800:  brate=B28800;  break;
-#endif
-#ifdef B38400
-    case 38400:  brate=B38400;  break;
-#endif
-#ifdef B57600
-    case 57600:  brate=B57600;  break;
-#endif
-#ifdef B115200
-    case 115200: brate=B115200; break;
-#endif
-#ifdef B230400
-    case 230400: brate=B230400; break;
-#endif
-    default: 
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'init_port(%s)': unsupported baudrate %d Baud, exit!\n\n", port, (int) baudrate);
-      Exit(1, g_pauseOnExit);
-  }
-  cfmakeraw(&toptions);
-  cfsetispeed(&toptions, brate);    // receive
-  cfsetospeed(&toptions, brate);    // send
-
-  if (numBits == 7)
-    toptions.c_cflag |=  CS7;       // 8 data bits
-  else
-    toptions.c_cflag |=  CS8;       // 8 data bits
-  if (parity == 0)
-    toptions.c_cflag &= ~PARENB;    // 0=no parity
-  else if (parity==1) {             // 1=odd parity
-    toptions.c_cflag |=  PARENB;
-    toptions.c_cflag |=  PARODD;
-  }
-  else if (parity==2) {             // even parity
-    toptions.c_cflag |=  PARENB;
-    toptions.c_cflag &=  ~PARODD;
-  }
-  if (numStop == 1) 
-    toptions.c_cflag &= ~CSTOPB;    // one stop bit
-  else
-    toptions.c_cflag |= CSTOPB;     // two stop bit
-  //toptions.c_cflag &= ~CSIZE;       // clear data bits entry. Doesn't work on RasPi -> skip
-
-  // disable flow control
-  toptions.c_cflag &= ~CRTSCTS;
-  toptions.c_cflag |= CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
-  toptions.c_iflag &= ~(IXON | IXOFF | IXANY); // turn off s/w flow ctrl
-
-  // make raw
-  toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
-  toptions.c_oflag &= ~OPOST; // make raw
-  
-  // set timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
-  toptions.c_cc[VMIN]  = 255;
-  toptions.c_cc[VTIME] = timeout/100;   // convert ms to 0.1s
-
-  // set term properties
-  if (tcsetattr(fpCom, TCSANOW | TCSAFLUSH, &toptions) < 0) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_port(%s)': set port attributes failed, exit!\n\n", port);
-    Exit(1, g_pauseOnExit);
-  }
-
-  // set static RTS and DTR status (required for some multimeter optocouplers)
-  ioctl(fpCom, TIOCMGET, &status);
-  if (RTS==1)
-    status |= TIOCM_RTS;
-  else
-    status &= ~TIOCM_RTS;
-  if (DTR==1)
-    status |= TIOCM_DTR;
-  else
-    status &= ~TIOCM_DTR;
-  if (ioctl(fpCom, TIOCMSET, &status)) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_port(%s)': cannot set RTS status, exit!\n\n", port);
-    Exit(1, g_pauseOnExit);
-  }
-
-  // wait 10ms
-  usleep(10000);
+  // set port attributes
+  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
   
   // return comm port handle
   return fpCom;
-
-#endif // __APPLE__ || __unix__
 
 } // init_port
 
@@ -537,9 +369,9 @@ void pulse_GPIO(int pin, uint32_t duration) {
   \param[in]  fpCom      handle to comm port
   \param[out] baudrate   comm port speed in Baud
   \param[out] timeout    timeout between chars in ms
-  \param[out] numBits    number of data bits per byte
-  \param[out] parity     parity control by HW
-  \param[out] numStop    number of stop bits
+  \param[out] numBits    number of data bits per byte (7 or 8)
+  \param[out] parity     parity control by HW (0=none, 1=odd, 2=even)
+  \param[out] numStop    number of stop bits (1=1; 2=2; 3=1.5)
   \param[out] RTS        Request To Send (required for some multimeter optocouplers)
   \param[out] DTR        Data Terminal Ready (required for some multimeter optocouplers)
 
@@ -567,7 +399,10 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   // get port settings
   *baudrate = fDCB.BaudRate;        // baud rate (19200, 57600, 115200)
   *numBits  = fDCB.ByteSize;        // number of data bits per byte
-  *parity   = fDCB.Parity;          // parity bit by HW
+  if (fDCB.fParity == FALSE)        // parity bit (0=none, 1=odd, 2=even)
+    *parity = 0;
+  else
+    *parity   = fDCB.Parity;
   *numStop  = fDCB.StopBits;        // number of stop bits
   if (fDCB.StopBits == ONESTOPBIT) 
     *numStop = 1;                      // 1 stop bit
@@ -598,14 +433,12 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   struct termios  toptions;
   int             status;
   
-  
   // get attributes
   if (tcgetattr(fpCom, &toptions) < 0) {
     setConsoleColor(PRM_COLOR_RED);
     fprintf(stderr, "\n\nerror in 'get_port_attribute': get port attributes failed, exit!\n\n");
     Exit(1, g_pauseOnExit);
   }
-  
   
   // get baudrate
   speed_t brate = cfgetospeed(&toptions);
@@ -652,12 +485,15 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
     *numBits = 7;
   
   
-  // get parity
-  if (toptions.c_cflag & PARENB)
-    *parity = 1;
-  else
+  // get parity bit
+  if (!(toptions.c_cflag & PARENB))
     *parity = 0;
-  
+  else {
+    if (toptions.c_cflag & PARODD)
+      *parity = 1;
+    else
+      *parity = 2;
+  }
   
   // get number of stop bits
   if (toptions.c_cflag | CSTOPB)
@@ -691,9 +527,9 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   \param[in] fpCom      handle to comm port
   \param[in] baudrate   comm port speed in Baud
   \param[in] timeout    timeout between chars in ms
-  \param[in] numBits    number of data bits per byte
-  \param[in] parity     parity control by HW
-  \param[in] numStop    number of stop bits
+  \param[in] numBits    number of data bits per byte (7 or 8)
+  \param[in] parity     parity control by HW (0=none, 1=odd, 2=even)
+  \param[in] numStop    number of stop bits (1=1; 2=2; 3=1.5)
   \param[in] RTS        Request To Send (required for some multimeter optocouplers)
   \param[in] DTR        Data Terminal Ready (required for some multimeter optocouplers)
 
@@ -821,15 +657,39 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
       fprintf(stderr, "\n\nerror in 'set_port_attribute()': unsupported baudrate %d Baud, exit!\n\n", (int) baudrate);
       Exit(1, g_pauseOnExit);
   }
+  cfmakeraw(&toptions);
   cfsetispeed(&toptions, brate);    // receive
   cfsetospeed(&toptions, brate);    // send
   
+  // number of data bits
   if (numBits == 7)
     toptions.c_cflag |=  CS7;       // 8 data bits
-  else
+  else if (numBits == 8)
     toptions.c_cflag |=  CS8;       // 8 data bits
-  toptions.c_cflag &= ~PARENB;      // no parity
-  //toptions.c_cflag |=  PARENB;    // with parity
+  else {
+    setConsoleColor(PRM_COLOR_RED);
+    fprintf(stderr, "\n\nerror in 'set_port_attribute()': unknown number of data bits %d, exit!\n\n", (int) numBits);
+    Exit(1, g_pauseOnExit);
+  }
+
+  // parity bit (0=none, 1=odd, 2=even)
+  if (parity == 0)
+    toptions.c_cflag &= ~PARENB;    // 0=no parity
+  else if (parity==1) {             // 1=odd parity
+    toptions.c_cflag |=  PARENB;
+    toptions.c_cflag |=  PARODD;
+  }
+  else if (parity==2) {             // even parity
+    toptions.c_cflag |=  PARENB;
+    toptions.c_cflag &=  ~PARODD;
+  }
+  else {
+    setConsoleColor(PRM_COLOR_RED);
+    fprintf(stderr, "\n\nerror in 'set_port_attribute()': unknown parity %d, exit!\n\n", (int) parity);
+    Exit(1, g_pauseOnExit);
+  }
+
+  // number of stop bits
   if (numStop == 1)
     toptions.c_cflag &= ~CSTOPB;    // one stop bit
   else
@@ -881,178 +741,86 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
 
 
 /**
-  \fn void set_baudrate(HANDLE fpCom, uint32_t baudrate)
+  \fn void set_baudrate(HANDLE fpCom, uint32_t Baudrate)
    
   \brief modify comm port baudrate
    
   \param[in] fpCom      handle to comm port
-  \param[in] baudrate   new comm port speed in Baud
+  \param[in] Baudrate   new comm port speed in Baud (must be supported by port)
 
-  set new baudrate for an already open comm port. Baudrate must be supported by PC driver.
+  set new baudrate for an already open comm port.
 */
-void set_baudrate(HANDLE fpCom, uint32_t baudrate) {
+void set_baudrate(HANDLE fpCom, uint32_t Baudrate) {
   
-/////////
-// Win32
-/////////
-#ifdef WIN32
+  uint32_t   baudrate, timeout;
+  uint8_t    numBits, parity, numStop, RTS, DTR;
 
-  DCB       fDCB;
-  BOOL      fSuccess;
+  // read port setting
+  get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
+  
+  // set new baudrate
+  baudrate = Baudrate;
 
-  // get the current port configuration
-  fSuccess = GetCommState(fpCom, &fDCB);
-  if (!fSuccess) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'set_baudrate(%d)': get port attributes failed with code %d, exit!\n\n", (int) baudrate, (int) GetLastError());
-    Exit(1, g_pauseOnExit);
-  }
-
-  // change port settings
-  fDCB.BaudRate = baudrate;     // set the baud rate (19200, 57600, 115200)
-  fSuccess = SetCommState(fpCom, &fDCB);
-  if (!fSuccess) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'set_baudrate(%d)': set port attributes failed with code %d, exit!\n\n", (int) baudrate, (int) GetLastError());
-    Exit(1, g_pauseOnExit);
-  }
-
-#endif // WIN32
-
-
-/////////
-// Posix
-/////////
-#if defined(__APPLE__) || defined(__unix__) 
-
-  struct termios  toptions;
-    
-  // get attributes
-  if (tcgetattr(fpCom, &toptions) < 0) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'set_baudrate(%d)': get port attributes failed, exit!\n\n", (int) baudrate);
-    Exit(1, g_pauseOnExit);
-  }
-
-  // set baudrate
-  speed_t brate = baudrate; // let you override switch below if needed
-  switch(baudrate) {
-#ifdef B4800
-    case 4800:   brate=B4800;   break;
-#endif
-#ifdef B9600
-    case 9600:   brate=B9600;   break;
-#endif
-#ifdef B14400
-    case 14400:  brate=B14400;  break;
-#endif
-#ifdef B19200
-    case 19200:  brate=B19200;  break;
-#endif
-#ifdef B28800
-    case 28800:  brate=B28800;  break;
-#endif
-#ifdef B38400
-    case 38400:  brate=B38400;  break;
-#endif
-#ifdef B57600
-    case 57600:  brate=B57600;  break;
-#endif
-#ifdef B115200
-    case 115200: brate=B115200; break;
-#endif
-#ifdef B230400
-    case 230400: brate=B230400; break;
-#endif
-    default: 
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'set_baudrate()': unsupported baudrate %d Baud, exit!\n\n", (int) baudrate);
-      Exit(1, g_pauseOnExit);
-  }
-  cfsetispeed(&toptions, brate);    // receive
-  cfsetospeed(&toptions, brate);    // send
-
-  // set term properties
-  if( tcsetattr(fpCom, TCSANOW, &toptions) < 0) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'set_baudrate(%d)': set port attributes failed, exit!\n\n", (int) baudrate);
-    Exit(1, g_pauseOnExit);
-  }
-
-#endif // __APPLE__ || __unix__
+  // change port setting
+  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
 
 } // set_baudrate
 
 
 
 /**
-  \fn void set_timeout(HANDLE fpCom, uint32_t timeout)
+  \fn void set_timeout(HANDLE fpCom, uint32_t Timeout)
    
   \brief modify comm port timeout
    
   \param[in] fpCom      handle to comm port
-  \param[in] timeout    new timeout in ms
+  \param[in] Timeout    new timeout in ms
 
   set new timeout for an already open comm port
 */
-void set_timeout(HANDLE fpCom, uint32_t timeout) {
+void set_timeout(HANDLE fpCom, uint32_t Timeout) {
+  
+  uint32_t   baudrate, timeout;
+  uint8_t    numBits, parity, numStop, RTS, DTR;
 
-/////////
-// Win32
-/////////
-#ifdef WIN32
+  // read port setting
+  get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
+  
+  // set new timeout
+  timeout = Timeout;
 
-  BOOL          fSuccess;
-  COMMTIMEOUTS  fTimeout;
-
-  // set timeouts for port to avoid hanging of program. For simplicity set all timeouts to same value.
-  // For timeout=0 set values to query for buffer content
-  if (timeout == 0)
-    fTimeout.ReadIntervalTimeout        = MAXDWORD;    // --> no read timeout
-  else
-    fTimeout.ReadIntervalTimeout        = 0;           // max. ms between following read bytes (0=not used)
-  fTimeout.ReadTotalTimeoutMultiplier   = 0;           // time per read byte (use contant timeout instead)
-  fTimeout.ReadTotalTimeoutConstant     = timeout;     // total read timeout in ms
-  fTimeout.WriteTotalTimeoutMultiplier  = 0;           // time per write byte (use contant timeout instead) 
-  fTimeout.WriteTotalTimeoutConstant    = timeout;
-  fSuccess = SetCommTimeouts(fpCom, &fTimeout);
-  if (!fSuccess) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'set_timeout(%d)': set timeout failed with code %d, exit!\n\n", (int) timeout, (int) GetLastError());
-    Exit(1, g_pauseOnExit);
-  }
-
-#endif // WIN32
-
-
-/////////
-// Posix
-/////////
-#if defined(__APPLE__) || defined(__unix__) 
-
-  struct termios  toptions;
-    
-  // get attributes
-  if (tcgetattr(fpCom, &toptions) < 0) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'set_timeout(%d)': get port attributes failed, exit!\n\n", (int) timeout);
-    Exit(1, g_pauseOnExit);
-  }
-
-  // set timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
-  toptions.c_cc[VMIN]  = 255;
-  toptions.c_cc[VTIME] = timeout/100;   // convert ms to 0.1s
-    
-  // set term properties
-  if( tcsetattr(fpCom, TCSANOW, &toptions) < 0) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'set_timeout(%d)': set port attributes failed, exit!\n\n", (int) timeout);
-    Exit(1, g_pauseOnExit);
-  }
-
-#endif // __APPLE__ || __unix__
+  // change port setting
+  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
 
 } // set_timeout
+
+
+
+/**
+  \fn void set_parity(HANDLE fpCom, uint8_t Parity)
+   
+  \brief modify comm port parity
+   
+  \param[in] fpCom      handle to comm port
+  \param[in] Parity     parity control by HW (0=none, 1=odd, 2=even)
+
+  set new parity for an already open comm port
+*/
+void set_parity(HANDLE fpCom, uint8_t Parity) {
+
+  uint32_t   baudrate, timeout;
+  uint8_t    numBits, parity, numStop, RTS, DTR;
+
+  // read port setting
+  get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
+  
+  // set new parity
+  parity = Parity;
+
+  // change port setting
+  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+
+} // set_parity
 
 
 
