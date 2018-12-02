@@ -21,24 +21,26 @@
 
 
 /**
-  \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode)
+  \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t &uartMode)
    
   \brief synchronize to microcontroller BSL
    
-  \param[in] ptrPort        handle to communication port
-  \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI
+  \param[out] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
 
   \return synchronization status (0=ok, 1=fail)
   
-  synchronize to microcontroller BSL, e.g. baudrate. If already synchronized
-  checks for NACK
+  synchronize to microcontroller BSL, e.g. baudrate and UART mode
+  checks for NACK.
 */
-uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
+uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
   
   int   i, count;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
+  bool  singleWire = false;
+
 
   // print message
   printf("  synchronize ... ");
@@ -55,23 +57,23 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
     Exit(1, g_pauseOnExit);
   }
   
-  
   // purge UART input buffer
-  if (physInterface == 0) {
+  if (physInterface == 0)
     flush_port(ptrPort); 
-  }
+
   
-  // construct SYNC command
+  // construct SYNC command. Note: SYNC has even parity -> works in all modes
   lenTx = 1;
   Tx[0] = SYNCH;
   lenRx = 1;  
   
   count = 0;
+  *uartMode = 255;
   do {
     
     // send command
     if (physInterface == 0)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+      len   = send_port(ptrPort, 0, lenTx, Tx);
     #if defined(USE_SPIDEV)
       else if (physInterface == 1)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
@@ -85,8 +87,13 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
     }
         
     // receive response
-    if (physInterface == 0)
-      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    if (physInterface == 0) {
+      len = receive_port(ptrPort, 0, lenRx, Rx);
+      if ((len==1) && (Rx[0]== SYNCH)) {              // check for 1-wire echo 
+        singleWire = true;
+        len = receive_port(ptrPort, 0, lenRx, Rx);
+      }
+    }
     #if defined(USE_SPIDEV)
       else if (physInterface == 1)
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
@@ -100,8 +107,8 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
     // avoid flooding the STM8
     SLEEP(10);
     
-  } while ((count<15) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
-  
+  } while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
+
   // check if ok
   if ((len==lenRx) && (Rx[0]==ACK)) {
     printf("ok (ACK)\n");
@@ -122,6 +129,101 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
     Exit(1, g_pauseOnExit);
   }
 
+
+  
+  // determine UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  if (physInterface == 0) {
+    
+    // print message
+    if (g_verbose >= 1)
+      printf("  get UART mode ... ");
+    fflush(stdout);
+  
+    // 1-wire -> UART mode 1 (no SW reply, no parity)
+    if (singleWire) {
+      set_parity(ptrPort, 0);
+      *uartMode = 1;
+    }      
+
+    // 2-wire -> check reply mode & parity
+    else {
+
+      // construct command
+      lenTx = 2;
+      Tx[0] = GET;
+      Tx[1] = (Tx[0] ^ 0xFF);
+      lenRx = 1;
+
+      // check for 0=duplex (no SW reply, even parity)
+      set_parity(ptrPort, 2);
+      len = send_port(ptrPort, 0, lenTx, Tx);
+      len = receive_port(ptrPort, 0, lenRx, Rx);
+      /*
+      printf("\nlen 1 = %d\n", (int) len);
+      for (int i=0; i<len; i++)
+        printf("  Rx[%d] = 0x%02X\n", i, Rx[i]);
+      printf("\n");
+      */
+      if ((len == lenRx) && ((Rx[0]==ACK) || (Rx[0]==NACK))) {
+        *uartMode = 0;
+        //printf("\nmode = %d\n", (int) (*uartMode));
+      }
+            
+      // check for 2=2-wire reply (with SW reply, no parity)
+      else {
+        
+      	set_parity(ptrPort, 0);
+        len = send_port(ptrPort, 2, lenTx, Tx);
+        len = receive_port(ptrPort, 2, lenRx, Rx);
+        /*
+        printf("\nlen 2 = %d\n", (int) len);
+        for (int i=0; i<len; i++)
+          printf("  Rx[%d] = 0x%02X\n", i, Rx[i]);
+        printf("\n");
+        */
+        if ((len == lenRx) && ((Rx[0]==ACK) || (Rx[0]==NACK))) {
+          *uartMode = 2;
+          //printf("\nmode = %d\n", (int) (*uartMode));
+
+	  // reply NACKs until bootloader recovers (empirically checked) 
+          Tx[0] = NACK;
+          do {
+            len = send_port(ptrPort, 0, 1, Tx);
+            len = receive_port(ptrPort, 0, 1, Rx);
+            SLEEP(10);
+          } while (len!=0);
+        }
+
+      } // 2-wire reply
+
+    } // 2-wire
+
+    // print message
+    if ((*uartMode) == 0) {
+      if (g_verbose >= 1)
+        printf("duplex\n");
+    }
+    else if ((*uartMode) == 1) {
+      if (g_verbose >= 1)
+        printf("1-wire\n");
+    }
+    else if ((*uartMode) == 2) {
+      if (g_verbose >= 1)
+        printf("2-wire reply\n");
+    }
+    else {
+      setConsoleColor(PRM_COLOR_RED);
+      fprintf(stderr, "\n\nerror in 'bsl_sync()': cannot determine UART mode, exit!\n\n");
+      Exit(1, g_pauseOnExit);
+    }
+    fflush(stdout);
+
+    // purge PC input buffer
+    flush_port(ptrPort); 
+    SLEEP(50);              // seems to be required for some reason
+      
+  } // if (physInterface == 0)
+  
   // return success
   return(0);
 
@@ -136,7 +238,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
    
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[out] flashsize      size of flashsize in kB (required for correct W/E routines)
   \param[out] vers           BSL version number (required for correct W/E routines)
   \param[out] family         STM8 family (STM8S=1, STM8L=2)
@@ -222,11 +324,10 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   #ifdef DEBUG
     printf("flash size: %d\n", (int) (*flashsize));
   #endif
-  
 
   // restore timeout to avoid timeouts during flash operation
   if (physInterface == 0) {
-    set_timeout(ptrPort, 1000);
+    set_timeout(ptrPort, TIMEOUT);
   }
 
   
@@ -349,7 +450,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
    
   \param[in] ptrPort        handle to communication port
   \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[in] addrStart      starting address to read from
   \param[in] numBytes       number of bytes to read
   \param[in] buf            buffer to store data to
@@ -599,13 +700,13 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   }
   else if (g_verbose == 1) {
     if (numBytes > 1024)
-      printf("%c  read  %1.1fkB ... ", '\r', (float) idx/1024.0);
+      printf("%c  read %1.1fkB ... ", '\r', (float) idx/1024.0);
     else
-      printf("%c  read  %dB ... ", '\r', idx);
+      printf("%c  read %dB ... ", '\r', idx);
     printf("ok\n");
   }
   else if (g_verbose == 0) {
-    printf(" ok\n");
+    printf("ok\n");
   }
   fflush(stdout);
   
@@ -636,7 +737,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
       
   \param[in] ptrPort        handle to communication port
   \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[in] addr           address to check
   
   \return communication status (0=ok, 1=fail)
@@ -820,7 +921,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   
   \param[in] ptrPort        handle to communication port
   \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[in] addr           adress within 1kB sector to erase
   
   \return communication status (0=ok, 1=fail)
@@ -912,6 +1013,9 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   // send code of sector to erase
   /////
 
+  // increase timeout for long erase
+  set_timeout(ptrPort, 1200);
+
   // construct pattern
   lenTx = 3;
   Tx[0] = 0x00;      // number of sectors to erase -1 (here only 1 sector)
@@ -960,11 +1064,13 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
     fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK2 failure, exit!\n\n");
     Exit(1, g_pauseOnExit);
   }
-
     
   // print message
   printf("ok\n");
   fflush(stdout);
+
+  // restore timeout
+  set_timeout(ptrPort, TIMEOUT);
   
   // avoid compiler warnings
   return(0);
@@ -980,7 +1086,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   
   \param[in] ptrPort        handle to communication port
   \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   
   \return communication status (0=ok, 1=fail)
   
@@ -1060,6 +1166,9 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   // send 0xFF+0x00 to trigger mass erase
   /////
 
+  // increase timeout for long erase
+  set_timeout(ptrPort, 2000);
+
   // construct pattern
   lenTx = 2;
   Tx[0] = 0xFF;
@@ -1111,6 +1220,9 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   // print message
   printf("ok\n");
   fflush(stdout);
+
+  // restore timeout
+  set_timeout(ptrPort, TIMEOUT);
   
   // avoid compiler warnings
   return(0);
@@ -1126,7 +1238,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
    
   \param[in] ptrPort        handle to communication port
   \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[in] addrStart      starting address to upload to
   \param[in] numBytes       number of bytes to upload
   \param[in] buf            buffer containing data
@@ -1414,7 +1526,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
    
   \param[in] ptrPort        handle to communication port
   \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
+  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[in] addr           address to jump to
   
   \return communication status (0=ok, 1=fail)
