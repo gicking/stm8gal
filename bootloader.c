@@ -21,26 +21,22 @@
 
 
 /**
-  \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t &uartMode)
+  \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface)
    
   \brief synchronize to microcontroller BSL
    
   \param[in]  ptrPort        handle to communication port
-  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[out] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via SPIDEV, 2=SPI via Arduino
 
   \return synchronization status (0=ok, 1=fail)
   
-  synchronize to microcontroller BSL, e.g. baudrate and UART mode
-  checks for NACK.
+  synchronize microcontroller bootloader. For UART synchronize baudrate.
 */
-uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
+uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface) {
   
   int   i, count;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
-  bool  singleWire = false;
-
 
   // print message
   printf("  synchronize ... ");
@@ -62,13 +58,12 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
     flush_port(ptrPort); 
 
   
-  // construct SYNC command. Note: SYNC has even parity -> works in all modes
+  // construct SYNC command. Note: SYNC has even parity -> works in all UART modes
   lenTx = 1;
   Tx[0] = SYNCH;
   lenRx = 1;  
   
   count = 0;
-  *uartMode = 255;
   do {
     
     // send command
@@ -89,8 +84,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
     // receive response
     if (physInterface == 0) {
       len = receive_port(ptrPort, 0, lenRx, Rx);
-      if ((len==1) && (Rx[0]== SYNCH)) {              // check for 1-wire echo 
-        singleWire = true;
+      if ((len==1) && (Rx[0]== Tx[0])) {              // check for 1-wire echo 
         len = receive_port(ptrPort, 0, lenRx, Rx);
       }
     }
@@ -129,89 +123,97 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
     Exit(1, g_pauseOnExit);
   }
 
+  // purge PC input buffer
+  flush_port(ptrPort); 
+  SLEEP(50);              // seems to be required for some reason
 
-
-  // determine UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
-  if (physInterface == 0) {
-    
-    // reduce timeout for faster check
-    set_timeout(ptrPort, 100);
-
-    // print message
-    if (g_verbose >= 1)
-      printf("  get UART mode ... ");
-    fflush(stdout);
-  
-    // 1-wire -> UART mode 1 (no SW reply, no parity)
-    if (singleWire) {
-      set_parity(ptrPort, 0);
-      *uartMode = 1;
-    }      
-
-    // 2-wire -> check reply mode & parity
-    else {
-
-      // construct GET command
-      lenTx = 2;
-      Tx[0] = GET;
-      Tx[1] = (Tx[0] ^ 0xFF);
-      lenRx = 9;
-      Rx[0] = 0x00;
-
-      // check for 0=duplex (no SW reply, even parity)
-      set_parity(ptrPort, 0);
-      len = send_port(ptrPort, 2, lenTx, Tx);
-      len = receive_port(ptrPort, 2, lenRx, Rx);
-      printf("\nlen 2 = %d 0x%02X\n", len, Rx[0]);
-      if (len)
-        *uartMode = 2;
-
-      // check for 2=2-wire reply (with SW reply, no parity)
-      else {
-        set_parity(ptrPort, 2);
-        len = send_port(ptrPort, 0, lenTx, Tx);
-        len = receive_port(ptrPort, 0, lenRx, Rx);
-        //printf("\nlen 2 = %d 0x%02X\n", len, Rx[0]);
-        if (len)
-          *uartMode = 0;
-
-      } // check 2-wire reply
-
-    } // 2-wire
-
-    // print message
-    if ((*uartMode) == 0) {
-      if (g_verbose >= 1)
-        printf("duplex\n");
-    }
-    else if ((*uartMode) == 1) {
-      if (g_verbose >= 1)
-        printf("1-wire\n");
-    }
-    else if ((*uartMode) == 2) {
-      if (g_verbose >= 1)
-        printf("2-wire reply\n");
-    }
-    else {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_sync()': cannot determine UART mode, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
-    fflush(stdout);
-
-    // revert timeout
-    set_timeout(ptrPort, TIMEOUT);
-
-    // purge PC input buffer
-    flush_port(ptrPort); 
-    SLEEP(50);              // seems to be required for some reason
-      
-  } // if (physInterface == 0)
-  
   // return success
   return(0);
 
 } // bsl_sync
+
+
+
+/**
+  \fn uint8_t bsl_getUartMode(HANDLE ptrPort)
+   
+  \brief determine UART mode (only for UART interface)
+   
+  \param[in]  ptrPort        handle to communication port
+  
+  \return UART mode (0=duplex, 1=1-wire, 2=2-wire reply)
+  
+  query mode of UART bootloader (see UM0560). This information is required to set
+  the correct parity and determine is data needs to echoed. 
+*/
+uint8_t bsl_getUartMode(HANDLE ptrPort) {
+  
+  int   len, lenTx, lenRx;
+  char  Tx[1000], Rx[1000];
+  uint8_t uartMode = 255;
+
+  // print message
+  if (g_verbose >= 1)
+    printf("  check UART mode ... ");
+  fflush(stdout);
+  
+  // reduce timeout for faster check
+  set_timeout(ptrPort, 100);
+
+
+  // check UART mode 1 via LIN echo: 1-wire, no SW reply, no parity
+  set_parity(ptrPort, 2);
+ 
+  lenTx = 2; lenRx = 1;
+  Tx[0] = 0x00; Tx[1] = (Tx[0] ^ 0xFF); Rx[0] = 0x00;
+  do {
+    len = send_port(ptrPort, 0, lenTx, Tx);
+    len = receive_port(ptrPort, 0, lenRx, Rx);
+    //printf("\nmode 1: %d  0x%02x\n", len, Rx[0]);
+    SLEEP(10);
+  } while (len==0);
+
+  // tested empirically...
+  if (Rx[0] == ACK) {              // UART mode 0: 2-wire duplex, no SW reply, even parity
+    uartMode = 0;
+    set_parity(ptrPort, 2);
+  }
+  else if (Rx[0] == Tx[0]) {       // UART mode 1: 1-wire reply, no SW reply, no parity
+    uartMode = 1;
+    set_parity(ptrPort, 0);
+  }
+  else if (Rx[0] == NACK) {        // UART mode 2: 2-wire reply, SW reply, no parity
+    uartMode = 2;
+    set_parity(ptrPort, 0);
+  }
+  else {
+    setConsoleColor(PRM_COLOR_RED);
+    fprintf(stderr, "\n\nerror in 'bsl_getUartMode()': cannot determine UART mode, exit!\n\n");
+    Exit(1, g_pauseOnExit);
+  }
+
+  // revert timeout
+  set_timeout(ptrPort, TIMEOUT);
+
+  // purge PC input buffer
+  flush_port(ptrPort); 
+  SLEEP(50);              // seems to be required for some reason
+  
+  // print message
+  if (g_verbose >= 1) {
+    if (uartMode == 0)
+      printf("duplex\n");
+    else if (uartMode == 1)
+      printf("1-wire\n");
+    else
+      printf("2-wire reply\n");
+  }
+  fflush(stdout);
+
+  // return found mode
+  return(uartMode);
+ 
+} // bsl_getUartMode
 
 
 

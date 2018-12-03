@@ -45,7 +45,10 @@
 
 
 /// synchronize to microcontroller BSL
-uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode);
+uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface);
+
+/// determine UART mode
+uint8_t bsl_getUartMode(HANDLE ptrPort);
 
 /// get microcontroller type and BSL version
 uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family);
