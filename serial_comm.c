@@ -402,7 +402,7 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   if (fDCB.fParity == FALSE)        // parity bit (0=none, 1=odd, 2=even)
     *parity = 0;
   else
-    *parity   = fDCB.Parity;
+    *parity = fDCB.Parity;
   *numStop  = fDCB.StopBits;        // number of stop bits
   if (fDCB.StopBits == ONESTOPBIT) 
     *numStop = 1;                      // 1 stop bit

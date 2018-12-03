@@ -130,10 +130,13 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
   }
 
 
-  
+
   // determine UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   if (physInterface == 0) {
     
+    // reduce timeout for faster check
+    set_timeout(ptrPort, 100);
+
     // print message
     if (g_verbose >= 1)
       printf("  get UART mode ... ");
@@ -148,53 +151,31 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
     // 2-wire -> check reply mode & parity
     else {
 
-      // construct command
+      // construct GET command
       lenTx = 2;
       Tx[0] = GET;
       Tx[1] = (Tx[0] ^ 0xFF);
-      lenRx = 1;
+      lenRx = 9;
+      Rx[0] = 0x00;
 
       // check for 0=duplex (no SW reply, even parity)
-      set_parity(ptrPort, 2);
-      len = send_port(ptrPort, 0, lenTx, Tx);
-      len = receive_port(ptrPort, 0, lenRx, Rx);
-      /*
-      printf("\nlen 1 = %d\n", (int) len);
-      for (int i=0; i<len; i++)
-        printf("  Rx[%d] = 0x%02X\n", i, Rx[i]);
-      printf("\n");
-      */
-      if ((len == lenRx) && ((Rx[0]==ACK) || (Rx[0]==NACK))) {
-        *uartMode = 0;
-        //printf("\nmode = %d\n", (int) (*uartMode));
-      }
-            
+      set_parity(ptrPort, 0);
+      len = send_port(ptrPort, 2, lenTx, Tx);
+      len = receive_port(ptrPort, 2, lenRx, Rx);
+      printf("\nlen 2 = %d 0x%02X\n", len, Rx[0]);
+      if (len)
+        *uartMode = 2;
+
       // check for 2=2-wire reply (with SW reply, no parity)
       else {
-        
-      	set_parity(ptrPort, 0);
-        len = send_port(ptrPort, 2, lenTx, Tx);
-        len = receive_port(ptrPort, 2, lenRx, Rx);
-        /*
-        printf("\nlen 2 = %d\n", (int) len);
-        for (int i=0; i<len; i++)
-          printf("  Rx[%d] = 0x%02X\n", i, Rx[i]);
-        printf("\n");
-        */
-        if ((len == lenRx) && ((Rx[0]==ACK) || (Rx[0]==NACK))) {
-          *uartMode = 2;
-          //printf("\nmode = %d\n", (int) (*uartMode));
+        set_parity(ptrPort, 2);
+        len = send_port(ptrPort, 0, lenTx, Tx);
+        len = receive_port(ptrPort, 0, lenRx, Rx);
+        //printf("\nlen 2 = %d 0x%02X\n", len, Rx[0]);
+        if (len)
+          *uartMode = 0;
 
-	  // reply NACKs until bootloader recovers (empirically checked) 
-          Tx[0] = NACK;
-          do {
-            len = send_port(ptrPort, 0, 1, Tx);
-            len = receive_port(ptrPort, 0, 1, Rx);
-            SLEEP(10);
-          } while (len!=0);
-        }
-
-      } // 2-wire reply
+      } // check 2-wire reply
 
     } // 2-wire
 
@@ -217,6 +198,9 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t *uartMode) {
       Exit(1, g_pauseOnExit);
     }
     fflush(stdout);
+
+    // revert timeout
+    set_timeout(ptrPort, TIMEOUT);
 
     // purge PC input buffer
     flush_port(ptrPort); 
@@ -772,7 +756,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   Tx[0] = READ;
   Tx[1] = (Tx[0] ^ 0xFF);
   lenRx = 1;
-  
+
   // send command
   if (physInterface == 0)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
@@ -787,7 +771,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
     Exit(1, g_pauseOnExit);
   }
-    
+  
   // receive response
   if (physInterface == 0)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
@@ -802,7 +786,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
     Exit(1, g_pauseOnExit);
   }
-    
+
   // check acknowledge
   if (Rx[0]!=ACK) {
     setConsoleColor(PRM_COLOR_RED);
