@@ -92,12 +92,13 @@ Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested.
 
 _stm8gal_ is a commandline tool without graphical interface (volunteers...?). The application is called from the command line or via shell script using the following syntax:
 
-`stm8gal [-h] [-i interface] [-p port] [-b rate] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]`
+`stm8gal [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]`
 
     -h                     print this help
     -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)
     -p port                name of communication port (default: list available ports)
     -b rate                communication baudrate in Baud (default: 19200)
+    -u mode                UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
     -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
     -e                     erase P-flash and D-flash prior to upload (default: skip)
     -w infile              upload s19 or intel-hex file to flash (default: skip)
@@ -149,9 +150,9 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 2. software usage:
 
-   -`stm8gal -p /dev/ttyAMA0 -b 57600 -w main.ihx -R 3`   (RasPi 1+2)
+   -`stm8gal -p /dev/ttyAMA0 -w main.ihx -R 3`   (RasPi 1+2)
    
-   -`stm8gal -p /dev/serial0 -b 57600 -w main.ihx -R 3`   (RasPi 3)
+   -`stm8gal -p /dev/serial0 -w main.ihx -R 3`   (RasPi 3)
 
 ***
 
@@ -224,7 +225,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 # General Notes
 
-- bootloader programming via UART, SPI or CAN is supported by most STM8 devices. However, not all devices support each interface. A full description of the bootloaders can be found in [UM0560](http://www.st.com/st-web-ui/static/active/en/resource/technical/document/user_manual/CD00201192.pdf), including an overview of STM8 devices with respective bootloader mode:
+- bootloader programming via UART, SPI or CAN is supported by most STM8 devices. However, not all devices support each interface. A full description of the bootloaders can be found in [UM0560](http://www.st.com/st-web-ui/static/active/en/resource/technical/document/user_manual/CD00201192.pdf), including an overview of STM8 devices with respective bootloader mode. For version >=1.2.0 the UART mode can optionally be auto-detected by _stm8gal_:
 
 <p align="center"> 
   <img src="images/BSL_Modes.png">
@@ -254,7 +255,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 - The BSL can be entered only within 1s after reset or power-on. Exception are virgin devices, which remain in bootloader mode indefinitely.
 
-- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in low upload speeds.
+- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in low upload speeds. Also "reply" seems to work reliably only for <=33.4kBaud.
 
 - The STM32 uses a very similar bootloader protocol, so adapting the flasher tool for STM32 should be straightforward. However, I have no board available, but please feel free to go ahead...
 
