@@ -98,7 +98,7 @@ int main(int argc, char ** argv) {
  
   char      *appname;             // name of application without path
   uint8_t   physInterface;        // bootloader interface: 0=UART (default), 1=SPI via spidev, 2=SPI via Arduino
-  uint8_t   uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  uint8_t   uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
   char      portname[STRLEN];     // name of communication port
   HANDLE    ptrPort;              // handle to communication port
   int       baudrate;             // communication baudrate [Baud]
@@ -139,7 +139,7 @@ int main(int argc, char ** argv) {
   // initialize default arguments
   portname[0] = '\0';             // no default port name
   physInterface  = 0;             // bootloader interface: 0=UART (default), 1=SPI via spidev, 2=SPI via Arduino
-  uartMode   = 0;                 // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply. Auto-detected
+  uartMode   = 255;               // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
   baudrate   = 19200;             // default baudrate
   resetSTM8  = 1;                 // manual reset of STM8
   flashErase = 0;                 // erase P-flash and D-flash prior to upload
@@ -199,6 +199,14 @@ int main(int argc, char ** argv) {
     else if (!strcmp(argv[i], "-b")) {
       if (i<argc-1)
         sscanf(argv[++i],"%d",&baudrate);
+    }
+    
+    // UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
+    else if (!strcmp(argv[i], "-u")) {
+      if (i<argc-1) {
+        sscanf(argv[++i], "%d", &j);
+        uartMode = j;
+      }
     }
     
     // reset STM8 method: 0=skip, 1=manual; 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12
@@ -282,7 +290,7 @@ int main(int argc, char ** argv) {
         appname = argv[0];
       printf("\n");
 
-      printf("usage: %s [-h] [-i interface] [-p port] [-b rate] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]\n", appname);
+      printf("usage: %s [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]\n", appname);
       printf("  -h                     print this help\n");
       #ifdef USE_SPIDEV
         printf("  -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)\n");
@@ -291,6 +299,7 @@ int main(int argc, char ** argv) {
       #endif
       printf("  -p port                name of communication port (default: list available ports)\n");
       printf("  -b rate                communication baudrate in Baud (default: 19200)\n");
+      printf("  -u mode                UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)\n");
       #if defined(__ARMEL__) && defined(USE_WIRING)
         printf("  -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)\n");
       #else
@@ -608,10 +617,24 @@ int main(int argc, char ** argv) {
   usleep(200000);
   flush_port(ptrPort);
   
-  // synchronize baudrate. For UART also determine UART mode
-  bsl_sync(ptrPort, physInterface, &uartMode);
+  // synchronize with bootloader. For UART also sync baudrate
+  bsl_sync(ptrPort, physInterface);
   
-
+  // for UART set or auto-detect UART mode (0=duplex, 1=1-wire, 2=2-wire reply, others=auto-detect)
+  if (physInterface == 0) {
+    if (uartMode == 0)
+      set_parity(ptrPort, 2);
+    else if (uartMode == 1)
+      set_parity(ptrPort, 0);
+    else if (uartMode == 2) {
+      set_parity(ptrPort, 0);
+      buf[0] = ACK;
+      send_port(ptrPort, 0, 1, buf);    // need to reply ACK first to revert bootloader
+    }
+    else
+      uartMode = bsl_getUartMode(ptrPort);
+  } // UART interface
+  
   // get bootloader info for selecting RAM w/e routines for flash
   bsl_getInfo(ptrPort, physInterface, uartMode, &flashsize, &versBSL, &family);
 
