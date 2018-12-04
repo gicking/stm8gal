@@ -58,3 +58,4 @@ tool_validation.*
 *.cdb
 *.ihx
 /dump.txt
+/stm8gal.exe
