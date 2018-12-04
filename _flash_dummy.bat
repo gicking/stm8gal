@@ -18,7 +18,7 @@ set PORT=10
 REM set optional UART mode (0=duplex, 1=1-wire reply, 2=2-wire reply)
 REM set MODE=2
 
-REM acccording to STM8 bootloader manual section 2.1, the minimum baudrate is 4800Baud. Default is 19200
+REM acccording to STM8 bootloader manual section 2.1, the minimum baudrate is 4800Baud. Default is 19200Baud
 REM Typical baudrates are: 4800 9600 19200 38400 57600 115200 230400
 set BAUD=230400 
 
