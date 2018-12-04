@@ -22,7 +22,7 @@
 // WIN32 specific
 #if defined(WIN32)
 
-  #include "Windows.h"
+  #include "windows.h"
 
   // forground colours
   #define FG_BLACK      0
