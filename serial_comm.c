@@ -399,10 +399,7 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   // get port settings
   *baudrate = fDCB.BaudRate;        // baud rate (19200, 57600, 115200)
   *numBits  = fDCB.ByteSize;        // number of data bits per byte
-  if (fDCB.fParity == FALSE)        // parity bit (0=none, 1=odd, 2=even)
-    *parity = 0;
-  else
-    *parity = fDCB.Parity;
+  *parity   = fDCB.Parity;          // bug in Win API, see https://stackoverflow.com/questions/36411498/fparity-member-of-dcb-structure-always-false-after-a-getcommstate
   *numStop  = fDCB.StopBits;        // number of stop bits
   if (fDCB.StopBits == ONESTOPBIT) 
     *numStop = 1;                      // 1 stop bit
