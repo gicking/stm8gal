@@ -691,7 +691,7 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     toptions.c_cflag &= ~CSTOPB;    // one stop bit
   else
     toptions.c_cflag |= CSTOPB;     // two stop bit
-  toptions.c_cflag &= ~CSIZE;       // clear data bits entry
+//  toptions.c_cflag &= ~CSIZE;       // clear data bits entry
   
   // disable flow control
   toptions.c_cflag &= ~CRTSCTS;
