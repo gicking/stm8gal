@@ -29,7 +29,7 @@
 
   v1.2.0b (2018-12-02)
     - add automatic UART mode detection (duplex, 1-wire, 2-wire reply). See https://github.com/gicking/stm8gal/issues/7 
-    - changed default UART baudrate to 19.2kBaud due to 1-wire speed limitation
+    - changed default UART baudrate to 115.2kBaud due to reply-mode speed limitation
 
   v1.1.8 (2018-10-07)
     - add option for background operation for IDE usage. Skip prompts and setting console color & title
