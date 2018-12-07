@@ -3,4 +3,5 @@
 # change to current working directory
 cd `dirname $0`
 
-bash
+# open terminal, see https://askubuntu.com/questions/640096/how-do-i-check-which-terminal-i-am-using
+/etc/alternatives/x-terminal-emulator
