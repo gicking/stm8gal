@@ -469,16 +469,11 @@ int main(int argc, char ** argv) {
     SLEEP(20);                        // allow BSL to initialize
   }
   
-  // HW reset STM8 using Arduino pin 8
+  // HW reset STM8 using Arduino pin 8 -> delay until Arduino port is open 
   else if (resetSTM8 == 4) {
-    printf("  reset via Arduino pin %d ... ", ARDUINO_RESET_PIN);
-    fflush(stdout);
-    setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 0);
-    SLEEP(1);
-    setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 1);
-    printf("ok\n");
-    fflush(stdout);
-    SLEEP(20);                      // allow BSL to initialize
+    
+    // dummy
+
   }
   
   // HW reset STM8 using header pin 12 (only Raspberry Pi!)
@@ -580,6 +575,18 @@ int main(int argc, char ** argv) {
     if (g_verbose == 2)
       printf("ok\n");
     fflush(stdout);
+
+    // HW reset STM8 using Arduino pin 8 -> delay until Arduino port is open 
+    if (resetSTM8 == 4) {
+      printf("  reset via Arduino pin %d ... ", ARDUINO_RESET_PIN);
+      fflush(stdout);
+      setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 0);
+      SLEEP(1);
+      setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 1);
+      printf("ok\n");
+      fflush(stdout);
+      SLEEP(20);                      // allow BSL to initialize
+    }
 
   } // SPI via Arduino
 
