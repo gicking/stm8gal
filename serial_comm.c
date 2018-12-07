@@ -691,8 +691,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     toptions.c_cflag &= ~CSTOPB;    // one stop bit
   else
     toptions.c_cflag |= CSTOPB;     // two stop bit
-  toptions.c_cflag &= ~CSIZE;       // clear data bits entry
   
+  // set 8 data bits
+  toptions.c_cflag &= ~CSIZE;       // clear data bits entry
+  toptions.c_cflag |= CS8;          // set 8 data bits
+
   // disable flow control
   toptions.c_cflag &= ~CRTSCTS;
   toptions.c_cflag |= CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
@@ -705,7 +708,7 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   // set timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
   toptions.c_cc[VMIN]  = 255;
   toptions.c_cc[VTIME] = timeout/100;   // convert ms to 0.1s
-  
+
   // set term properties
   if (tcsetattr(fpCom, TCSANOW, &toptions) < 0) {
     setConsoleColor(PRM_COLOR_RED);
