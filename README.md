@@ -97,7 +97,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
     -h                     print this help
     -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)
     -p port                name of communication port (default: list available ports)
-    -b rate                communication baudrate in Baud (default: 19200)
+    -b rate                communication baudrate in Baud (default: 115200)
     -u mode                UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
     -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
     -e                     erase P-flash and D-flash prior to upload (default: skip)
@@ -255,7 +255,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 - The BSL can be entered only within 1s after reset or power-on. Exception are virgin devices, which remain in bootloader mode indefinitely.
 
-- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in low upload speeds. Also "reply" seems to work reliably only for <=33.4kBaud.
+- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in low upload speeds. Also "reply" seems to work reliably only up to 115.2kBaud.
 
 - The STM32 uses a very similar bootloader protocol, so adapting the flasher tool for STM32 should be straightforward. However, I have no board available, but please feel free to go ahead...
 
@@ -277,7 +277,7 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 - On RasPi 3 SPI communication via spidev works reliably only up to 250kBaud. With Arduino and setup above, upload is ok up to 2MBaud
 
-- UART reply mode seems to work reliably only up to 33.4kBaud
+- UART reply mode seems to work reliably only up to 115.2kBaud
 
 ***
 
@@ -285,7 +285,7 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 v1.2.0b (2018-12-02)
   - add automatic UART mode detection (duplex, 1-wire, 2-wire reply). See [UART mode issue](https://github.com/gicking/stm8gal/issues/7)
-  - changed default UART baudrate to 19.2kBaud due to 1-wire speed limitation
+  - changed default UART baudrate to 115.2kBaud due to 1-wire speed limitation (see [Limitations](#limitations))
 
 ----------------
 
