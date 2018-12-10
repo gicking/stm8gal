@@ -20,17 +20,20 @@
 // read next line from RAM buffer
 char *get_line(char **buf, char *line);
 
-// read hexfile into memory buffer
-void load_hexfile(const char *filename, char *buf, uint32_t bufsize);
+// read file into memory buffer
+void load_file(const char *filename, char *buf, uint32_t bufsize);
 
 // read binary file to memory image
 void load_binfile(const char *filename, char *buf, uint32_t *addrStart, uint32_t *numBytes, uint32_t bufsize);
 
 // convert s19 format in memory buffer to memory image
-void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image);
+void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize);
 
 // convert intel hex format in memory buffer to memory image
-void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image);
+void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize);
+
+// convert plain text table (hex addr / data) in memory buffer to memory image
+void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize);
 
 
 // export RAM image to file in Motorola s19 format
