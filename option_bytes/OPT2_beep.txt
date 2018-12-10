@@ -1,0 +1,3 @@
+# OPT2 alternate function remapping -> reset default
+0x4803  0x00
+0x4804  0xFF
