@@ -119,8 +119,8 @@ int main(int argc, char ** argv) {
   
   // for upload to flash
   char      fileIn[STRLEN];       // name of file to upload to STM8
-  char      *fileBufIn;           // buffer for hexfiles
-  char      *imageIn;             // memory buffer for upload hexfile
+  char      *fileBufIn;           // memory buffer for file
+  char      *imageIn;             // memory buffer for data to upload
   uint32_t  imageInStart;         // starting address of imageIn
   uint32_t  imageInBytes;         // number of bytes in imageIn
   
@@ -384,8 +384,8 @@ int main(int argc, char ** argv) {
       else if (g_verbose == 2)
         printf("  load Motorola S-record file '%s' ... ", shortname);
       fflush(stdout);
-      load_hexfile(fileIn, fileBufIn, BUFSIZE);
-      convert_s19(fileBufIn, &imageInStart, &imageInBytes, imageIn);
+      load_file(fileIn, fileBufIn, BUFSIZE);
+      convert_s19(fileBufIn, &imageInStart, &imageInBytes, imageIn, BUFSIZE);
     }
     else if (dot && (!strcmp(dot, ".hex") || !strcmp(dot, ".HEX") || !strcmp(dot, ".ihx") || !strcmp(dot, ".IHX"))) {
       if (g_verbose == 1)
@@ -393,8 +393,17 @@ int main(int argc, char ** argv) {
       else if (g_verbose == 2)
         printf("  load Intel hex file '%s' ... ", shortname);
       fflush(stdout);
-      load_hexfile(fileIn, fileBufIn, BUFSIZE);
-      convert_hex(fileBufIn, &imageInStart, &imageInBytes, imageIn);
+      load_file(fileIn, fileBufIn, BUFSIZE);
+      convert_hex(fileBufIn, &imageInStart, &imageInBytes, imageIn, BUFSIZE);
+    }
+    else if (dot && (!strcmp(dot, ".txt") || !strcmp(dot, ".TXT"))) {
+      if (g_verbose == 1)
+        printf("  load file '%s' ... ", shortname);
+      else if (g_verbose == 2)
+        printf("  load text file '%s' ... ", shortname);
+      fflush(stdout);
+      load_file(fileIn, fileBufIn, BUFSIZE);
+      convert_txt(fileBufIn, &imageInStart, &imageInBytes, imageIn, BUFSIZE);
     }
     else {
       if (g_verbose == 1)
@@ -402,7 +411,7 @@ int main(int argc, char ** argv) {
       else if (g_verbose == 2)
         printf("  load binary file '%s' ... ", shortname);
       fflush(stdout);
-      load_binfile(fileIn, imageIn, &imageInStart, &imageInBytes, BUFSIZE);
+      //xxxload_binfile(fileIn, imageIn, &imageInStart, &imageInBytes, BUFSIZE);
     }
     
     // print size of imported data
@@ -746,7 +755,7 @@ int main(int argc, char ** argv) {
       uint32_t  ramImageStart;
       uint32_t  numRamBytes;
 
-      convert_s19(ptr, &ramImageStart, &numRamBytes, ramImage);
+      convert_s19(ptr, &ramImageStart, &numRamBytes, ramImage, BUFSIZE);
 
       if (g_verbose == 2)
         printf("  Uploading RAM routines ... ");

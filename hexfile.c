@@ -66,30 +66,33 @@ char *get_line(char **buf, char *line) {
   
 
 /**
-   \fn load_hexfile(char *filename, char *buf)
+   \fn load_file(char *filename, char *buf)
    
-   \brief read hexfile into memory buffer
+   \brief read file into memory buffer
    
-   \param[in]  filename   name of hexfile to read
+   \param[in]  filename   name of file to read
    \param[out] buf        memory buffer containing file content (0-terminated)
    \param[in]  bufsize    max size of memory buffer
    
-   read hexfile from file to memory buffer. Don't interpret (is done
-   in separate routine)
+   read file from file to memory buffer. Don't interpret (is done in separate routine)
 */
-void load_hexfile(const char *filename, char *buf, uint32_t bufsize) {
+void load_file(const char *filename, char *buf, uint32_t bufsize) {
 
   FILE      *fp;
   uint32_t  len;
   
   // open file to read
   if (!(fp = fopen(filename, "rb")))
-    Error("Failed to open file");
+    Error("Failed to open file %s", filename);
      
   // get filesize
   fseek(fp, 0, SEEK_END);
   len = ftell(fp);
   fseek(fp, 0, SEEK_SET);
+
+  // check file size vs. buffer
+  if (len > bufsize)
+    Error("File %s exceeded buffer size (%d vs %d)", len, bufsize);
 
   // read file to buffer
   fread(buf, len, 1, fp);
@@ -100,64 +103,25 @@ void load_hexfile(const char *filename, char *buf, uint32_t bufsize) {
   // attach 0 to buffer to detect EOF
   buf[len++] = 0;
 
-} // load_hexfile
-
-  
-
-/**
-   \fn load_binfile(const char *filename, char *buf, uint32_t *addrStart, uint32_t *numBytes, uint32_t bufsize)
-   
-   \brief read binary into memory buffer
-   
-   \param[in]  filename   name of hexfile to read
-   \param[out] buf        memory buffer containing file content (0-terminated)
-   \param[out] addrStart  starting address (fixed @ PFLASH_START)
-   \param[out] numBytes   number of read bytes
-   \param[in]  bufsize    max size of memory buffer
-   
-   read hexfile from file to memory buffer. Don't interpret (is done
-   in separate routine)
-*/
-void load_binfile(const char *filename, char *buf, uint32_t *addrStart, uint32_t *numBytes, uint32_t bufsize)
-{
-  FILE *fp;
-  long len;
-
-  if(!(fp = fopen(filename, "rb")))
-    Error("Failed to open file");
-
-  // Get filesize
-  fseek(fp, 0, SEEK_END);
-  len = ftell(fp);
-  fseek(fp, 0, SEEK_SET);
-
-  if(len > bufsize)
-    Error("Binary file too large (%ld bytes)", len);
-
-  fread(buf, len, 1, fp);
-  fclose(fp);
-
-  *addrStart = 0x8000;    // fixed for all STM8 devices
-  *numBytes  = len;
- 
-} // load_binfile
+} // load_file
 
 
 
 /**
-   \fn void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image)
+   \fn void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize)
    
    \brief convert s19 format in memory buffer to memory image
    
    \param[in]  buf        memory buffer to read from (0-terminated)
    \param[out] addrStart  start address of image (=lowest address in hexfile)
    \param[out] numBytes   number of bytes in image
-   \param[out] image      RAM image of hexfile
+   \param[out] image      RAM image of hexfile. Index 0 corresponds to address addrStart
+   \param[in]  bufsize    maximum size of image
    
    convert memory buffer containing s19 hexfile to memory buffer. For description of 
    Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
-void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image) {
+void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize) {
   
   char      line[1000], tmp[1000], *p;
   int       linecount, idx, i;
@@ -241,12 +205,17 @@ void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
     
   } // while !EOF
       
+
   // store base address and image size
   *addrStart = addrMin;
   if ((addrMin != 0xFFFFFFFF) || (addrMax != 0x00000000))
     *numBytes  = addrMax-addrMin+1;
   else
     *numBytes  = 0;
+
+  // check for buffer overflow
+  if ((*numBytes) > bufsize)
+    Error("Buffer size exceeded (%d vs %d)", (*numBytes), bufsize);
        
   
   // 2nd run: store data to image
@@ -305,19 +274,20 @@ void convert_s19(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
   
 
 /**
-   \fn void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image)
+   \fn void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize)
    
    \brief convert intel hex format in memory buffer to memory image
    
    \param[in]  buf        memory buffer to read from (0-terminated)
    \param[out] addrStart  start address of image (=lowest address in hexfile)
    \param[out] numBytes   number of bytes in image
-   \param[out] image      RAM image of hexfile
+   \param[out] image      RAM image of hexfile. Index 0 corresponds to address addrStart
+   \param[in]  bufsize    maximum size of image
    
    convert memory buffer containing intel hexfile to memory buffer. For description of 
    Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
-void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image) {
+void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize) {
   
   char      line[1000], tmp[1000], *p;
   int       linecount, idx, i;
@@ -439,12 +409,17 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
     
   } // while !EOF
     
+
   // store base address and image size
   *addrStart = addrMin;
   if ((addrMin != 0xFFFFFFFF) || (addrMax != 0x00000000))
     *numBytes  = addrMax-addrMin+1;
   else
     *numBytes  = 0;
+
+  // check for buffer overflow
+  if ((*numBytes) > bufsize)
+    Error("Buffer size exceeded (%d vs %d)", (*numBytes), bufsize);
        
   
   // 2nd run: store data to image
@@ -535,6 +510,131 @@ void convert_hex(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image
   
 
 /**
+   \fn void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize)
+   
+   \brief convert plain text table (hex addr / data) in memory buffer to memory image
+   
+   \param[in]  buf        memory buffer to read from (0-terminated)
+   \param[out] addrStart  start address of image (=lowest address in hexfile)
+   \param[out] numBytes   number of bytes in image
+   \param[out] image      RAM image of hexfile. Index 0 corresponds to address addrStart
+   \param[in]  bufsize    maximum size of image
+   
+   convert memory buffer containing plain table (hex address / value) to memory buffer
+*/
+void convert_txt(char *buf, uint32_t *addrStart, uint32_t *numBytes, char *image, uint32_t bufsize) {
+  
+  char      line[1000], *p;
+  char      *p2, s[1000];
+  int       linecount, val;
+  uint32_t  addr, addrMin, addrMax;
+  
+  // print message (if present, strip path)
+  /*
+  printf("  convert table ... ");
+  fflush(stdout);
+  */
+  
+  // 1st run: check syntax and extract min/max addresses
+  linecount = 0;
+  addrMin = 0xFFFFFFFF;
+  addrMax = 0x00000000;
+  p = buf;
+  while (get_line(&p, line)) {
+  
+    // increase line counter
+    linecount++;
+    
+    // peek for comment and whether data is hex or dec
+    p2 = line;
+    if (p2[0] == '#')
+      continue;
+    sscanf(p2, "%x %s", &addr, s);
+    
+    // read address & data
+    if ((s[0] == '0') && ((s[1] == 'x') || (s[1] == 'X'))) {
+      sscanf(line, "%x %x", &addr, &val);
+    }
+    else {
+      sscanf(line, "%x %d", &addr, &val);
+    }
+
+    // store min/max address
+    if (addr < addrMin)
+      addrMin = addr;
+    if (addr > addrMax)
+      addrMax = addr;
+    
+  } // while !EOF
+    
+
+  // store base address and image size
+  *addrStart = addrMin;
+  if ((addrMin != 0xFFFFFFFF) || (addrMax != 0x00000000))
+    *numBytes  = addrMax-addrMin+1;
+  else
+    *numBytes  = 0;
+
+  // check for buffer overflow
+  if ((*numBytes) > bufsize)
+    Error("Buffer size exceeded (%d vs %d)", (*numBytes), bufsize);
+  
+
+  // 2nd run: store data to image
+  if (*numBytes != 0) {
+    p = buf;
+    while (get_line(&p, line)) {
+    
+      // peek whether data is hex or dec
+      p2 = line;
+      if (p2[0] == '#')
+        continue;
+      sscanf(p2, "%x %s", &addr, s);
+    
+      // read address & data
+      if ((s[0] == '0') && ((s[1] == 'x') || (s[1] == 'X'))) {
+        sscanf(line, "%x %x", &addr, &val);
+      }
+      else {
+        sscanf(line, "%x %d", &addr, &val);
+      }
+
+      // store data byte in buffer and set high byte
+      image[addr-addrMin] = (uint8_t) val;    
+      //image[addr-addrMin] = (uint16_t) val | 0xFF00;    
+    
+    } // while !EOF
+    
+  } // if numBytes!=0
+  
+
+  // debug: print memory image
+  /*
+  printf("\n");
+  for (int i=0; i<(*numBytes); i++) {
+    if (image[i])
+      printf("%3d   0x%04x   0x%02x\n", i, addrMin+i, (int) (image[i]) & 0xFF);
+  }
+  printf("\n");
+  Exit(1,1);      
+  */
+
+  // print message
+  /*
+  if ((*numBytes)>2048)
+    printf("ok (%1.1fkB @ 0x%04x)\n", (float) (*numBytes)/1024.0, addrMin);
+  else if ((*numBytes)>0)
+    printf("ok (%dB @ 0x%04x)\n", *numBytes, addrMin);
+  else
+    printf("ok, no data read\n");
+  fflush(stdout);
+  */
+
+} // convert_txt
+
+  
+
+/**
    \fn void export_s19(char *outfile, char *buf, uint32_t addrStart, uint32_t numBytes)
    
    \brief export RAM image to file in Motorola s19 format
@@ -557,10 +657,8 @@ void export_s19(char *outfile, char *buf, uint32_t addrStart, uint32_t numBytes)
 
   // open output file
   fp=fopen(outfile,"w");
-  if (!fp) {
-    fprintf(stderr, "\n\nerror in 'export_s19()': cannot create file '%s', exit!\n\n", outfile);
-    Exit(1, g_pauseOnExit);
-  }
+  if (!fp) 
+    Error("Failed to create file %s", outfile);
 
   // store in lines of 32B
   lenLine = 32;
@@ -587,29 +685,6 @@ void export_s19(char *outfile, char *buf, uint32_t addrStart, uint32_t numBytes)
   fclose(fp);
 
 } // export_s19
-
-  
-
-/**
-   \fn void export_hex(char *outfile, char *buf, uint32_t addrStart, uint32_t numBytes)
-   
-   \brief export RAM image to file in Intel hex format
-   
-   \param[in]  outfile    filename to output to
-   \param[in]  buf        RAM image to save
-   \param[in]  addrStart  first address to export
-   \param[in]  numBytes   number of bytes to export
-   
-   export RAM image to file in intel hexfile format. For description of 
-   Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
-*/
-void export_hex(char *outfile, char *buf, uint32_t addrStart, uint32_t numBytes) {
-
-  // to be done
-  fprintf(stderr, "\n\nerror in 'export_hex()': Intel Hex output not yet supported, exit!\n\n");
-  Exit(1, g_pauseOnExit);
-
-} // export_hex
 
   
 
