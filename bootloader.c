@@ -17,29 +17,28 @@
 #include "spi_spidev_comm.h"
 #include "spi_Arduino_comm.h"
 #include "misc.h"
-#include "globals.h"
 
 
 /**
-  \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface)
-   
-  \brief synchronize to microcontroller BSL
+  \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose)
    
   \param[in]  ptrPort        handle to communication port
-  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via SPIDEV, 2=SPI via Arduino
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
   \return synchronization status (0=ok, 1=fail)
   
-  synchronize microcontroller bootloader. For UART synchronize baudrate.
+  synchronize with microcontroller bootloader. For UART synchronize baudrate.
 */
-uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface) {
+uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   
   int   i, count;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
 
   // print message
-  printf("  synchronize ... ");
+  if (verbose > SILENT)
+    printf("  synchronize ... ");
   fflush(stdout);
   
   // init receive buffer
@@ -47,14 +46,11 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface) {
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_sync()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_sync()': port not open");
   
   // purge UART input buffer
-  if (physInterface == 0)
+  if (physInterface == UART)
     flush_port(ptrPort); 
 
   
@@ -67,33 +63,30 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface) {
   do {
     
     // send command
-    if (physInterface == 0)
+    if (physInterface == UART)
       len   = send_port(ptrPort, 0, lenTx, Tx);
+    else if (physInterface == SPI_ARDUINO)
+      len = send_spi_Arduino(ptrPort, lenTx, Tx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else if (physInterface == 2)
-      len = send_spi_Arduino(ptrPort, lenTx, Tx);
-    if (len != lenTx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_sync()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenTx)
+      Error("in 'bsl_sync()': sending command failed (expect %d, sent %d)", lenTx, len);
         
     // receive response
-    if (physInterface == 0) {
+    if (physInterface == UART) {
       len = receive_port(ptrPort, 0, lenRx, Rx);
       if ((len==1) && (Rx[0]== Tx[0])) {              // check for 1-wire echo 
         len = receive_port(ptrPort, 0, lenRx, Rx);
       }
     }
+    else if (physInterface == SPI_ARDUINO)
+      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
-    else if (physInterface == 2)
-      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     
     // increase retry counter
     count++;
@@ -105,23 +98,18 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface) {
 
   // check if ok
   if ((len==lenRx) && (Rx[0]==ACK)) {
-    printf("ok (ACK)\n");
-    fflush(stdout);
+    if (verbose > SILENT)
+      printf("ok (ACK)\n");
   }
   else if ((len==lenRx) && (Rx[0]==NACK)) {
-    printf("ok (NACK)\n");
-    fflush(stdout);
+    if (verbose > SILENT)
+      printf("ok (NACK)\n");
   }
-  else if (len==lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_sync()': wrong response 0x%02x from BSL, exit!\n\n", (uint8_t) (Rx[0]));
-    Exit(1, g_pauseOnExit);
-  }
-  else {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_sync()': no response from BSL, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  else if (len==lenRx)
+    Error("in 'bsl_sync()': wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
+  else
+    Error("in 'bsl_sync()': no response from BSL");
+  fflush(stdout);
 
   // purge PC input buffer
   flush_port(ptrPort); 
@@ -135,25 +123,24 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface) {
 
 
 /**
-  \fn uint8_t bsl_getUartMode(HANDLE ptrPort)
-   
-  \brief determine UART mode (only for UART interface)
+  \fn uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose)
    
   \param[in]  ptrPort        handle to communication port
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return UART mode (0=duplex, 1=1-wire, 2=2-wire reply)
   
-  query mode of UART bootloader (see UM0560). This information is required to set
-  the correct parity and determine is data needs to echoed. 
+  auto-detect UART bootloader mode (see AppNote UM0560). This information is required
+  to set the correct data parity and determine if local echo is required. 
 */
-uint8_t bsl_getUartMode(HANDLE ptrPort) {
+uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   
   int   len, lenTx, lenRx;
   char  Tx[1000], Rx[1000];
   uint8_t uartMode = 255;
 
   // print message
-  if (g_verbose >= 1)
+  if (verbose > SILENT)
     printf("  check UART mode ... ");
   fflush(stdout);
   
@@ -186,11 +173,8 @@ uint8_t bsl_getUartMode(HANDLE ptrPort) {
     uartMode = 2;
     set_parity(ptrPort, 0);
   }
-  else {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getUartMode()': cannot determine UART mode, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  else 
+    Error("in 'bsl_getUartMode()': cannot determine UART mode");
 
   // revert timeout
   set_timeout(ptrPort, TIMEOUT);
@@ -200,7 +184,7 @@ uint8_t bsl_getUartMode(HANDLE ptrPort) {
   SLEEP(50);              // seems to be required for some reason
   
   // print message
-  if (g_verbose >= 1) {
+  if (verbose > SILENT) {
     if (uartMode == 0)
       printf("duplex\n");
     else if (uartMode == 1)
@@ -218,30 +202,29 @@ uint8_t bsl_getUartMode(HANDLE ptrPort) {
 
 
 /**
-  \fn uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family)
-   
-  \brief get microcontroller type and BSL version (for correct w/e routines)
+  \fn uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose)
    
   \param[in]  ptrPort        handle to communication port
-  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
   \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[out] flashsize      size of flashsize in kB (required for correct W/E routines)
   \param[out] vers           BSL version number (required for correct W/E routines)
   \param[out] family         STM8 family (STM8S=1, STM8L=2)
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return communication status (0=ok, 1=fail)
   
   query microcontroller type and BSL version info. This information is required
   to select correct version of flash write/erase routines
 */
-uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family) {
+uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose) {
   
   int   i;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
 
   // print message
-  if (g_verbose == 2)
+  if ((verbose == INFORM) || (verbose == CHATTY))
     printf("  determine device ... ");
   fflush(stdout);
 
@@ -250,11 +233,8 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_getInfo()': port not open");
   
   
   // purge input buffer
@@ -267,52 +247,46 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   /////////
 
   // reduce timeout for faster check
-  if (physInterface == 0) {
+  if (physInterface == UART) {
     set_timeout(ptrPort, 200);
   }
   
   // check address of EEPROM. STM8L starts at 0x1000, STM8S starts at 0x4000
-  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x004000))       // STM8S
+  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x004000, SILENT))       // STM8S
   {
     *family = STM8S;
     #ifdef DEBUG
       printf("family STM8S\n");
     #endif
   }
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100))   // STM8L
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100, SILENT))   // STM8L
   {
     *family = STM8L;
     #ifdef DEBUG
       printf("family STM8L\n");
     #endif
   }
-  else {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': cannot identify family, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  else
+    Error("in 'bsl_getInfo()': cannot identify family");
 
 
   // check if adress in flash exists. Check highest flash address to determine size
-  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x047FFF))       // extreme density (256kB)
+  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x047FFF, SILENT))       // extreme density (256kB)
     *flashsize = 256;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x027FFF))  // high density (128kB)
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x027FFF, SILENT))  // high density (128kB)
     *flashsize = 128;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00FFFF))  // medium density (32kB)
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00FFFF, SILENT))  // medium density (32kB)
     *flashsize = 32;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x009FFF))  // low density (8kB)
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x009FFF, SILENT))  // low density (8kB)
     *flashsize = 8;
-  else {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': cannot identify device, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  else
+    Error("in 'bsl_getInfo()': cannot identify device");
   #ifdef DEBUG
     printf("flash size: %d\n", (int) (*flashsize));
   #endif
 
   // restore timeout to avoid timeouts during flash operation
-  if (physInterface == 0) {
+  if (physInterface == UART) {
     set_timeout(ptrPort, TIMEOUT);
   }
 
@@ -328,69 +302,47 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   lenRx = 9;
   
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_getInfo()': sending command failed (expect %d, sent %d)", lenTx, len);
     
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': ACK timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_getInfo()': ACK timeout (expect %d, received %d)", lenRx, len);
     
   // check 2x ACKs
-  if ((Rx[0]!=ACK) || (Rx[8]!=ACK)) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': ACK failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_getInfo()': start ACK failure (read 0x%2x)", Rx[0]);
+  if (Rx[8]!=ACK)
+    Error("in 'bsl_getInfo()': end ACK failure (read 0x%2x)", Rx[8]);
 
   
   // check if command codes are correct (just to be sure)
-  if (Rx[3] != GET) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong GET code (expect 0x%02x, received 0x%02x), exit!\n\n", GET, Rx[3]);
-    Exit(1, g_pauseOnExit);
-  }
-  if (Rx[4] != READ) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong READ code (expect 0x%02x, received 0x%02x), exit!\n\n", READ, Rx[4]);
-    Exit(1, g_pauseOnExit);
-  }
-  if (Rx[5] != GO) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong GO code (expect 0x%02x, received 0x%02x), exit!\n\n", GO, Rx[5]);
-    Exit(1, g_pauseOnExit);
-  }
-  if (Rx[6] != WRITE) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong WRITE code (expect 0x%02x, received 0x%02x), exit!\n\n", WRITE, Rx[6]);
-    Exit(1, g_pauseOnExit);
-  }
-  if (Rx[7] != ERASE) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_getInfo()': wrong ERASE code (expect 0x%02x, received 0x%02x), exit!\n\n", ERASE, Rx[7]);
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[3] != GET)
+    Error("in 'bsl_getInfo()': wrong GET code (expect 0x%02x, received 0x%02x)", GET, Rx[3]);
+  if (Rx[4] != READ)
+    Error("in 'bsl_getInfo()': wrong READ code (expect 0x%02x, received 0x%02x)", READ, Rx[4]);
+  if (Rx[5] != GO)
+    Error("in 'bsl_getInfo()': wrong GO code (expect 0x%02x, received 0x%02x)", GO, Rx[5]);
+  if (Rx[6] != WRITE)
+    Error("in 'bsl_getInfo()': wrong WRITE code (expect 0x%02x, received 0x%02x)", WRITE, Rx[6]);
+  if (Rx[7] != ERASE)
+    Error("in 'bsl_getInfo()': wrong ERASE code (expect 0x%02x, received 0x%02x)", ERASE, Rx[7]);
   
 // print BSL data
 #ifdef DEBUG
@@ -408,13 +360,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   *vers = Rx[2];
   
   // print message
-  if (g_verbose == 1) {
-    if (*family == STM8S)
-      printf("  found STM8S; %dkB flash; BSL v%x.%x\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
-    else
-      printf("  found STM8L; %dkB flash; BSL v%x.%x\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
-  }
-  else if (g_verbose == 2) {
+  if ((verbose == INFORM) || (verbose == CHATTY)) {
     if (*family == STM8S)
       printf("ok (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
     else
@@ -430,45 +376,44 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 
 
 /**
-  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf) 
+  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose)
    
-  \brief read from microcontroller memory
-   
-  \param[in] ptrPort        handle to communication port
-  \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
-  \param[in] addrStart      starting address to read from
-  \param[in] numBytes       number of bytes to read
-  \param[in] buf            buffer to store data to
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  addrStart      first address to read
+  \param[in]  addrStop       last address to read
+  \param[out] buf            read data as 16-bit array. HB!=0 indicates content. Index 0 corresponds to addrStart
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
   \return communication status (0=ok, 1=fail)
   
-  read from microcontroller memory via READ command
+  read from microcontroller memory via READ command.
 */
-uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf) {
+uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
-  uint32_t  addrTmp, addrStep, addrEnd, idx=0;
+  uint32_t  addrTmp, addrStep, numBytes, idx=0;
 
-  // for printing progress
-  addrEnd = addrStart+numBytes-1;
+  // get number of bytes to read
+  numBytes = addrStop - addrStart + 1;
 
   // print message
-  if (g_verbose == 2) {
-    if (numBytes > 1024)
-      printf("  read %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) addrEnd);
-    else
-      printf("  read %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) addrEnd);
+  if (verbose == SILENT) {
+    printf("  read ");
   }
-  else if (g_verbose == 1) {
+  else if (verbose == INFORM) {
     if (numBytes > 1024)
       printf("  read %1.1fkB ", (float) numBytes/1024.0);
     else
       printf("  read %dB ", numBytes);
   }
-  else if (g_verbose == 0) {
-    printf("  read ");
+  else if (verbose == CHATTY) {
+    if (numBytes > 1024)
+      printf("  read %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) addrStop);
+    else
+      printf("  read %dB (0x%04x to 0x%04x) ", (int) numBytes, (int) addrStart, (int) addrStop);
   }
   fflush(stdout);
   
@@ -477,11 +422,8 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memRead()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_memRead()': port not open");
   
   // init data buffer
   for (i=0; i<numBytes; i++)
@@ -491,7 +433,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // loop over addresses in <=256B steps
   idx = 0;
   addrStep = 256;
-  for (addrTmp=addrStart; addrTmp<=addrEnd; addrTmp+=addrStep) {  
+  for (addrTmp=addrStart; addrTmp<=addrStop; addrTmp+=addrStep) {  
     
     // if addr too close to end of range reduce stepsize
     if (addrTmp+256 > addrStart+numBytes)
@@ -509,41 +451,32 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     lenRx = 1;
   
     // send command
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = send_port(ptrPort, uartMode, lenTx, Tx);
+    else if (physInterface == SPI_ARDUINO)
+      len = send_spi_Arduino(ptrPort, lenTx, Tx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else if (physInterface == 2)
-      len = send_spi_Arduino(ptrPort, lenTx, Tx);
-    if (len != lenTx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenTx)
+      Error("in 'bsl_memRead()': sending command failed (expect %d, sent %d)", lenTx, len);
     
     // receive response
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    else if (physInterface == SPI_ARDUINO)
+      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
-    else if (physInterface == 2)
-      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-    if (len != lenRx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK1 timeout, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenRx)
+      Error("in 'bsl_memRead()': ACK1 timeout");
     
     // check acknowledge
-    if (Rx[0]!=ACK) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK1 failure 0x%2x, exit!\n\n", Rx[0]);
-      Exit(1, g_pauseOnExit);
-    }
+    if (Rx[0]!=ACK)
+      Error("in 'bsl_memRead()': ACK1 failure (read 0x%2x)", Rx[0]);
 
   
     /////
@@ -560,41 +493,32 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     lenRx = 1;
   
     // send command
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = send_port(ptrPort, uartMode, lenTx, Tx);
+    else if (physInterface == SPI_ARDUINO)
+      len = send_spi_Arduino(ptrPort, lenTx, Tx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else if (physInterface == 2)
-      len = send_spi_Arduino(ptrPort, lenTx, Tx);
-    if (len != lenTx) {      
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenTx)     
+      Error("in 'bsl_memRead()': sending address failed (expect %d, sent %d)", lenTx, len);
 
     // receive response
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    else if (physInterface == SPI_ARDUINO)
+      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
-    else if (physInterface == 2)
-      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-    if (len != lenRx) {      
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenRx)
+      Error("in 'bsl_memRead()': ACK2 timeout (expect %d, received %d)", lenRx, len);
     
     // check acknowledge
-    if (Rx[0]!=ACK) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK2 failure, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
+    if (Rx[0]!=ACK)
+      Error("in 'bsl_memRead()': ACK2 failure (read 0x%2x)", Rx[0]);
 
   
     /////
@@ -608,67 +532,60 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     lenRx = addrStep + 1;
   
     // send command
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = send_port(ptrPort, uartMode, lenTx, Tx);
+    else if (physInterface == SPI_ARDUINO)
+      len = send_spi_Arduino(ptrPort, lenTx, Tx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else if (physInterface == 2)
-      len = send_spi_Arduino(ptrPort, lenTx, Tx);
-    if (len != lenTx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': sending range failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenTx)
+      Error("in 'bsl_memRead()': sending range failed (expect %d, sent %d)", lenTx, len);
 
      
     // receive response
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    else if (physInterface == SPI_ARDUINO)
+      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1) {
+      else if (physInterface == SPI_SPIDEV) {
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
         //printf("0x%02x  0x%02x  0x%02x\n", Rx[0], Rx[1], Rx[2]); fflush(stdout); getchar();
       }
     #endif
-    else if (physInterface == 2)
-      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-    if (len != lenRx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': data timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenRx)
+      Error("in 'bsl_memRead()': data timeout (expect %d, received %d)", lenRx, len);
     
     // check acknowledge
-    if (Rx[0]!=ACK) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memRead()': ACK3 failure, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
+    if (Rx[0]!=ACK)
+      Error("in 'bsl_memRead()': ACK3 failure (read 0x%2x)", Rx[0]);
 
-    // copy data to buffer
+    // copy data to buffer. Set HB to indicate data read
     for (i=1; i<lenRx; i++) {
-      buf[idx++] = Rx[i];
+      buf[idx++] = ((uint16_t) (Rx[i]) | 0xFF00);
       //printf("%d 0x%02x\n", i, (uint8_t) (Rx[i])); fflush(stdout); getchar();
     }
     
     // print progress
     if ((idx % 1024) == 0) {
-      if (g_verbose == 2) {
-        if (numBytes > 1024)
-          printf("%c  read %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrEnd);
-        else
-          printf("%c  read %dB (0x%04x to 0x%04x) ", '\r', idx, (int) addrStart, (int) addrEnd);
+      if (verbose == SILENT) {
+        printf(".");
+        if ((idx % (10*1024)) == 0)
+          printf(" ");
       }
-      else if (g_verbose == 1) {
+      else if (verbose == INFORM) {
         if (numBytes > 1024)
           printf("%c  read %1.1fkB ", '\r', (float) idx/1024.0);
         else
           printf("%c  read %dB ", '\r', idx);
       }
-      else if (g_verbose == 0) {
-        printf(".");
+      else if (verbose == CHATTY) {
+        if (numBytes > 1024)
+          printf("%c  read %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrStop);
+        else
+          printf("%c  read %dB (0x%04x to 0x%04x) ", '\r', (int) idx, (int) addrStart, (int) addrStop);
       }
       fflush(stdout);
     }
@@ -677,21 +594,20 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   
   
   // print message
-  if (g_verbose == 2) {
-    if (numBytes > 1024)
-      printf("%c  read %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrEnd);
-    else
-      printf("%c  read %dB (0x%04x to 0x%04x) ... ", '\r', idx, (int) addrStart, (int) addrEnd);
-    printf("ok\n");
-  }
-  else if (g_verbose == 1) {
+  if (verbose == SILENT)
+    printf(" ok\n");
+  else if (verbose == INFORM) {
     if (numBytes > 1024)
       printf("%c  read %1.1fkB ... ", '\r', (float) idx/1024.0);
     else
       printf("%c  read %dB ... ", '\r', idx);
     printf("ok\n");
   }
-  else if (g_verbose == 0) {
+  else if (verbose == CHATTY) {
+    if (numBytes > 1024)
+      printf("%c  read %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrStop);
+    else
+      printf("%c  read %dB (0x%04x to 0x%04x) ... ", '\r', (int) idx, (int) addrStart, (int) addrStop);
     printf("ok\n");
   }
   fflush(stdout);
@@ -717,21 +633,20 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
 
 
 /**
-  \fn uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr)
+  \fn uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr, uint8_t verbose)
    
-  \brief check if address exists
-      
-  \param[in] ptrPort        handle to communication port
-  \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
-  \param[in] addr           address to check
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  addr           address to check
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return communication status (0=ok, 1=fail)
   
   check if microcontrolles address exists. Specifically read 1B from microcontroller 
   memory via READ command. If it fails, memory doesn't exist. Used to get STM8 type
 */
-uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr) {
+uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -742,11 +657,8 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_memCheck()': port not open");
   
 
   /////
@@ -760,41 +672,32 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   lenRx = 1;
 
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_memCheck()': sending command failed (expect %d, sent %d)", lenTx, len);
   
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_memCheck()': ACK1 timeout (expect %d, received %d)", lenRx, len);
 
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK1 failure 0x%2x, exit!\n\n", Rx[0]);
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_memCheck()': ACK1 failure (read 0x%2x)", Rx[0]);
 
   
   /////
@@ -811,34 +714,28 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   lenRx = 1;
   
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {      
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_memCheck()': sending address failed (expect %d, sent %d)", lenTx, len);
 
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {      
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_memCheck()': ACK2 timeout (expect %d, received %d)", lenRx, len);
     
   // check acknowledge -> on NACK memory cannot be read -> return 0
   if (Rx[0]!=ACK) {
@@ -857,41 +754,32 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   lenRx = 2;
   
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': sending range failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_memCheck()': sending range failed (expect %d, sent %d)", lenTx, len);
 
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': data timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_memCheck()': data timeout (expect %d, received %d)", lenRx, len);
     
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memCheck()': ACK3 failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_memCheck()': ACK3 failure (read 0x%2x)", Rx[0]);
 
   // memory read succeeded -> memory exists
   return(1);
@@ -901,20 +789,21 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
 
 /**
-  \fn uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr)
+  \fn uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr, uint8_t verbose)
    
-  \brief erase one microcontroller flash sector
-  
-  \param[in] ptrPort        handle to communication port
-  \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
-  \param[in] addr           adress within 1kB sector to erase
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  addr           adress within 1kB sector to erase
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return communication status (0=ok, 1=fail)
   
-  sector erase for microcontroller flash
+  \bug flash erase fails with timeout
+  
+  sector erase for microcontroller flash. Use with care!
 */
-uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr) {
+uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr, uint8_t verbose) {
 
   int       i;
   int       lenTx, lenRx, len;
@@ -939,11 +828,8 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_flashSectorErase()': port not open");
   
 
   /////
@@ -957,42 +843,33 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   lenRx = 1;
   
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_flashSectorErase()': sending command failed (expect %d, sent %d)", lenTx, len);
 
 
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_flashSectorErase()': ACK1 timeout (expect %d, received %d)", lenRx, len);
   
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK1 failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_flashSectorErase()': ACK1 failure (read 0x%2x)", Rx[0]);
 
   
   /////
@@ -1010,46 +887,37 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   lenRx = 1;
 
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': sending sector failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_flashSectorErase()': sending sector failed (expect %d, sent %d)", lenTx, len);
   
   
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO) {
+    SLEEP(40);                              // wait >30ms*(N=0+1) for sector erase before requesting response (see UM0560, SPI timing)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
+  }
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1) {
+    else if (physInterface == SPI_SPIDEV) {
       SLEEP(40);                              // wait >30ms*(N=0+1) for sector erase before requesting response (see UM0560, SPI timing)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
     }
   #endif
-  else if (physInterface == 2) {
-    SLEEP(40);                              // wait >30ms*(N=0+1) for sector erase before requesting response (see UM0560, SPI timing)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  }
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_flashSectorErase()': ACK2 timeout (expect %d, received %d)", lenTx, len);
   
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashSectorErase()': ACK2 failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_flashSectorErase()': ACK2 failure (read 0x%2x)", Rx[0]);
     
   // print message
   printf("ok\n");
@@ -1066,19 +934,20 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 
 
 /**
-  \fn uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode)
+  \fn uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose)
    
-  \brief mass erase microcontroller flash
-  
-  \param[in] ptrPort        handle to communication port
-  \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return communication status (0=ok, 1=fail)
   
-  mass erase microcontroller P-flash and D-flash/EEPROM
+  \bug flash erase fails with timeout
+  
+  mass erase microcontroller P-flash and D-flash/EEPROM. Use with care!
 */
-uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode) {
+uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -1093,11 +962,8 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_flashMassErase()': port not open");
   
 
   /////
@@ -1111,41 +977,32 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   lenRx = 1;
   
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_flashMassErase()': sending command failed (expect %d, sent %d)", lenTx, len);
 
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_flashMassErase()': ACK1 timeout (expect %d, received %d)", lenRx, len);
   
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK1 failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_flashMassErase()': ACK1 failure (read 0x%2x)", Rx[0]);
 
   
   /////
@@ -1153,7 +1010,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   /////
 
   // increase timeout for long erase
-  set_timeout(ptrPort, 2000);
+  set_timeout(ptrPort, 5000);
 
   // construct pattern
   lenTx = 2;
@@ -1162,46 +1019,37 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   lenRx = 1;
 
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': sending trigger failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_flashMassErase()': sending trigger failed (expect %d, sent %d)", lenTx, len);
   
   
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO) {
+    SLEEP(1100);                              // wait >30ms*(N=32+1) for sector erase before requesting response (see UM0560, SPI timing)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
+  }
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1) {
+    else if (physInterface == SPI_SPIDEV) {
       SLEEP(1100);                              // wait >30ms*(N=32+1) for sector erase before requesting response (see UM0560, SPI timing)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
     }
   #endif
-  else if (physInterface == 2) {
-    SLEEP(1100);                              // wait >30ms*(N=32+1) for sector erase before requesting response (see UM0560, SPI timing)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  }
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_flashMassErase()': ACK2 timeout (expect %d, received %d)", lenRx, len);
   
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_flashMassErase()': ACK2 failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_flashMassErase()': ACK2 failure (read 0x%2x)", Rx[0]);
 
   // print message
   printf("ok\n");
@@ -1218,44 +1066,46 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
 
 
 /**
-  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, int verbose)
+  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose)
    
-  \brief upload to microcontroller flash or RAM
-   
-  \param[in] ptrPort        handle to communication port
-  \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
-  \param[in] addrStart      starting address to upload to
-  \param[in] numBytes       number of bytes to upload
-  \param[in] buf            buffer containing data
-  \param[in] verbose        verbosity of console output (-1=none)
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  addrStart      first address to write to
+  \param[in]  addrStop       last address to write to
+  \param[out] buf            data to write as 16-bit array. HB!=0 indicates content. Index 0 corresponds to addrStart
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return communication status (0=ok, 1=fail)
   
   upload data to microcontroller memory via WRITE command
 */
-uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t numBytes, char *buf, int verbose) {
+uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
-  uint32_t  addrTmp, addrStep, idx=0, idx2=0;
+  uint32_t  addrTmp, addrStep, numBytes, idx=0, idx2=0;
   uint8_t   chk, flagEmpty;
 
+  // get number of bytes to read
+  numBytes = addrStop - addrStart + 1;
+
   // print message
-  if (verbose == 2) {
-    if (numBytes > 1024)
-      printf("  write %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) (addrStart+numBytes));
-    else
-      printf("  write %dB (0x%04x to 0x%04x) ", numBytes, (int) addrStart, (int) (addrStart+numBytes));
+  if (verbose == SILENT) {
+    printf("  write ");
   }
-  else if (verbose == 1) {
+  else if (verbose == INFORM) {
     if (numBytes > 1024)
       printf("  write %1.1fkB ", (float) numBytes/1024.0);
     else
       printf("  write %dB ", numBytes);
   }
-  else if (verbose == 0)
-    printf("  write ");
+  else if (verbose == CHATTY) {
+    if (numBytes > 1024)
+      printf("  write %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) addrStop);
+    else
+      printf("  write %dB (0x%04x to 0x%04x) ", (int) numBytes, (int) addrStart, (int) addrStop);
+  }
   fflush(stdout);
   
   // init receive buffer
@@ -1263,27 +1113,24 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_memWrite()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_memWrite()': port not open");
 
 
   // loop over addresses in <=128B steps
   idx = 0;
   idx2 = 0;
   addrStep = 128;
-  for (addrTmp=addrStart; addrTmp<addrStart+numBytes; addrTmp+=addrStep) {
+  for (addrTmp=addrStart; addrTmp<=addrStop; addrTmp+=addrStep) {
   
     // if addr too close to end of range reduce stepsize
     if (addrTmp+128 > addrStart+numBytes)
       addrStep = addrStart+numBytes-addrTmp;
 
-    // check if next block contains data. If not, skip complete block
+    // check if next block contains data (indicated by HB != 0x00). If not, skip complete block
     flagEmpty = 1;
     for (i=0; i<addrStep; i++) {
-      if (buf[idx+i]) {
+      if (buf[idx+i] & 0xFF00) {
         flagEmpty = 0;
         break;
       }
@@ -1305,41 +1152,32 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     lenRx = 1;
   
     // send command
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = send_port(ptrPort, uartMode, lenTx, Tx);
+    else if (physInterface == SPI_ARDUINO)
+      len = send_spi_Arduino(ptrPort, lenTx, Tx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else if (physInterface == 2)
-      len = send_spi_Arduino(ptrPort, lenTx, Tx);
-    if (len != lenTx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenTx)
+      Error("in 'bsl_memWrite()': sending command failed (expect %d, sent %d)", lenTx, len);
     
     // receive response
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    else if (physInterface == SPI_ARDUINO)
+      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
-    else if (physInterface == 2)
-      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-    if (len != lenRx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenRx)
+      Error("in 'bsl_memWrite()': ACK1 timeout (expect %d, received %d)", lenRx, len);
     
     // check acknowledge
-    if (Rx[0]!=ACK) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK1 failure, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
+    if (Rx[0]!=ACK)
+      Error("in 'bsl_memWrite()': ACK1 failure (read 0x%2x)", Rx[0]);
  
   
     /////
@@ -1356,42 +1194,33 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     lenRx = 1;
   
     // send command
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = send_port(ptrPort, uartMode, lenTx, Tx);
+    else if (physInterface == SPI_ARDUINO)
+      len = send_spi_Arduino(ptrPort, lenTx, Tx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else if (physInterface == 2)
-      len = send_spi_Arduino(ptrPort, lenTx, Tx);
-    if (len != lenTx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenTx)
+      Error("in 'bsl_memWrite()': sending address failed (expect %d, sent %d)", lenTx, len);
     
   
     // receive response
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    else if (physInterface == SPI_ARDUINO)
+      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
-    else if (physInterface == 2)
-      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-    if (len != lenRx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenRx)
+      Error("in 'bsl_memWrite()': ACK2 timeout (expect %d, received %d)", lenRx, len);
     
     // check acknowledge
-    if (Rx[0]!=ACK) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK2 failure, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
+    if (Rx[0]!=ACK)
+      Error("in 'bsl_memWrite()': ACK2 failure (read 0x%2x)", Rx[0]);
 
   
     /////
@@ -1403,8 +1232,8 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     Tx[lenTx++] = addrStep-1;     // -1 from BSL
     chk         = addrStep-1;
     for (i=0; i<addrStep; i++) {
-      Tx[lenTx] = buf[idx++];
-      idx2++;                     // only used for printing
+      Tx[lenTx] = (uint8_t) (buf[idx++] & 0x00FF);  // only LB, HB idicates data
+      idx2++;                                       // only used for printing
       chk ^= Tx[lenTx];
       lenTx++;
     }
@@ -1413,26 +1242,30 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
       
     // send command
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = send_port(ptrPort, uartMode, lenTx, Tx);
+    else if (physInterface == SPI_ARDUINO)
+      len = send_spi_Arduino(ptrPort, lenTx, Tx);
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1)
+      else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else if (physInterface == 2)
-      len = send_spi_Arduino(ptrPort, lenTx, Tx);
-    if (len != lenTx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': sending data failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenTx)
+      Error("in 'bsl_memWrite()': sending data failed (expect %d, sent %d)", lenTx, len);
     
         
     // receive response
-    if (physInterface == 0)
+    if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    else if (physInterface == SPI_ARDUINO) {
+      if ((addrTmp >= 0x8000) && (addrTmp % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
+        SLEEP(1200);                               // for not 128-aligned data wait >1.1s
+      else
+        SLEEP(20);                                 // for 128-aligned data wait >8.5ms
+      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
+    }
     #if defined(USE_SPIDEV)
-      else if (physInterface == 1) {
+      else if (physInterface == SPI_SPIDEV) {
         if ((addrTmp >= 0x8000) && (addrTmp % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
           SLEEP(1200);                               // for not 128-aligned data wait >1.1s
         else
@@ -1440,63 +1273,52 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
       }
     #endif
-    else if (physInterface == 2) {
-      if ((addrTmp >= 0x8000) && (addrTmp % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
-        SLEEP(1200);                               // for not 128-aligned data wait >1.1s
-      else
-        SLEEP(20);                                 // for 128-aligned data wait >8.5ms
-      len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-    }
-    if (len != lenRx) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK3 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-      Exit(1, g_pauseOnExit);
-    }
+    if (len != lenRx)
+      Error("in 'bsl_memWrite()': ACK3 timeout (expect %d, received %d)", lenRx, len);
     
     // check acknowledge
-    if (Rx[0]!=ACK) {
-      setConsoleColor(PRM_COLOR_RED);
-      fprintf(stderr, "\n\nerror in 'bsl_memWrite()': ACK3 failure, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
+    if (Rx[0]!=ACK)
+      Error("in 'bsl_memWrite()': ACK3 failure (read 0x%2x)", Rx[0]);
     
     // print progress
     if ((idx2 % 1024) == 0) {
-      if (verbose == 2) {
-        if (numBytes > 1024)
-          printf("%c  write %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx2/1024.0, (int) addrStart, (int) (addrStart+numBytes));
-        else
-          printf("%c  write %dB (0x%04x to 0x%04x) ", '\r', idx2, (int) addrStart, (int) (addrStart+numBytes));
+      if (verbose == SILENT) {
+        printf(".");
+        if ((idx2 % (10*1024)) == 0)
+          printf(" ");
       }
-      else if (verbose == 1) {
+      else if (verbose == INFORM) {
         if (numBytes > 1024)
           printf("%c  write %1.1fkB ", '\r', (float) idx2/1024.0);
         else
-          printf("%c  write %dB ", '\r', idx2);
+          printf("%c  write %dB ", '\r', (int) idx2);
       }
-      else if (verbose == 0)
-        printf(".");
+      else if (verbose == CHATTY) {
+        if (numBytes > 1024)
+          printf("%c  write %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx2/1024.0, (int) addrStart, (int) addrStop);
+        else
+          printf("%c  write %dB (0x%04x to 0x%04x) ", '\r', (int) idx2, (int) addrStart, (int) addrStop);
+      }
       fflush(stdout);
     }
     
   } // loop over address range 
   
   // print message
-  if (verbose == 2) {
-    if (numBytes > 1024)
-      printf("%c  write %1.1fkB (0x%04x to 0x%04x) ... ok   \n", '\r', (float) idx2/1024.0, (int) addrStart, (int) (addrStart+numBytes));
-    else
-      printf("%c  write %dB (0x%04x to 0x%04x) ... ok   \n", '\r', idx2, (int) addrStart, (int) (addrStart+numBytes));
-  }
-  else if (verbose == 1) {
+  if (verbose == SILENT)
+    printf(" ok\n");
+  else if (verbose == INFORM) {
     if (numBytes > 1024)
       printf("%c  write %1.1fkB ... ok   \n", '\r', (float) idx2/1024.0);
     else
       printf("%c  write %dB ... ok   \n", '\r', idx2);
   }
-  else if (verbose == 0)
-    printf(" ok\n");
-  fflush(stdout);
+  else if (verbose == CHATTY) {
+    if (numBytes > 1024)
+      printf("%c  write %1.1fkB (0x%04x to 0x%04x) ... ok   \n", '\r', (float) idx2/1024.0, (int) addrStart, (int) addrStop);
+    else
+      printf("%c  write %dB (0x%04x to 0x%04x) ... ok   \n", '\r', idx2, (int) addrStart, (int) addrStop);
+  }
   
   // avoid compiler warnings
   return(0);
@@ -1506,37 +1328,38 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
 
 /**
-  \fn uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr)
+  \fn uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr, uint8_t verbose)
    
-  \brief jump to flash or RAM
-   
-  \param[in] ptrPort        handle to communication port
-  \param[in] physInterface  bootloader interface: 0=UART (default), 1=SPI
-  \param[in] uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
-  \param[in] addr           address to jump to
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[in]  addr           address to jump to
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return communication status (0=ok, 1=fail)
   
-  jump to address and continue code execution. Generally RAM or flash
-  starting address
+  jump to address and continue code execution. Generally RAM or flash starting address
 */
-uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr) {
+uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr, uint8_t verbose) {
 
   int       i;
   int       lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
 
+  // print message
+  if (verbose == INFORM)
+    printf("  jump to 0x%04x ... ", addr);
+  else if (verbose == CHATTY)
+    printf("  jump to address 0x%04x ... ", addr);
+  fflush(stdout);
 
   // init receive buffer
   for (i=0; i<1000; i++)
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': port not open, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (!ptrPort)
+    Error("in 'bsl_jumpTo()': port not open");
   
 
   /////
@@ -1550,41 +1373,32 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
   lenRx = 1;
   
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending command failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_jumpTo()': sending command failed (expect %d, sent %d)", lenTx, len);
     
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK1 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_jumpTo()': ACK1 timeout (expect %d, received %d)", lenRx, len);
   
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK1 failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_jumpTo()': ACK1 failure (read 0x%2x)", Rx[0]);
 
   
   /////
@@ -1601,42 +1415,37 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
   lenRx = 1;
 
   // send command
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
+  else if (physInterface == SPI_ARDUINO)
+    len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else if (physInterface == 2)
-    len = send_spi_Arduino(ptrPort, lenTx, Tx);
-  if (len != lenTx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': sending address failed (expect %d, sent %d), exit!\n\n", lenTx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenTx)
+    Error("in 'bsl_jumpTo()': sending address failed (expect %d, sent %d)", lenTx, len);
   
   // receive response
-  if (physInterface == 0)
+  if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  else if (physInterface == SPI_ARDUINO)
+    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   #if defined(USE_SPIDEV)
-    else if (physInterface == 1)
+    else if (physInterface == SPI_SPIDEV)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
-  else if (physInterface == 2)
-    len = receive_spi_Arduino(ptrPort, lenRx, Rx);
-  if (len != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK2 timeout (expect %d, received %d), exit!\n\n", lenRx, len);
-    Exit(1, g_pauseOnExit);
-  }
+  if (len != lenRx)
+    Error("in 'bsl_jumpTo()': ACK2 timeout (expect %d, received %d)", lenRx, len);
   
   // check acknowledge
-  if (Rx[0]!=ACK) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'bsl_jumpTo()': ACK2 failure, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0]!=ACK)
+    Error("in 'bsl_jumpTo()': ACK2 failure (read 0x%2x)", Rx[0]);
 
+  // print message
+  if ((verbose == INFORM) || (verbose == CHATTY))
+    printf("ok\n");
+  fflush(stdout);
     
   // avoid compiler warnings
   return(0);
