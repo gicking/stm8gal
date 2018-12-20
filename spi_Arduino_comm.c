@@ -13,17 +13,15 @@
 
 // include files
 #include "spi_Arduino_comm.h"
+#include "main.h"
 #include "serial_comm.h"
 #include "misc.h"
-#include "globals.h"
 
 
 
 /**
   \fn uint8_t checksum_Arduino(uint8_t *buf)
    
-  \brief calculate checksum over frame (w/o checksum)
-  
   \param[in] buf   buffer containing frame. buf[0] contains total frame length
   
   Calculate checksum over frame (inverted XOR over bytes w/o checksum).
@@ -44,8 +42,6 @@ uint8_t checksum_Arduino(uint8_t *buf) {
 /**
   \fn void configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI)
    
-  \brief configure Arduino SPI for bridge
-  
   \param[in] fp            handle to Arduino port
   \param[in] baudrateSPI   SPI baudrate
   \param[in] bitOrder      SPI bit order (LSB/MSB)
@@ -78,32 +74,20 @@ void configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_
   num = receive_port(fp, 0, lenRx, (char*) Rx);
   
   // check for timeout
-  if (num != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'configSPI_Arduino()': response timeout, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (num != lenRx)
+    Error("in 'configSPI_Arduino()': response timeout");
 
   // check length
-  if (Rx[0] != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'configSPI_Arduino()': wrong frame length (expect %d, read %d), exit!\n\n", (int) lenRx, (int) (Rx[0]));
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0] != lenRx)
+    Error("in 'configSPI_Arduino()': wrong frame length (expect %d, read %d)", (int) lenRx, (int) (Rx[0]));
       
   // check checksum
-  if (Rx[lenRx-1] != checksum_Arduino(Rx)) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'configSPI_Arduino()': checksum error (expect 0x%02x, read 0x%02x), exit!\n\n", Rx[lenRx-1], checksum_Arduino(Rx));
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[lenRx-1] != checksum_Arduino(Rx))
+    Error("in 'configSPI_Arduino()': checksum error (expect 0x%02x, read 0x%02x)", Rx[lenRx-1], checksum_Arduino(Rx));
       
   // check for ACK
-  if (Rx[1] != ARDUINO_SUCCESS) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'configSPI_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x), exit!\n\n", ARDUINO_SUCCESS, Rx[1]);
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[1] != ARDUINO_SUCCESS)
+    Error("in 'configSPI_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x)", ARDUINO_SUCCESS, Rx[1]);
 
 } // configSPI_Arduino
 
@@ -112,8 +96,6 @@ void configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_
 /**
   \fn void setPin_Arduino(HANDLE fp, uint8_t pin, bool state)
    
-  \brief set pin on Arduino SPI bridge
-  
   \param[in] fp     handle to Arduino port
   \param[in] pin    Arduino pin to set
   \param[in] state  state for pin
@@ -141,32 +123,20 @@ void setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state) {
   num = receive_port(fp, 0, lenRx, (char*) Rx);
   
   // check for timeout
-  if (num != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'setPin_Arduino()': response timeout, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (num != lenRx)
+    Error("in 'setPin_Arduino()': response timeout");
 
   // check length
-  if (Rx[0] != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'setPin_Arduino()': wrong frame length (expect %d, read %d), exit!\n\n", (int) lenRx, (int) (Rx[0]));
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0] != lenRx)
+    Error("in 'setPin_Arduino()': wrong frame length (expect %d, read %d)", (int) lenRx, (int) (Rx[0]));
       
   // check checksum
-  if (Rx[lenRx-1] != checksum_Arduino(Rx)) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'setPin_Arduino()': checksum error (expect 0x%02x, read 0x%02x), exit!\n\n", Rx[lenRx-1], checksum_Arduino(Rx));
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[lenRx-1] != checksum_Arduino(Rx))
+    Error("in 'setPin_Arduino()': checksum error (expect 0x%02x, read 0x%02x)", Rx[lenRx-1], checksum_Arduino(Rx));
       
   // check for ACK
-  if (Rx[1] != ARDUINO_SUCCESS) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'setPin_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x), exit!\n\n", ARDUINO_SUCCESS, Rx[1]);
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[1] != ARDUINO_SUCCESS)
+    Error("in 'setPin_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x)", ARDUINO_SUCCESS, Rx[1]);
 
 } // setPin_Arduino
 
@@ -175,8 +145,6 @@ void setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state) {
 /**
   \fn uint32_t sendReceiveSPI_Arduino(HANDLE fpSPI, uint8_t CSN, uint32_t lenFrame, char *Tx, char *Rx)
    
-  \brief send/receive SPI frames via Arduino USB<->SPI bridge
-  
   \param[in]  fp        handle to Arduino port
   \param[in]  CSN       Arduino pin used as chip-select
   \param[in]  lenFrame  number of SPI bytes to send
@@ -214,32 +182,20 @@ uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char 
   num = receive_port(fp, 0, lenRx, (char*) Rx);
   
   // check for timeout
-  if (num != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'sendReceiveSPI_Arduino()': response timeout, exit!\n\n");
-    Exit(1, g_pauseOnExit);
-  }
+  if (num != lenRx)
+    Error("in 'sendReceiveSPI_Arduino()': response timeout");
 
   // check length
-  if (Rx[0] != lenRx) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'sendReceiveSPI_Arduino()': wrong frame length (expect %d, read %d), exit!\n\n", (int) lenRx, (int) (Rx[0]));
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[0] != lenRx)
+    Error("in 'sendReceiveSPI_Arduino()': wrong frame length (expect %d, read %d)", (int) lenRx, (int) (Rx[0]));
       
   // check checksum
-  if (Rx[lenRx-1] != checksum_Arduino(Rx)) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'sendReceiveSPI_Arduino()': checksum error (expect 0x%02x, read 0x%02x), exit!\n\n", Rx[lenRx-1], checksum_Arduino(Rx));
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[lenRx-1] != checksum_Arduino(Rx))
+    Error("in 'sendReceiveSPI_Arduino()': checksum error (expect 0x%02x, read 0x%02x)", Rx[lenRx-1], checksum_Arduino(Rx));
       
   // check for ACK
-  if (Rx[1] != ARDUINO_SUCCESS) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'sendReceiveSPI_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x), exit!\n\n", ARDUINO_SUCCESS, Rx[1]);
-    Exit(1, g_pauseOnExit);
-  }
+  if (Rx[1] != ARDUINO_SUCCESS)
+    Error("in 'sendReceiveSPI_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x)", ARDUINO_SUCCESS, Rx[1]);
   
   // copy MISO bytes
   if (bufRx != NULL) {
