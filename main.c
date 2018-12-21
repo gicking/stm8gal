@@ -366,11 +366,11 @@ int main(int argc, char ** argv) {
       printf("    -R / --reset          reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8 (default: manual)\n");
     #endif
     printf("    -v / --noverify       don't verify code in flash after upload (default: verify)\n");
-    printf("    -w / --write          upload file from PC to uController. For binary file (*.bin) add address offset (default: skip)\n");
-    printf("    -s / --set            change content of (any) address to given value (default: skip)\n");
-    printf("    -r / --read           read memory range (address in hex) and print to console or save to file (default: skip)\n");
+    printf("    -w / --write          upload file from PC to uController. For binary file (*.bin) add start address in hex\n");
+    printf("    -s / --set            change content of (any) address to given value\n");
+    printf("    -r / --read           read memory range (address in hex) and print to console or save to file\n");
     printf("    -e / --erase          mass erase uController flash. Use carefully! (default: skip)\n");
-    printf("    -j / --jump           jump to given address before exit (-1: skip jump, default: jump to flash)\n");
+    printf("    -j / --jump           jump to given address before exit (-1: skip jump)\n");
     printf("    -V / --verbose        verbosity level 0..3 (default: 2)\n");
     printf("    -B / --background     optimize for background operation, e.g. skip prompts and colors (default: interactive use)\n");
     printf("    -q / --exitPrompt     prompt for <return> prior to exit (default: no prompt)\n");
