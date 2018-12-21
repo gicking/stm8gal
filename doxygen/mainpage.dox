@@ -16,7 +16,7 @@
 \warning   functionality not fully tested. Use with care
 \warning   using flash erase or write may disable the STM8. Can be fixed via SWIM interface  
 
-\bug       flash erase fails with timout (at least in UART mode) 
+\bug       currently no known bugs
 
 \todo      replace STM proprietary RAM code by OS routine, see <a href="https://github.com/gicking/stm8gal/issues/4">issue #4</a>
 

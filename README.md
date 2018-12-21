@@ -305,7 +305,7 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 # Known Bugs
 
-- flash erase fails with timout (at least in UART mode) 
+- currently no known bugs
 
 If you are aware of bugs, please drop me a note or start an [issue](https://github.com/gicking/stm8gal/issues) on the project homepage.
 
@@ -313,11 +313,12 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 
 # Revision History
 
-v1.3.0b (2018-12-20)
+v1.3.0b (2018-12-21)
   - add multiple up- and downloads in single run
-  - added option to print memory map
+  - added option to print memory map and sector erase
   - fixed S19 export bugs for >16bit addresses and small images
   - fixed IHX import bug for record type 5
+  - fixed mass erase timeout bug
   - harmonized files with https://github.com/gicking/hexfile_merger
 
 ----------------
