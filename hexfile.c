@@ -1019,6 +1019,9 @@ void export_txt(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t
   // address range [B] to consider
   addrRange = addrStop-addrStart+1;
   
+  // save header
+  fprintf(fp, "# address	value\n");
+
   // store each defined value (HB!=0x00) in a separate line (addr \t value)
   countByte = 0;
   for (i=0; i<addrRange; i++) {
