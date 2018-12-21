@@ -144,6 +144,9 @@ int main(int argc, char ** argv) {
   */
   
   
+  // initialize time-keeping (1st call stores launch time)
+  micros();
+
   // get app name & version, and change console title
   get_app_name(argv[0], VERSION, appname, version);
   sprintf(tmp, "%s (%s)", appname, version);
@@ -202,7 +205,7 @@ int main(int argc, char ** argv) {
 
       
     // UART mode
-    else if ((!strcmp(argv[i], "--uartmode")) || (!strcmp(argv[i], "-u"))) {
+    else if ((!strcmp(argv[i], "--uart_mode")) || (!strcmp(argv[i], "-u"))) {
       
       // get UART mode
       if (i+1<argc) {
@@ -214,7 +217,7 @@ int main(int argc, char ** argv) {
         break;
       }
 
-    } // uartmode
+    } // uart_mode
 
       
     // reset method: 0=skip, 1=manual; 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12
@@ -234,9 +237,9 @@ int main(int argc, char ** argv) {
 
       
     // no verify of memory content after upload
-    else if ((!strcmp(argv[i], "--noverify")) || (!strcmp(argv[i], "-v"))) {
+    else if ((!strcmp(argv[i], "--no_verify")) || (!strcmp(argv[i], "-v"))) {
       verifyUpload = 0;
-    } // noverify
+    } // no_verify
     
 
     // skip file upload. Just check parameter number
@@ -283,10 +286,21 @@ int main(int argc, char ** argv) {
     } // read
 
 
-    // skip mass erase
-    else if ((!strcmp(argv[i], "--erase")) || (!strcmp(argv[i], "-e"))) {
+    // skip flash sector erase. Just check parameter number
+    else if ((!strcmp(argv[i], "--sector_erase")) || (!strcmp(argv[i], "-e"))) {
+      if (i+1<argc)
+        i+=1;
+      else {
+        printHelp = true;
+        break;
+      }
+    } // sector_erase
+
+
+    // skip flash mass erase
+    else if ((!strcmp(argv[i], "--mass_erase")) || (!strcmp(argv[i], "-E"))) {
       // dummy
-    } // erase
+    } // mass_erase
 
       
     // jump adress before program termination (-1 or 0xFFFFFFFF == skip jump)
@@ -329,7 +343,7 @@ int main(int argc, char ** argv) {
 
 
     // prompt for <return> prior to exit
-    else if ((!strcmp(argv[i], "--exitPrompt")) || (!strcmp(argv[i], "-q"))) {
+    else if ((!strcmp(argv[i], "--exit_prompt")) || (!strcmp(argv[i], "-q"))) {
       g_pauseOnExit = 1;
     }
 
@@ -359,21 +373,22 @@ int main(int argc, char ** argv) {
     #endif
     printf("    -p / --port           name of communication port (default: list available ports)\n");
     printf("    -b / --baudrate       communication baudrate in Baud (default: 115200)\n");
-    printf("    -u / --uartmode       UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)\n");
+    printf("    -u / --uart_mode      UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)\n");
     #if defined(__ARMEL__) && defined(USE_WIRING)
       printf("    -R / --reset          reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)\n");
     #else
       printf("    -R / --reset          reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8 (default: manual)\n");
     #endif
-    printf("    -v / --noverify       don't verify code in flash after upload (default: verify)\n");
+    printf("    -v / --no_verify      don't verify code in flash after upload (default: verify)\n");
     printf("    -w / --write          upload file from PC to uController. For binary file (*.bin) add start address in hex\n");
     printf("    -s / --set            change content of (any) address to given value\n");
     printf("    -r / --read           read memory range (address in hex) and print to console or save to file\n");
-    printf("    -e / --erase          mass erase uController flash. Use carefully! (default: skip)\n");
+    printf("    -e / --sector_erase   erase flash sector containing specified address. Use carefully!\n");
+    printf("    -E / --mass_erase     mass erase complete flash. Use carefully!\n");
     printf("    -j / --jump           jump to given address before exit (-1: skip jump)\n");
     printf("    -V / --verbose        verbosity level 0..3 (default: 2)\n");
     printf("    -B / --background     optimize for background operation, e.g. skip prompts and colors (default: interactive use)\n");
-    printf("    -q / --exitPrompt     prompt for <return> prior to exit (default: no prompt)\n");
+    printf("    -q / --exit_prompt    prompt for <return> prior to exit (default: no prompt)\n");
     printf("\n");
     printf("Supported upload formats:\n");
     printf("  - Motorola S19 (*.s19), for a description see https://en.wikipedia.org/wiki/SREC_(file_format)\n");
@@ -817,7 +832,7 @@ int main(int argc, char ** argv) {
 
       
     // skip UART mode with 1 parameter, is handled in 1st run
-    else if ((!strcmp(argv[i], "--uartmode")) || (!strcmp(argv[i], "-u"))) {
+    else if ((!strcmp(argv[i], "--uart_mode")) || (!strcmp(argv[i], "-u"))) {
       i += 1;
     }
 
@@ -829,7 +844,7 @@ int main(int argc, char ** argv) {
 
       
     // skip verify flag w/o parameter, is handled in 1st run
-    else if ((!strcmp(argv[i], "--noverify")) || (!strcmp(argv[i], "-v"))) {
+    else if ((!strcmp(argv[i], "--no_verify")) || (!strcmp(argv[i], "-v"))) {
       i += 0;   // dummy
     }
     
@@ -982,13 +997,26 @@ int main(int argc, char ** argv) {
     } // read
 
 
-    // mass erase -> perform here
-    else if ((!strcmp(argv[i], "--erase")) || (!strcmp(argv[i], "-e"))) {
+    // sector erase flash -> perform here
+    else if ((!strcmp(argv[i], "--sector_erase")) || (!strcmp(argv[i], "-e"))) {
+      
+      // get address of sector to erase. See respective STM8 datasheet
+      uint32_t addr;
+      sscanf(argv[++i], "%x", &addr);
+
+      // trigger flash mass erase
+      bsl_flashSectorErase(ptrPort, physInterface, uartMode, addr, verbose);
+
+    } // sector_erase
+
+      
+    // mass erase flash -> perform here
+    else if ((!strcmp(argv[i], "--mass_erase")) || (!strcmp(argv[i], "-E"))) {
 
       // trigger flash mass erase
       bsl_flashMassErase(ptrPort, physInterface, uartMode, verbose);
 
-    } // erase
+    } // mass_erase
 
       
     // skip jump adress with 1 parameter, is handled in 1st run
@@ -1010,7 +1038,7 @@ int main(int argc, char ** argv) {
 
 
     // skip exit prompt flag w/o parameter, is handled in 1st run
-    else if ((!strcmp(argv[i], "--exitPrompt")) || (!strcmp(argv[i], "-q"))) {
+    else if ((!strcmp(argv[i], "--exit_prompt")) || (!strcmp(argv[i], "-q"))) {
       i += 0;   // dummy
     }
 
