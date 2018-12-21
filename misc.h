@@ -65,6 +65,12 @@ void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr);
 /// set console text color
 void setConsoleColor(uint8_t color);
 
+/// get milliseconds since start of program (as Arduino)
+uint64_t millis(void);
+
+/// get microseconds since start of program (as Arduino)
+uint64_t micros(void);
+
 #endif // _MISC_H_
 
 // end of file
