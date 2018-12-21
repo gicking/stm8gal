@@ -1,7 +1,7 @@
 [Project]
 FileName=stm8gal.dev
 Name=stm8gal
-UnitCount=23
+UnitCount=22
 Type=1
 Ver=2
 ObjFiles=
@@ -27,7 +27,7 @@ CustomMakefile=
 IncludeVersionInfo=0
 SupportXPThemes=0
 CompilerSet=3
-CompilerSettings=0000000100000000000000000
+CompilerSettings=00000001e0000000000000000
 LogOutput=
 LogOutputEnabled=0
 
@@ -141,16 +141,6 @@ OverrideBuildCmd=0
 BuildCmd=
 
 [Unit10]
-FileName=globals.h
-CompileCpp=0
-Folder=stm8gal
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit11]
 FileName=hexfile.h
 CompileCpp=0
 Folder=stm8gal
@@ -160,7 +150,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit12]
+[Unit11]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.0.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -170,7 +160,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit13]
+[Unit12]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.2.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -180,7 +170,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit14]
+[Unit13]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.3.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -190,7 +180,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit15]
+[Unit14]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.4.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -200,7 +190,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit16]
+[Unit15]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.0.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -210,7 +200,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit17]
+[Unit16]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.1.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -220,7 +210,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit18]
+[Unit17]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.2.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -230,7 +220,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit19]
+[Unit18]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.4.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -240,7 +230,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit20]
+[Unit19]
 FileName=STM8_Routines\E_W_ROUTINEs_256K_ver_1.0.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -250,7 +240,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit21]
+[Unit20]
 FileName=version.h
 CompileCpp=0
 Folder=
@@ -260,8 +250,18 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit22]
+[Unit21]
 FileName=spi_Arduino_comm.c
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit22]
+FileName=spi_Arduino_comm.h
 CompileCpp=0
 Folder=
 Compile=1
