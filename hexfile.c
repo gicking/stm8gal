@@ -788,6 +788,68 @@ void convert_bin(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_
   
 
 /**
+   \fn clip_image(uint16_t *imageBuf, uint32_t imageStart, uint32_t clipStart, uint32_t clipStop, uint8_t verbose)
+   
+   \param      imageBuf     memory image containing data. HB!=0 indicates content. Index 0 corresponds to imageStart
+   \param[in]  imageStart   start address of image (= lowest address)
+   \param[in]  clipStart    starting address of clipping window
+   \param[in]  clipStop     topmost address of clipping window
+   \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+   Clip memory image to specified window, i.e. reset all data outside specified window to "undefined" (HB=0x00)
+*/
+void clip_image(uint16_t *imageBuf, uint32_t imageStart, uint32_t clipStart, uint32_t clipStop, uint8_t verbose) {
+  
+  uint32_t  numCleared;
+
+  // print message
+  if (verbose == INFORM)
+    printf("  clip image ... ");
+  else if (verbose == CHATTY)
+    printf("  clip memory image to 0x%04x - 0x%04x ... ", clipStart, clipStop);
+  fflush(stdout);
+  
+  // loop over memory image and clear all data outside specified clipping window
+  numCleared = 0;
+  for (int i=0; i<LENIMAGEBUF; i++) {
+    if ((i+imageStart < clipStart) || (i+imageStart > clipStop)) {
+      if (imageBuf[i] & 0xFF00)
+         numCleared++;               // count deleted bytes for output below
+      imageBuf[i] = 0x0000;          // HB=0x00 indicates data undefined, LB contains data
+    }
+  }
+
+  // debug: print memory image
+  /*
+  printf("\n\n");
+  printf("addr: 0x%04X..0x%04X   %d\n", addrStart, *addrStop, numData);
+  for (int i=0; i<(*addrStop)-addrStart+1; i++) {
+    if (imageBuf[i])
+      printf(" %3d   0x%04x   0x%02x\n", i, addrStart+i, (int) (imageBuf[i]) & 0xFF);
+  }
+  printf("\n");
+  //Exit(1,0);
+  */
+
+  // print message
+  if (verbose == INFORM) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    if (numCleared>2048)
+      printf("done, cleared %1.1fkB\n", (float) numCleared/1024.0);
+    else if (numCleared>0)
+      printf("done, cleared %dB\n", numCleared);
+    else
+      printf("done, no data cleared\n");
+  }
+  fflush(stdout);
+ 
+} // clip_image
+
+  
+
+/**
    \fn void export_s19(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
    
    \param[in]  filename    name of output file

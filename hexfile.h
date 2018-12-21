@@ -43,6 +43,10 @@ void  convert_txt(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32
 void  convert_bin(char *fileBuf, uint32_t lenFileBuf, uint16_t *imageBuf, uint32_t addrStart, uint32_t *addrStop, uint8_t verbose);
 
 
+/// clip memory image to specified window
+void  clip_image(uint16_t *imageBuf, uint32_t imageStart, uint32_t clipStart, uint32_t clipStop, uint8_t verbose);
+
+
 /// export RAM image to file in Motorola s19 format
 void  export_s19(char *filename, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose);
 
