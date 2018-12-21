@@ -99,11 +99,11 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   // check if ok
   if ((len==lenRx) && (Rx[0]==ACK)) {
     if (verbose > SILENT)
-      printf("ok (ACK)\n");
+      printf("done (ACK)\n");
   }
   else if ((len==lenRx) && (Rx[0]==NACK)) {
     if (verbose > SILENT)
-      printf("ok (NACK)\n");
+      printf("done (NACK)\n");
   }
   else if (len==lenRx)
     Error("in 'bsl_sync()': wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
@@ -362,9 +362,9 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   // print message
   if ((verbose == INFORM) || (verbose == CHATTY)) {
     if (*family == STM8S)
-      printf("ok (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+      printf("done (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
     else
-      printf("ok (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+      printf("done (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
   }
   fflush(stdout);
   
@@ -595,20 +595,20 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   
   // print message
   if (verbose == SILENT)
-    printf(" ok\n");
+    printf(" done\n");
   else if (verbose == INFORM) {
     if (numBytes > 1024)
       printf("%c  read %1.1fkB ... ", '\r', (float) idx/1024.0);
     else
       printf("%c  read %dB ... ", '\r', idx);
-    printf("ok\n");
+    printf("done\n");
   }
   else if (verbose == CHATTY) {
     if (numBytes > 1024)
       printf("%c  read %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrStop);
     else
       printf("%c  read %dB (0x%04x to 0x%04x) ... ", '\r', (int) idx, (int) addrStart, (int) addrStop);
-    printf("ok\n");
+    printf("done\n");
   }
   fflush(stdout);
   
@@ -799,8 +799,6 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   
   \return communication status (0=ok, 1=fail)
   
-  \bug flash erase fails with timeout
-  
   sector erase for microcontroller flash. Use with care!
 */
 uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addr, uint8_t verbose) {
@@ -809,18 +807,31 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   int       lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint8_t   sector;
+  uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
 
   // calculate sector code
   sector = (addr - PFLASH_START)/PFLASH_BLOCKSIZE;
 
+  // print message
+  if (verbose == SILENT) {
+    printf("  erase sector ... ");
+  }
+  else if (verbose == INFORM) {
+    printf("  erase flash sector %d ... ", (int) sector);
+  }
+  else if (verbose == CHATTY) {
+    if (addr>0xFFFFFF)
+      printf("  erase flash sector %d @ 0x%08x ... ", (int) sector, addr);
+    else if (addr>0xFFFF)
+      printf("  erase flash sector %d @ 0x%06x ... ", (int) sector, addr);
+    else
+      printf("  erase flash sector %d @ 0x%07x ... ", (int) sector, addr);
+  }
+  fflush(stdout);
+  
+  
 
   // print message
-  if (addr>0xFFFFFF)
-    printf("  erase flash address 0x%08x (code 0x%02x) ... ", addr, sector);
-  else if (addr>0xFFFF)
-    printf("  erase flash address 0x%06x (code 0x%02x) ... ", addr, sector);
-  else
-    printf("  erase flash address 0x%04x (code 0x%02x) ... ", addr, sector);
   fflush(stdout);
   
   // init receive buffer
@@ -886,6 +897,9 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   Tx[2] = (Tx[0] ^ Tx[1]);
   lenRx = 1;
 
+  // measure time for sector erase
+  tStart = millis();
+
   // send command
   if (physInterface == UART)
     len = send_port(ptrPort, uartMode, lenTx, Tx);
@@ -918,17 +932,26 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   // check acknowledge
   if (Rx[0]!=ACK)
     Error("in 'bsl_flashSectorErase()': ACK2 failure (read 0x%2x)", Rx[0]);
-    
-  // print message
-  printf("ok\n");
-  fflush(stdout);
+  
+  // measure time for sector erase
+  tStop = millis();
 
   // restore timeout
   set_timeout(ptrPort, TIMEOUT);
+
+
+  // print message
+  if (verbose == SILENT) {
+    printf("done\n");
+  }
+  else if ((verbose == INFORM) || (verbose == CHATTY)) {
+    printf("done, time %dms\n", (int)(tStop-tStart));
+  }
+  fflush(stdout);
   
   // avoid compiler warnings
   return(0);
-  
+
 } // bsl_flashSectorErase
 
 
@@ -943,19 +966,23 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   
   \return communication status (0=ok, 1=fail)
   
-  \bug flash erase fails with timeout
-  
   mass erase microcontroller P-flash and D-flash/EEPROM. Use with care!
 */
 uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
-
+  uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
 
   // print message
-  printf("  mass erase flash ... ");
+  if (verbose == SILENT) {
+    printf("  mass erase ... ");
+  }
+  else if ((verbose == INFORM) || (verbose == CHATTY)) {
+    printf("  flash mass erase ... ");
+  }
   fflush(stdout);
+  
   
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -1009,14 +1036,17 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   // send 0xFF+0x00 to trigger mass erase
   /////
 
-  // increase timeout for long erase
-  set_timeout(ptrPort, 5000);
+  // increase timeout for long erase. Measured 3.3s for 128kB STM8 -> set to 4s
+  set_timeout(ptrPort, 4000);
 
   // construct pattern
   lenTx = 2;
   Tx[0] = 0xFF;
   Tx[1] = 0x00;
   lenRx = 1;
+
+  // measure time for mass erase
+  tStart = millis();
 
   // send command
   if (physInterface == UART)
@@ -1050,13 +1080,22 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   // check acknowledge
   if (Rx[0]!=ACK)
     Error("in 'bsl_flashMassErase()': ACK2 failure (read 0x%2x)", Rx[0]);
-
-  // print message
-  printf("ok\n");
-  fflush(stdout);
+  
+  // measure time for mass erase
+  tStop = millis();
 
   // restore timeout
   set_timeout(ptrPort, TIMEOUT);
+
+
+  // print message
+  if (verbose == SILENT) {
+    printf("done\n");
+  }
+  else if ((verbose == INFORM) || (verbose == CHATTY)) {
+    printf("done, time %1.1fs\n", (float)(tStop-tStart)/1000.0);
+  }
+  fflush(stdout);
   
   // avoid compiler warnings
   return(0);
@@ -1306,18 +1345,18 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   
   // print message
   if (verbose == SILENT)
-    printf(" ok\n");
+    printf(" done\n");
   else if (verbose == INFORM) {
     if (numBytes > 1024)
-      printf("%c  write %1.1fkB ... ok   \n", '\r', (float) idx2/1024.0);
+      printf("%c  write %1.1fkB ... done   \n", '\r', (float) idx2/1024.0);
     else
-      printf("%c  write %dB ... ok   \n", '\r', idx2);
+      printf("%c  write %dB ... done   \n", '\r', idx2);
   }
   else if (verbose == CHATTY) {
     if (numBytes > 1024)
-      printf("%c  write %1.1fkB (0x%04x to 0x%04x) ... ok   \n", '\r', (float) idx2/1024.0, (int) addrStart, (int) addrStop);
+      printf("%c  write %1.1fkB (0x%04x to 0x%04x) ... done   \n", '\r', (float) idx2/1024.0, (int) addrStart, (int) addrStop);
     else
-      printf("%c  write %dB (0x%04x to 0x%04x) ... ok   \n", '\r', idx2, (int) addrStart, (int) addrStop);
+      printf("%c  write %dB (0x%04x to 0x%04x) ... done   \n", '\r', idx2, (int) addrStart, (int) addrStop);
   }
   
   // avoid compiler warnings
@@ -1444,7 +1483,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
 
   // print message
   if ((verbose == INFORM) || (verbose == CHATTY))
-    printf("ok\n");
+    printf("done\n");
   fflush(stdout);
     
   // avoid compiler warnings
