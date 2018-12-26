@@ -12,23 +12,10 @@ set ADDRSTOP="0x80FF"
 set OUTFILE=".\memory_dump.txt"
 
 REM set serial port
-set PORT=11
-
-REM set optional UART mode (0=duplex, 1=1-wire reply, 2=2-wire reply, else auto-detect)
-REM set MODE=0
-
-REM acccording to STM8 bootloader manual section 2.1, the minimum baudrate is 4800Baud. Default is 115.2kBaud
-REM Typical baudrates are: 4800 9600 19200 38400 57600 115200 230400
-set BAUD=230400
-
-REM if not explicitely set, configure auto-detect mode
-IF NOT DEFINED MODE set MODE=255
-
-REM limit UART reply mode (MODE=1,2) to <=115.2kBaud
-IF NOT %MODE% == 0  set BAUD=115200
+set PORT=COM11
 
 REM use flash loader to read out memory
-%LOADER% -p COM%PORT% -b %BAUD% -r %ADDRSTART% %ADDRSTOP% %OUTFILE% -V 2
+%LOADER% -p COM%PORT% -r %ADDRSTART% %ADDRSTOP% %OUTFILE% -v 2
 
 echo.
 PAUSE 
