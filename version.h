@@ -29,12 +29,13 @@
 Revision History
 ----------------
 
-v1.3.0b (2018-12-21)
+v1.3.0b (2018-12-26)
   - add multiple up- and downloads in single run
   - added option to print memory map and sector erase
   - fixed S19 export bugs for >16bit addresses and small images
   - fixed IHX import bug for record type 5
   - fixed mass erase timeout bug
+  - fixed bug for files with "holes" -> only write specified data
   - harmonized files with https://github.com/gicking/hexfile_merger
 
 ----------------
