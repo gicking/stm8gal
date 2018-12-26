@@ -14,7 +14,8 @@
 \pre       serial connection between PC and STM8 UART or SPI (see <a href="https://github.com/gicking/stm8gal">project homepage</a>)
 
 \warning   functionality not fully tested. Use with care
-\warning   using flash erase or write may disable the STM8. Can be fixed via SWIM interface  
+\warning   inconsistent option bytes effectively stall the STM8 &rarr; use with care! Can be fixed via SWIM interface  
+\warning   selective flash erase or write may stall the STM8 &rarr; use with care! Can be fixed via SWIM interface  
 
 \bug       currently no known bugs
 
