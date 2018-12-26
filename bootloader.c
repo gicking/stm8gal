@@ -13,6 +13,7 @@
 
 #include "bootloader.h"
 #include "main.h"
+#include "hexfile.h"
 #include "serial_comm.h"
 #include "spi_spidev_comm.h"
 #include "spi_Arduino_comm.h"
@@ -37,7 +38,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   char  Tx[1000], Rx[1000];
 
   // print message
-  if (verbose > SILENT)
+  if (verbose >= SILENT)
     printf("  synchronize ... ");
   fflush(stdout);
   
@@ -98,11 +99,15 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
 
   // check if ok
   if ((len==lenRx) && (Rx[0]==ACK)) {
-    if (verbose > SILENT)
+    if (verbose == SILENT)
+      printf("done\n");
+    else if (verbose > SILENT)
       printf("done (ACK)\n");
   }
   else if ((len==lenRx) && (Rx[0]==NACK)) {
-    if (verbose > SILENT)
+    if (verbose == SILENT)
+      printf("done\n");
+    else if (verbose > SILENT)
       printf("done (NACK)\n");
   }
   else if (len==lenRx)
@@ -140,7 +145,7 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   uint8_t uartMode = 255;
 
   // print message
-  if (verbose > SILENT)
+  if (verbose == CHATTY)
     printf("  check UART mode ... ");
   fflush(stdout);
   
@@ -184,13 +189,13 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   SLEEP(50);              // seems to be required for some reason
   
   // print message
-  if (verbose > SILENT) {
+  if (verbose == CHATTY) {
     if (uartMode == 0)
-      printf("duplex\n");
+      printf("done (duplex)\n");
     else if (uartMode == 1)
-      printf("1-wire\n");
+      printf("done (1-wire)\n");
     else
-      printf("2-wire reply\n");
+      printf("done (2-wire reply)\n");
   }
   fflush(stdout);
 
@@ -224,8 +229,8 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   char  Tx[1000], Rx[1000];
 
   // print message
-  if ((verbose == INFORM) || (verbose == CHATTY))
-    printf("  determine device ... ");
+  if (verbose >= SILENT)
+    printf("  get device info ... ");
   fflush(stdout);
 
   // init receive buffer
@@ -360,10 +365,20 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   *vers = Rx[2];
   
   // print message
-  if ((verbose == INFORM) || (verbose == CHATTY)) {
-    if (*family == STM8S)
+  if (*family == STM8S) {
+    if (verbose == SILENT)
+      printf("done (STM8S; %dkB)\n", *flashsize);
+    else if (verbose == INFORM)
+      printf("done (STM8S; %dkB flash)\n", *flashsize);
+    else if (verbose == CHATTY)
       printf("done (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
-    else
+  }
+  else {
+    if (verbose == SILENT)
+      printf("done (STM8L; %dkB)\n", *flashsize);
+    else if (verbose == INFORM)
+      printf("done (STM8L; %dkB flash)\n", *flashsize);
+    else if (verbose == CHATTY)
       printf("done (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
   }
   fflush(stdout);
@@ -376,32 +391,35 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 
 
 /**
-  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose)
+  \fn uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *imageBuf, uint8_t verbose)
    
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
   \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[in]  addrStart      first address to read
   \param[in]  addrStop       last address to read
-  \param[out] buf            read data as 16-bit array. HB!=0 indicates content. Index 0 corresponds to addrStart
+  \param[out] imageBuf       memory buffer containing read data (16-bit array. HB!=0 indicates content)
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
   \return communication status (0=ok, 1=fail)
   
   read from microcontroller memory via READ command.
 */
-uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose) {
+uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *imageBuf, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
-  uint32_t  addrTmp, addrStep, numBytes, idx=0;
+  uint32_t  addr, addrStep, numBytes, countBytes;
 
   // get number of bytes to read
   numBytes = addrStop - addrStart + 1;
 
   // print message
   if (verbose == SILENT) {
-    printf("  read ");
+    if (numBytes > 1024)
+      printf("  read %1.1fkB ", (float) numBytes/1024.0);
+    else
+      printf("  read %dB ", numBytes);
   }
   else if (verbose == INFORM) {
     if (numBytes > 1024)
@@ -411,12 +429,20 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   }
   else if (verbose == CHATTY) {
     if (numBytes > 1024)
-      printf("  read %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) addrStop);
+      printf("  read %1.1fkB in 0x%04x to 0x%04x ", (float) numBytes/1024.0, (int) addrStart, (int) addrStop);
     else
-      printf("  read %dB (0x%04x to 0x%04x) ", (int) numBytes, (int) addrStart, (int) addrStop);
+      printf("  read %dB in 0x%04x to 0x%04x ", (int) numBytes, (int) addrStart, (int) addrStop);
   }
   fflush(stdout);
   
+  // simple checks of scan window
+  if (addrStart > addrStop)
+    Error("start address 0x%04x higher than end address 0x%04x", addrStart, addrStop);
+  if (addrStart > LENIMAGEBUF)
+    Error("start address 0x%04x exceeds buffer size 0x%04x", addrStart, LENIMAGEBUF);
+  if (addrStop > LENIMAGEBUF)
+    Error("end address 0x%04x exceeds buffer size 0x%04x", addrStop, LENIMAGEBUF);
+
   // init receive buffer
   for (i=0; i<1000; i++)
     Rx[i] = 0;
@@ -426,18 +452,18 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     Error("in 'bsl_memRead()': port not open");
   
   // init data buffer
-  for (i=0; i<numBytes; i++)
-    buf[i] = 0;
+  for (i=addrStart; i<=addrStop; i++)
+    imageBuf[i] = 0;
 
 
   // loop over addresses in <=256B steps
-  idx = 0;
+  countBytes = 0;
   addrStep = 256;
-  for (addrTmp=addrStart; addrTmp<=addrStop; addrTmp+=addrStep) {  
+  for (addr=addrStart; addr<=addrStop; addr+=addrStep) {  
     
     // if addr too close to end of range reduce stepsize
-    if (addrTmp+256 > addrStart+numBytes)
-      addrStep = addrStart+numBytes-addrTmp;
+    if (addr+256 > addrStop)
+      addrStep = addrStop - addr + 1;
 
   
     /////
@@ -485,10 +511,10 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   
     // construct address + checksum (XOR over address)
     lenTx = 5;
-    Tx[0] = (char) (addrTmp >> 24);
-    Tx[1] = (char) (addrTmp >> 16);
-    Tx[2] = (char) (addrTmp >> 8);
-    Tx[3] = (char) (addrTmp);
+    Tx[0] = (char) (addr >> 24);
+    Tx[1] = (char) (addr >> 16);
+    Tx[2] = (char) (addr >> 8);
+    Tx[3] = (char) (addr);
     Tx[4] = (Tx[0] ^ Tx[1] ^ Tx[2] ^ Tx[3]);
     lenRx = 1;
   
@@ -564,28 +590,29 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
 
     // copy data to buffer. Set HB to indicate data read
     for (i=1; i<lenRx; i++) {
-      buf[idx++] = ((uint16_t) (Rx[i]) | 0xFF00);
+      imageBuf[addr+i-1] = ((uint16_t) (Rx[i]) | 0xFF00);
       //printf("%d 0x%02x\n", i, (uint8_t) (Rx[i])); fflush(stdout); getchar();
+      countBytes++;
     }
     
     // print progress
-    if ((idx % 1024) == 0) {
+    if ((countBytes % 1024) == 0) {
       if (verbose == SILENT) {
         printf(".");
-        if ((idx % (10*1024)) == 0)
+        if ((countBytes % (10*1024)) == 0)
           printf(" ");
       }
       else if (verbose == INFORM) {
         if (numBytes > 1024)
-          printf("%c  read %1.1fkB ", '\r', (float) idx/1024.0);
+          printf("%c  read %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
         else
-          printf("%c  read %dB ", '\r', idx);
+          printf("%c  read %dB / %dB ", '\r', countBytes, (int) numBytes);
       }
       else if (verbose == CHATTY) {
         if (numBytes > 1024)
-          printf("%c  read %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrStop);
+          printf("%c  read %1.1fkB / %1.1fkB from 0x%04x to 0x%04x ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, (int) addrStart, (int) addrStop);
         else
-          printf("%c  read %dB (0x%04x to 0x%04x) ", '\r', (int) idx, (int) addrStart, (int) addrStop);
+          printf("%c  read %dB / %dB from 0x%04x to 0x%04x ", '\r', (int) countBytes, (int) numBytes, (int) addrStart, (int) addrStop);
       }
       fflush(stdout);
     }
@@ -598,32 +625,17 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     printf(" done\n");
   else if (verbose == INFORM) {
     if (numBytes > 1024)
-      printf("%c  read %1.1fkB ... ", '\r', (float) idx/1024.0);
+      printf("%c  read %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
     else
-      printf("%c  read %dB ... ", '\r', idx);
-    printf("done\n");
+      printf("%c  read %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numBytes);
   }
   else if (verbose == CHATTY) {
     if (numBytes > 1024)
-      printf("%c  read %1.1fkB (0x%04x to 0x%04x) ... ", '\r', (float) idx/1024.0, (int) addrStart, (int) addrStop);
+      printf("%c  read %1.1fkB / %1.1fkB from 0x%04x to 0x%04x ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, (int) addrStart, (int) addrStop);
     else
-      printf("%c  read %dB (0x%04x to 0x%04x) ... ", '\r', (int) idx, (int) addrStart, (int) addrStop);
-    printf("done\n");
+      printf("%c  read %dB / %dB from 0x%04x to 0x%04x ... done   \n", '\r', (int) countBytes, (int) numBytes, (int) addrStart, (int) addrStop);
   }
   fflush(stdout);
-  
-  
-  // debug: print buffer
-  /*
-  printf("\n");
-  printf("idx  addr  value\n");
-  for (i=0; i<numBytes; i++) {
-    printf("%3d   0x%04x    0x%02x\n", i+1, (int) (addrStart+i), (uint8_t) (buf[i]));
-  }
-  printf("\n");
-  fflush(stdout);
-  */
-  
   
   // avoid compiler warnings
   return(0);
@@ -1105,50 +1117,55 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
 
 
 /**
-  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose)
+  \fn uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
    
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
   \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[out] imageBuf       memory image of data to write (16-bit array. HB!=0 indicates content)
   \param[in]  addrStart      first address to write to
   \param[in]  addrStop       last address to write to
-  \param[out] buf            data to write as 16-bit array. HB!=0 indicates content. Index 0 corresponds to addrStart
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
   
   \return communication status (0=ok, 1=fail)
   
   upload data to microcontroller memory via WRITE command
 */
-uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t addrStart, uint32_t addrStop, uint16_t *buf, uint8_t verbose) {
+uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose) {
 
-  int       i, lenTx, lenRx, len;
-  char      Tx[1000], Rx[1000];
-  uint32_t  addrTmp, addrStep, numBytes, idx=0, idx2=0;
-  uint8_t   chk, flagEmpty;
+  uint32_t         numData, countBytes, countBlock;    // size of memory image
+  const uint32_t   maxBlock = 128;                      // max. length of write block 
+  char             Tx[1000], Rx[1000];                  // communication buffers
+  int              lenTx, lenRx, len;                   // frame lengths
+  uint8_t          chk;                                 // frame checksum
+  
 
-  // get number of bytes to read
-  numBytes = addrStop - addrStart + 1;
-
+  // update min/max addresses and number of bytes to write (HB!=0x00) for printout
+  get_image_size(imageBuf, addrStart, addrStop, &addrStart, &addrStop, &numData);
+    
   // print message
   if (verbose == SILENT) {
-    printf("  write ");
+    if (numData > 1024)
+      printf("  write %1.1fkB ", (float) numData/1024.0);
+    else
+      printf("  write %dB ", numData);
   }
   else if (verbose == INFORM) {
-    if (numBytes > 1024)
-      printf("  write %1.1fkB ", (float) numBytes/1024.0);
+    if (numData > 1024)
+      printf("  write %1.1fkB ", (float) numData/1024.0);
     else
-      printf("  write %dB ", numBytes);
+      printf("  write %dB ", numData);
   }
   else if (verbose == CHATTY) {
-    if (numBytes > 1024)
-      printf("  write %1.1fkB (0x%04x to 0x%04x) ", (float) numBytes/1024.0, (int) addrStart, (int) addrStop);
+    if (numData > 1024)
+      printf("  write %1.1fkB in 0x%04x to 0x%04x ", (float) numData/1024.0, (int) addrStart, (int) addrStop);
     else
-      printf("  write %dB (0x%04x to 0x%04x) ", (int) numBytes, (int) addrStart, (int) addrStop);
+      printf("  write %dB in 0x%04x to 0x%04x ", (int) numData, (int) addrStart, (int) addrStop);
   }
   fflush(stdout);
   
   // init receive buffer
-  for (i=0; i<1000; i++)
+  for (int i=0; i<1000; i++)
     Rx[i] = 0;
 
   // check if port is open
@@ -1156,29 +1173,28 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     Error("in 'bsl_memWrite()': port not open");
 
 
-  // loop over addresses in <=128B steps
-  idx = 0;
-  idx2 = 0;
-  addrStep = 128;
-  for (addrTmp=addrStart; addrTmp<=addrStop; addrTmp+=addrStep) {
-  
-    // if addr too close to end of range reduce stepsize
-    if (addrTmp+128 > addrStart+numBytes)
-      addrStep = addrStart+numBytes-addrTmp;
+  // loop over specified address range
+  // Write only defined bytes (HB!=0x00) and align to 128 to minimize write time (see UM0560 section 3.4) 
+  countBytes = 0;
+  countBlock = 0;
+  uint32_t addr = addrStart;
+  while (addr <= addrStop) {
 
-    // check if next block contains data (indicated by HB != 0x00). If not, skip complete block
-    flagEmpty = 1;
-    for (i=0; i<addrStep; i++) {
-      if (buf[idx+i] & 0xFF00) {
-        flagEmpty = 0;
-        break;
-      }
+    // find next data byte (=start address of next block)
+    while (((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop))
+      addr++;
+    uint32_t addrBlock = addr;
+
+    // end address reached -> done
+    if (addr > addrStop)
+      break;
+
+    // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)  
+    int lenBlock = 1; 
+    while ((lenBlock < maxBlock) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxBlock)) {
+      lenBlock++;
     }
-    if (flagEmpty) {
-      idx += addrStep;
-      continue;
-    }
-      
+    //printf("0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
 
     /////
     // send write command
@@ -1225,10 +1241,10 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   
     // construct address + checksum (XOR over address)
     lenTx = 5;
-    Tx[0] = (char) (addrTmp >> 24);
-    Tx[1] = (char) (addrTmp >> 16);
-    Tx[2] = (char) (addrTmp >> 8);
-    Tx[3] = (char) (addrTmp);
+    Tx[0] = (char) (addrBlock >> 24);
+    Tx[1] = (char) (addrBlock >> 16);
+    Tx[2] = (char) (addrBlock >> 8);
+    Tx[3] = (char) (addrBlock);
     Tx[4] = (Tx[0] ^ Tx[1] ^ Tx[2] ^ Tx[3]);
     lenRx = 1;
   
@@ -1268,13 +1284,13 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   
     // construct number of bytes + data + checksum
     lenTx = 0;
-    Tx[lenTx++] = addrStep-1;     // -1 from BSL
-    chk         = addrStep-1;
-    for (i=0; i<addrStep; i++) {
-      Tx[lenTx] = (uint8_t) (buf[idx++] & 0x00FF);  // only LB, HB idicates data
-      idx2++;                                       // only used for printing
+    Tx[lenTx++] = lenBlock-1;     // -1 from BSL
+    chk         = lenBlock-1;
+    for (int j=0; j<lenBlock; j++) {
+      Tx[lenTx] = (uint8_t) (imageBuf[addrBlock+j] & 0x00FF);  // only LB, HB indicates "defined"
       chk ^= Tx[lenTx];
       lenTx++;
+      countBytes++;
     }
     Tx[lenTx++] = chk;
     lenRx = 1;
@@ -1297,7 +1313,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
     else if (physInterface == SPI_ARDUINO) {
-      if ((addrTmp >= 0x8000) && (addrTmp % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
+      if ((addrBlock >= PFLASH_START) && (addrBlock % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
         SLEEP(1200);                               // for not 128-aligned data wait >1.1s
       else
         SLEEP(20);                                 // for 128-aligned data wait >8.5ms
@@ -1320,49 +1336,132 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       Error("in 'bsl_memWrite()': ACK3 failure (read 0x%2x)", Rx[0]);
     
     // print progress
-    if ((idx2 % 1024) == 0) {
+    if (((++countBlock) % 8) == 0) {
       if (verbose == SILENT) {
         printf(".");
-        if ((idx2 % (10*1024)) == 0)
+        if ((countBlock % (10*8)) == 0)
           printf(" ");
       }
       else if (verbose == INFORM) {
-        if (numBytes > 1024)
-          printf("%c  write %1.1fkB ", '\r', (float) idx2/1024.0);
+        if (numData > 1024)
+          printf("%c  write %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
         else
-          printf("%c  write %dB ", '\r', (int) idx2);
+          printf("%c  write %dB / %dB ", '\r', (int) countBytes, (int) numData);
       }
       else if (verbose == CHATTY) {
-        if (numBytes > 1024)
-          printf("%c  write %1.1fkB (0x%04x to 0x%04x) ", '\r', (float) idx2/1024.0, (int) addrStart, (int) addrStop);
+        if (numData > 1024)
+          printf("%c  write %1.1fkB / %1.1fkB in 0x%04x to 0x%04x ", '\r', (float) countBytes/1024.0, (float) numData/1024.0, (int) addrStart, (int) addrStop);
         else
-          printf("%c  write %dB (0x%04x to 0x%04x) ", '\r', (int) idx2, (int) addrStart, (int) addrStop);
+          printf("%c  write %dB / %dB in 0x%04x to 0x%04x ", '\r', (int) countBytes, (int) numData, (int) addrStart, (int) addrStop);
       }
       fflush(stdout);
     }
+
+    // go to next potential block
+    addr += lenBlock;
     
   } // loop over address range 
-  
+
   // print message
   if (verbose == SILENT)
     printf(" done\n");
   else if (verbose == INFORM) {
-    if (numBytes > 1024)
-      printf("%c  write %1.1fkB ... done   \n", '\r', (float) idx2/1024.0);
+    if (numData > 1024)
+      printf("%c  write %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
     else
-      printf("%c  write %dB ... done   \n", '\r', idx2);
+      printf("%c  write %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numData);
   }
   else if (verbose == CHATTY) {
-    if (numBytes > 1024)
-      printf("%c  write %1.1fkB (0x%04x to 0x%04x) ... done   \n", '\r', (float) idx2/1024.0, (int) addrStart, (int) addrStop);
+    if (numData > 1024)
+      printf("%c  write %1.1fkB / %1.1fkB in 0x%04x to 0x%04x ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0, (int) addrStart, (int) addrStop);
     else
-      printf("%c  write %dB (0x%04x to 0x%04x) ... done   \n", '\r', idx2, (int) addrStart, (int) addrStop);
+      printf("%c  write %dB / %dB in 0x%04x to 0x%04x ... done   \n", '\r', (int) countBytes, (int) numData, (int) addrStart, (int) addrStop);
   }
   
   // avoid compiler warnings
   return(0);
   
 } // bsl_memWrite
+
+
+
+/**
+  \fn uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose)
+   
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[out] imageBuf       memory image to verify (16-bit array. HB!=0 indicates content)
+  \param[in]  addrStart      first address to verify
+  \param[in]  addrStop       last address to verify
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
+  
+  \return communication status (0=ok, 1=fail)
+  
+  Read microntroller flash memory and compare to specified RAM image. 
+*/
+uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint32_t addrStart, uint32_t addrStop, uint8_t verbose) {
+
+  // allocate and clear temporary RAM buffer (>1MByte requires dynamic allocation)
+  uint16_t  *tmpImageBuf;            // RAM image buffer (high byte != 0 indicates value is set)
+  if (!(tmpImageBuf = malloc(LENIMAGEBUF * sizeof(*tmpImageBuf))))
+    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
+  memset(tmpImageBuf, 0, LENIMAGEBUF * sizeof(*tmpImageBuf));
+
+
+  // loop over image and read all consecutive data blocks. Skip undefined data to avoid illegal read. 
+  uint32_t addr = addrStart;
+  while (addr <= addrStop) {
+
+    // find next data byte in image (=start address for next read)
+    while (((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop))
+      addr++;
+
+    // end address reached -> done
+    if (addr > addrStop)
+      break;
+
+    // set length of next read-out  
+    int lenRead = 1; 
+    while (((addr+lenRead) <= addrStop) && (imageBuf[addr+lenRead] & 0xFF00)) {
+      lenRead++;
+    }
+    //printf("0x%04x   0x%04x   %d\n", addr, addr+lenBlock-1, lenRead);
+
+    // read back from STM8 
+    bsl_memRead(ptrPort, physInterface, uartMode, addr, addr+lenRead-1, tmpImageBuf, verbose);
+
+    // go to next potential block
+    addr += lenRead;
+    
+  } // loop over image
+
+
+  // print messgage
+  if (verbose != MUTE)
+    printf("  verify memory ... ");
+  fflush(stdout);
+
+  // compare defined data data entries (HB!=0x00) 
+  for (addr=addrStart; addr<=addrStop; addr++) {
+    if (imageBuf[addr] & 0xFF00) {
+      if ((imageBuf[addr] & 0xFF) != (tmpImageBuf[addr] & 0xFF))
+        Error("verify failed at address 0x%04x (0x%02x vs 0x%02x)", (uint32_t) (addr), (uint8_t) (imageBuf[addr]&0xFF), (uint8_t) (tmpImageBuf[addr]&0xFF));
+    } // if data defined
+  } // loop over address
+  
+  // print messgage
+  if (verbose != MUTE)
+    printf("done\n");
+  fflush(stdout);
+        
+  // release temporary RAM buffer
+  free(tmpImageBuf);
+  
+  // avoid compiler warnings
+  return(0);
+  
+} // bsl_memVerify
 
 
 
