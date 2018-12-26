@@ -10,6 +10,13 @@ cd `dirname $0`
 echo off
 clear
 
+# use make to delete output
+make -f Makefile clean
+
+# delete DevC++ objects. Keep Objects folder
+rm -fr ./Objects
+mkdir ./Objects
+
 # make application
 make -f Makefile
 
