@@ -90,42 +90,43 @@ Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested.
 
 # Using the Software
 
-_stm8gal_ is a commandline tool without graphical interface (volunteers...?). The application is called from the command line or via shell script using the following syntax:
+_stm8gal_ is a commandline tool without graphical interface (volunteers...?). The application is called from the command line or via shell script using the below syntax.
 
-`stm8gal [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-v] [-w infile [addr]] [-s addr value] [-r addrStart addrStop outfile] [-e] [-j addr] [-V verbose] [-B] [-q]`
+`usage: stm8gal with following options/commands:`
 
-    -h / --help           print this help
-    -i / --interface      communication interface: 0=UART, 1=SPI via Arduino, 2=SPI via spidev (default: UART)
-    -p / --port           name of communication port (default: list available ports)
-    -b / --baudrate       communication baudrate in Baud (default: 115200)
-    -u / --uartmode       UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
-    -R / --reset          reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
-    -v / --noverify       don't verify code in flash after upload (default: verify)
-    -w / --write          upload file from PC to uController. For binary file (*.bin) add address offset (default: skip)
-    -s / --set            change content of (any) address to given value (default: skip)
-    -r / --read           read memory range (address in hex) and print to console or save to file (default: skip)
-    -e / --erase          mass erase uController flash. Use carefully! (default: skip)
-    -j / --jump           jump to given address before exit (-1: skip jump, default: jump to flash)
-    -V / --verbose        verbosity level 0..3 (default: 2)
-    -B / --background     optimize for background operation, e.g. skip prompts and colors (default: interactive use)
-    -q / --exitPrompt     prompt for <return> prior to exit (default: no prompt)
+    -h/-help                        print this help
+    -v/-verbose [level]             set verbosity level 0..3 (default: 2)
+    -B/-background                  skip prompts and colors for background operation (default: foreground)
+    -q/-exit-prompt                 prompt for <return> prior to exit (default: no prompt)
+    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 5=Raspi pin 12 (default: manual)
+    -i/-interface [line]            communication interface: 0=UART, 1=SPI via Arduino, 2=SPI via spidev (default: UART)
+    -u/-uart-mode [mode]            UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
+    -p/-port [name]                 communication port (default: list available ports)
+    -b/-baudrate [speed]            communication baudrate in Baud (default: 115200)
+    -V/-no-verify                   don't verify code in flash after upload (default: verify)
+    -j/-jump-addr [address]         jump address before exit of stm8gal, or -1 for skip (default: flash)
+    -w/-write-file [file [addr]]    upload file from PC to uController. For binary file (*.bin) with address offset (as hex)
+    -W/-write-byte [addr value]     change value at given address (as dec or hex)
+    -r/-read [start stop output]    read memory range (as hex) and save to file or print (output=console)
+    -e/-erase-sector [addr]         erase flash sector containing given address. Use carefully!
+    -E/-erase-full                  mass erase complete flash. Use carefully!
 
 Notes: 
-  - interface spidev (`-i 2`) is only available if _stm8gal_ was built with _spidev_ support (see [Building the Software](#building-the-software)
   - reset via RasPi GPIO (`-R 5`) is only available on a Raspberry Pi and if _stm8gal_ was built with _wiringPi_ support (see [Building the Software](#building-the-software)
+  - interface spidev (`-i 2`) is only available if _stm8gal_ was built with _spidev_ support (see [Building the Software](#building-the-software)
   - SPI via Arduino (`-i 1`) and reset via Arduino GPIO (`-R 4`) requires an additional Arduino programmed as [SPI bridge](https://github.com/gicking/Arduino_SPI_bridge)
 
 ***
 
 # Supported File Formats
 
-Import and upload to STM8 (option '-w'):
+Supported import formats (option '-w'):
   - Motorola S19 (*.s19), for a description see [here](https://en.wikipedia.org/wiki/SREC_(file_format))
   - Intel Hex (*.hex, *.ihx), for a description see [here](https://en.wikipedia.org/wiki/Intel_HEX)
-  - ASCII table (*.txt) consisting of lines with 'hexAddr  value'. Lines starting with '#' are ignored. For example see [here](https://github.com/gicking/stm8gal/tree/master/option_bytes/OPT2_beep.txt)
+  - ASCII table (*.txt) consisting of lines with 'addr  value' (dec or hex). Lines starting with '#' are ignored. For example see [here](https://github.com/gicking/stm8gal/tree/master/option_bytes/OPT2_beep.txt)
   - Binary (*.bin) with an additional starting address
 
-Download from STM8 and output (option '-r'):
+Supported export formats (option '-r'):
   - print to stdout ('console')
   - Motorola S19 (*.s19)
   - ASCII table (*.txt) with 'hexAddr  hexValue'
@@ -199,7 +200,7 @@ intermediate exports only contain the memory content up to that point in time.
 
 2. software usage:
 
-   -`stm8gal -i 3 -p /dev/spidev0.0 -w main.ihx -R 5`
+   -`stm8gal -i 2 -p /dev/spidev0.0 -w main.ihx -R 5`
 
 ***
 
@@ -313,12 +314,13 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 
 # Revision History
 
-v1.3.0b (2018-12-21)
+v1.3.0b (2018-12-26)
   - add multiple up- and downloads in single run
   - added option to print memory map and sector erase
   - fixed S19 export bugs for >16bit addresses and small images
   - fixed IHX import bug for record type 5
   - fixed mass erase timeout bug
+  - fixed bug for files with "holes" -> only write specified data
   - harmonized files with https://github.com/gicking/hexfile_merger
 
 ----------------
