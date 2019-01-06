@@ -27,7 +27,7 @@ Georg
 
 The majority of _stm8gal_ is written in ISO C 99 with some OS-specific routines required e.g. for serial communication. However the required serial libs are part of all standard compiler suites and shouldn't pose a compatibility issue. In case of portability issues please contact the author for support.
 
-Exceptions are
+Non ANSI-C extensions:
 
 - [wiringPi](http://wiringpi.com/) library, which is [Raspberry Pi](https://www.raspberrypi.org/) specific, and allows automatic reset of the STM8 via GPIO header pin. Is pre-installed for Raspbian Stretch and above. To activate remove comment in Makefile
 
@@ -84,31 +84,57 @@ Note: Windows commandline (cmd.exe) requires a path on a mounted drive, i.e. pat
 
 Same as for Linux above. However, for double-click rename files "*.sh" to "*.command"
  
-Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested. Therefore, please provide feedback if you have experience with _stm8gal_ on a Mac. Thanks! 
+Note: Due to lack of a Macintosh, compatibility with MacOSX is no longer tested. Therefore, please provide feedback if you have experience with _stm8gal_ on a Mac. Also a Mac binary for distribution is highly appreciated. Thanks! 
  
 ***
 
 # Using the Software
 
-_stm8gal_ is a commandline tool without graphical interface (volunteers...?). The application is called from the command line or via shell script using the following syntax:
+_stm8gal_ is a commandline tool without graphical interface (volunteers...?). The application is called from the command line or via shell script using the below syntax.
 
-`stm8gal [-h] [-i interface] [-p port] [-b rate] [-u mode] [-R ch] [-e] [-w infile] [-x] [-v] [-r start stop outfile] [-j] [-V verbose] [-B] [-q]`
+`usage: stm8gal with following options/commands:`
 
-    -h                     print this help
-    -i interface           communication interface: 0=UART, 1=SPI via spidev, 2=SPI via Arduino (default: UART)
-    -p port                name of communication port (default: list available ports)
-    -b rate                communication baudrate in Baud (default: 230400)
-    -u mode                UART mode: 0=duplex, 1=1-wire reply, 2=2-wire reply (default: duplex). For details see setion 2 in UM0560 AppNote
-    -R ch                  reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
-    -e                     erase P-flash and D-flash prior to upload (default: skip)
-    -w infile              upload s19 or intel-hex file to flash (default: skip)
-      -x                   don't enable ROM bootloader after upload (default: enable)
-      -v                   don't verify code in flash after upload (default: verify)
-    -r start stop outfile  read memory range (in hex) to s19 file or table (default: skip)
-    -j                     don't jump to flash before exit (default: jump to flash)
-    -V                     verbosity level 0..2 (default: 2)
-    -B                     optimize for background operation, e.g. skip prompts and colors (default: forefront use)
-    -q                     prompt for <return> prior to exit (default: no prompt)
+    -h/-help                        print this help
+    -v/-verbose [level]             set verbosity level 0..3 (default: 2)
+    -B/-background                  skip prompts and colors for background operation (default: foreground)
+    -q/-exit-prompt                 prompt for <return> prior to exit (default: no prompt)
+    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 5=Raspi pin 12 (default: manual)
+    -i/-interface [line]            communication interface: 0=UART, 1=SPI via Arduino, 2=SPI via spidev (default: UART)
+    -u/-uart-mode [mode]            UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
+    -p/-port [name]                 communication port (default: list available ports)
+    -b/-baudrate [speed]            communication baudrate in Baud (default: 115200)
+    -V/-no-verify                   don't verify code in flash after upload (default: verify)
+    -j/-jump-addr [address]         jump address before exit of stm8gal, or -1 for skip (default: flash)
+    -w/-write-file [file [addr]]    upload file from PC to uController. For binary file (*.bin) with address offset (as hex)
+    -W/-write-byte [addr value]     change value at given address (as dec or hex)
+    -r/-read [start stop output]    read memory range (as hex) and save to file or print (output=console)
+    -e/-erase-sector [addr]         erase flash sector containing given address. Use carefully!
+    -E/-erase-full                  mass erase complete flash. Use carefully!
+
+Notes: 
+  - reset via RasPi GPIO (`-R 5`) is only available on a Raspberry Pi and if _stm8gal_ was built with _wiringPi_ support (see [Building the Software](#building-the-software)
+  - interface spidev (`-i 2`) is only available if _stm8gal_ was built with _spidev_ support (see [Building the Software](#building-the-software)
+  - SPI via Arduino (`-i 1`) and reset via Arduino GPIO (`-R 4`) requires an additional Arduino programmed as [SPI bridge](https://github.com/gicking/Arduino_SPI_bridge)
+
+***
+
+# Supported File Formats
+
+Supported import formats (option '-w'):
+  - Motorola S19 (*.s19), for a description see [here](https://en.wikipedia.org/wiki/SREC_(file_format))
+  - Intel Hex (*.hex, *.ihx), for a description see [here](https://en.wikipedia.org/wiki/Intel_HEX)
+  - ASCII table (*.txt) consisting of lines with 'addr  value' (dec or hex). Lines starting with '#' are ignored. For example see [here](https://github.com/gicking/stm8gal/tree/master/option_bytes/OPT2_beep.txt)
+  - Binary (*.bin) with an additional starting address
+
+Supported export formats (option '-r'):
+  - print to stdout ('console')
+  - Motorola S19 (*.s19)
+  - ASCII table (*.txt) with 'hexAddr  hexValue'
+  - Binary (*.bin) without starting address
+
+Data is uploaded and exported in the specified order, i.e. later uploads may
+overwrite previous uploads. Also exports only contain the previous uploads, i.e.
+intermediate exports only contain the memory content up to that point in time.
 
 ***
 
@@ -116,7 +142,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 ### Program custom [_muBoard_](https://frosch.piandmore.de/en/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf) via USB with manual reset
 
-1. supply the [_muBoard_](https://frosch.piandmore.de/en/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf) via USB from the PC, here a RasPi. This also establishes the USB<->UART connection via an on-board [FT232](http://www.ftdichip.com/Products/ICs/FT232R.htm) adapter
+1. supply the [_muBoard_](http://www.cream-tea.de/presentations/160305_PiAndMore.pdf) via USB from the PC, here a RasPi. This also establishes the USB<->UART connection via an on-board [FT232](http://www.ftdichip.com/Products/ICs/FT232R.htm) adapter
  
 2. note name of serial port, e.g. COM10 (Win) or /dev/ttyUSB0 (Linux). Hint: launching _stm8gal_ without argument lists the available ports
 
@@ -150,9 +176,9 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 2. software usage:
 
-   -`stm8gal -p /dev/ttyAMA0 -b 57600 -u 2 -w main.ihx -R 3`   (RasPi 1+2)
+   -`stm8gal -p /dev/ttyAMA0 -w main.ihx -R 5`   (RasPi 1+2)
    
-   -`stm8gal -p /dev/serial0 -b 57600 -u 2 -w main.ihx -R 3`   (RasPi 3)
+   -`stm8gal -p /dev/serial0 -w main.ihx -R 5`   (RasPi 3)
 
 ***
 
@@ -174,20 +200,21 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 2. software usage:
 
-   -`stm8gal -i 1 -p /dev/spidev0.0 -w main.ihx -R 3`
+   -`stm8gal -i 2 -p /dev/spidev0.0 -w main.ihx -R 5`
 
 ***
 
 ### Program [STM8S Discovery Board](http://www.st.com/en/evaluation-tools/stm8s-discovery.html) via [Arduino SPI bridge](https://github.com/gicking/Arduino_SPI_bridge) and reset via GPIO
 
-1. Supply the [Arduino](https://www.arduino.cc) to the PC via USB. This also establishes an USB connection to the on-board microcontroller.
+1. Ensure voltage level compatibility between Arduino and STM8. Note that ATMega-based (8-bit) Arduinos generally have 5V GPIOs, while ARM-based (32-bit) boards only support 3.3V. **Exposing a 3.3V device to 5V signals may damage the 3.3V device**.
 
-2. Program the Arduino to act an an USB<->SPI bridge using [this](https://github.com/gicking/Arduino_SPI_bridge) software. Note that this software is currently only compatible with Atmega boards, i.e. **requires 5V GPIOs**
+2. Supply the [Arduino](https://www.arduino.cc) to the PC via USB. This also establishes an USB connection to the on-board microcontroller
 
-3. Note name of serial port, e.g. COM10 (Win) or /dev/ttyUSB0 (Linux). Hint: launching _stm8gal_ without argument lists the available ports
+3. Program the Arduino to act an an [USB<->SPI bridge](https://github.com/gicking/Arduino_SPI_bridge).
 
-4. connect the [STM8S Discovery Board](http://www.st.com/en/evaluation-tools/stm8s-discovery.html) to the Arduino in the same sequence as shown below. Notes:
-   - configure STM8S Discovery for 5V supply to avoid damage to its GPIOs 
+4. Note name of serial port, e.g. COM10 (Win) or /dev/ttyUSB0 (Linux). Hint: launching _stm8gal_ without argument lists the available ports
+
+5. connect the [STM8S Discovery Board](http://www.st.com/en/evaluation-tools/stm8s-discovery.html) to the Arduino in the same sequence as shown below. 
  
 <p align="center"> 
   <img src="images/Arduino_Discovery_SPI_Setup.jpg">
@@ -199,13 +226,13 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 2. software usage:
 
-   -`stm8gal -i 2 -p /dev/ttyUSB0 -w main.ihx -R 4`
+   -`stm8gal -i 1 -p /dev/ttyUSB0 -w main.ihx -R 4`
 
 ***
 
 ### Memory dump [_muBoard_](https://frosch.piandmore.de/en/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf) via USB with manual reset
 
-1. supply the [_muBoard_](https://frosch.piandmore.de/en/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf) via USB from the PC, here a RasPi. This also establishes the USB<->UART connection via an on-board [FT232](http://www.ftdichip.com/Products/ICs/FT232R.htm) adapter
+1. supply the [_muBoard_](http://www.cream-tea.de/presentations/160305_PiAndMore.pdf) via USB from the PC, here a RasPi. This also establishes the USB<->UART connection via an on-board [FT232](http://www.ftdichip.com/Products/ICs/FT232R.htm) adapter
   
 2. note name of serial port, e.g. COM10 (Win) or /dev/ttyUSB0 (Linux). Hint: launching _stm8gal_ without argument lists the available ports
 
@@ -225,7 +252,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 # General Notes
 
-- bootloader programming via UART, SPI or CAN is supported by most STM8 devices. However, not all devices support each interface. A full description of the bootloaders can be found in [UM0560](http://www.st.com/st-web-ui/static/active/en/resource/technical/document/user_manual/CD00201192.pdf), including an overview of STM8 devices with respective bootloader mode:
+- bootloader programming via UART, SPI or CAN is supported by most STM8 devices. However, not all devices support each interface. A full description of the bootloaders can be found in [UM0560](http://www.st.com/st-web-ui/static/active/en/resource/technical/document/user_manual/CD00201192.pdf), including an overview of STM8 devices with respective bootloader mode. For _stm8gal_ >=v1.2.0 the UART mode can optionally be auto-detected:
 
 <p align="center"> 
   <img src="images/BSL_Modes.png">
@@ -233,9 +260,9 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
 
 - To program via _stm8gal_, communication between PC and STM8 must be possible. On the STM8 side this is via [UART](https://en.wikipedia.org/wiki/UART) or [SPI](https://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus), on the PC side this is generally via USB or RS232.
 
-  - On some boards, e.g. the custom [_muBoard_](https://frosch.piandmore.de/en/pam9/call/public-media/event_media/160611_Vortrag_Interpreter.pdf), an USB<->UART bridge is already present. In this case, no additional hardware is required
+  - On some boards, e.g. the [_muBoard_](http://www.cream-tea.de/presentations/160305_PiAndMore.pdf), an USB<->UART bridge is already present. In this case, no additional hardware is required
   
-  - However, e.g. the popular [STM8S Discovery](http://www.st.com/en/evaluation-tools/stm8s-discovery.html) and [STM8L Discovery](http://www.st.com/en/evaluation-tools/stm8l-discovery.html) boards connect to a standard PC via SWIM (=debug) interface. In this case a separate adapter is required to connect to the respective STM8 UART or SPI pins, e.g. [UM232R](http://de.farnell.com/ftdi/um232r/evaluationskit-usb-uart-ttl-ft232rl/dp/1146036?ost=UM232R). When connecting, make sure that the voltage levels of STM8 and the adapter are compatible. **Exposing a 3.3V device to 5V signals may damage the 3.3V device**.
+  - However, e.g. the popular [STM8S Discovery](http://www.st.com/en/evaluation-tools/stm8s-discovery.html) and [STM8L Discovery](http://www.st.com/en/evaluation-tools/stm8l-discovery.html) boards connect to a standard PC via SWIM (=debug) interface. In this case a separate adapter is required to connect to the respective STM8 UART or SPI pins, e.g. [UM232R](https://www.ftdichip.com/Support/Documents/DataSheets/Modules/DS_UM232R.pdf). When connecting, make sure that the voltage levels of STM8 and the adapter are compatible. **Exposing a 3.3V device to 5V signals may damage the 3.3V device**.
 
   - Exception is the [Raspberry Pi](https://www.raspberrypi.org) or similar “embedded PCs“ with direct access to UART and SPI pins via the GPIO header. In this case make sure that the voltage levels of STM8 and embedded PC are compatible, e.g. for RasPi with 3.3V pins also supply the STM8 with Vdd=3.3V. As noted above, **never expose a 3.3V device to 5V signals**.
 
@@ -251,11 +278,9 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
    
     - Virgin devices (i.e. flash completely erased) automatically have the bootloader enabled 
 
-    - _stm8gal_ by default activates the BSL after upload (see section [Using the Software](#using-the-software)) 
-
 - The BSL can be entered only within 1s after reset or power-on. Exception are virgin devices, which remain in bootloader mode indefinitely.
 
-- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in low upload speeds.
+- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in low upload speeds. 
 
 - The STM32 uses a very similar bootloader protocol, so adapting the flasher tool for STM32 should be straightforward. However, I have no board available, but please feel free to go ahead...
 
@@ -271,7 +296,7 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 ***
 
-# Known Issues / Limitations
+# Limitations
 
 - SPI verify after write does not work (READ command only returns ACK) -> verify after write is disabled for SPI. Strangely, memory read-out works via SPI
 
@@ -279,7 +304,32 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 ***
 
+# Known Bugs
+
+- currently no known bugs
+
+If you are aware of bugs, please drop me a note or start an [issue](https://github.com/gicking/stm8gal/issues) on the project homepage.
+
+***
+
 # Revision History
+
+v1.3.0b (2018-12-26)
+  - add multiple up- and downloads in single run
+  - added option to print memory map and sector erase
+  - fixed S19 export bugs for >16bit addresses and small images
+  - fixed IHX import bug for record type 5
+  - fixed mass erase timeout bug
+  - fixed bug for files with "holes" -> only write specified data
+  - harmonized files with https://github.com/gicking/hexfile_merger
+
+----------------
+
+v1.2.0b (2018-12-02)
+  - add automatic UART mode detection (duplex, 1-wire, 2-wire reply). See [UART mode issue](https://github.com/gicking/stm8gal/issues/7)
+  - changed default UART baudrate to 115.2kBaud for robustness
+
+----------------
 
 v1.1.8 (2018-10-07)
   - add option for background operation for IDE usage. Skip prompts and setting console color & title

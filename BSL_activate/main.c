@@ -26,6 +26,8 @@ void toggleLED(uint16_t period_ms) {
   PD.ODR.bit.b0 ^= 1;
 #elif defined(STM8S207)
   PH.ODR.bit.b2 ^= 1;
+#else
+  #error toggle LED pin (optional)
 #endif
 
   // wait a bit
@@ -65,6 +67,8 @@ void main (void) {
   PH.DDR.bit.b2 = 1;   // input(=0) or output(=1)
   PH.CR1.bit.b2 = 1;   // input: 0=float, 1=pull-up; output: 0=open-drain, 1=push-pull
   PH.CR2.bit.b2 = 1;   // input: 0=no exint, 1=exint; output: 0=2MHz slope, 1=10MHz slope
+#else
+  #error configure LED pin (optional)
 #endif
   
 

@@ -10,20 +10,14 @@ REM set other parameters
 set FIRMWARE=".\dummy.s19"
 REM set FIRMWARE=".\dummy.txt"
 
-REM set COM port and UART mode (0=duplex, 1=1-wire reply, 2=2-wire reply)
-REM set PORT=10 & set MODE=0
-REM set PORT=15 & set MODE=1
-set PORT=10 & set MODE=2
-
-REM acccording to STM8 bootloader manual section 2.1, the minimum baudrate is 4800Baud.
-REM Typical baudrates are: 4800 9600 19200 38400 57600 115200 230400
-set BAUD=230400 
+REM set serial port
+set PORT=COM11
 
 REM for UART reply mode (MODE=1|2) limit baudrate. Found >19.2Baud is unreliable
 IF NOT %MODE% == 0  set BAUD=19200
 
 REM use flash loader to upload new SW
-%LOADER% -p COM%PORT% -b %BAUD% -u %MODE% -w %FIRMWARE% -v -V 2
+%LOADER% -p %PORT% -w %FIRMWARE% -v 2
 
 echo.
 PAUSE 
