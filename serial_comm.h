@@ -68,10 +68,13 @@ void        get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeo
 void        set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR);
 
 /// modify comm port baudrate
-void        set_baudrate(HANDLE fpCom, uint32_t baudrate);
+void        set_baudrate(HANDLE fpCom, uint32_t Baudrate);
 
 /// modify comm port timeout
-void        set_timeout(HANDLE fpCom, uint32_t timeout);
+void        set_timeout(HANDLE fpCom, uint32_t Timeout);
+
+/// modify comm port parity
+void        set_parity(HANDLE fpCom, uint8_t Parity);
 
 /// send data
 uint32_t    send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx);
