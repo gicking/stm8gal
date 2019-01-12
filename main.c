@@ -502,7 +502,9 @@ int main(int argc, char ** argv) {
   else if (resetSTM8 == 2) {
     printf("  reset via DTR ... ");
     fflush(stdout);
+    ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
     pulse_DTR(ptrPort, 10);
+    close_port(&ptrPort);
     printf("ok\n");
     fflush(stdout);
     SLEEP(20);                        // allow BSL to initialize
