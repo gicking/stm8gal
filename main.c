@@ -443,7 +443,9 @@ int main(int argc, char ** argv) {
   else if (resetSTM8 == 2) {
     printf("  reset via DTR ... ");
     fflush(stdout);
+    ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
     pulse_DTR(ptrPort, 10);
+    close_port(&ptrPort);
     printf("ok\n");
     fflush(stdout);
     SLEEP(20);                        // allow BSL to initialize
@@ -451,17 +453,17 @@ int main(int argc, char ** argv) {
   
   // SW reset STM8 via command 'Re5eT!' at 115.2kBaud (requires respective STM8 SW)
   else if (resetSTM8 == 3) {
-    set_baudrate(ptrPort, 115200);    // expect STM8 SW to receive at 115.2kBaud
     printf("  reset via UART command ... ");
     fflush(stdout);
     sprintf(buf, "Re5eT!");           // reset command (same as in STM8 SW!)
+    ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
     for (i=0; i<6; i++) {
       send_port(ptrPort, uartMode, 1, buf+i);   // send reset command bytewise to account for possible slow handling on STM8 side
       SLEEP(10);
     }
+    close_port(&ptrPort);
     printf("ok\n");
     fflush(stdout);
-    set_baudrate(ptrPort, baudrate);  // restore specified baudrate
     SLEEP(20);                        // allow BSL to initialize
   }
   
