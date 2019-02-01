@@ -152,16 +152,14 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   // reduce timeout for faster check
   set_timeout(ptrPort, 100);
 
-
-  // check UART mode 1 via LIN echo: 1-wire, no SW reply, no parity
-  set_parity(ptrPort, 2);
- 
+  // detect UART mode
+  set_parity(ptrPort, 2); 
   lenTx = 2; lenRx = 1;
   Tx[0] = 0x00; Tx[1] = (Tx[0] ^ 0xFF); Rx[0] = 0x00;
   do {
     len = send_port(ptrPort, 0, lenTx, Tx);
     len = receive_port(ptrPort, 0, lenRx, Rx);
-    //printf("\nmode 1: %d  0x%02x\n", len, Rx[0]);
+    //printf("\nmode 1: %d  0x%02x\n", len, (uint8_t) (Rx[0]));
     SLEEP(10);
   } while (len==0);
 
@@ -255,7 +253,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   if (physInterface == UART) {
     set_timeout(ptrPort, 200);
   }
-  
+
   // check address of EEPROM. STM8L starts at 0x1000, STM8S starts at 0x4000
   if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x004000, SILENT))       // STM8S
   {
@@ -332,32 +330,32 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
     
   // check 2x ACKs
   if (Rx[0]!=ACK)
-    Error("in 'bsl_getInfo()': start ACK failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_getInfo()': start ACK failure (expect 0x%02x, read 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
   if (Rx[8]!=ACK)
-    Error("in 'bsl_getInfo()': end ACK failure (read 0x%2x)", Rx[8]);
+    Error("in 'bsl_getInfo()': end ACK failure (expect 0x%02x, read 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[8]));
 
   
   // check if command codes are correct (just to be sure)
   if (Rx[3] != GET)
-    Error("in 'bsl_getInfo()': wrong GET code (expect 0x%02x, received 0x%02x)", GET, Rx[3]);
+    Error("in 'bsl_getInfo()': wrong GET code (expect 0x%02x, received 0x%02x)", (uint8_t) GET, (uint8_t) (Rx[3]));
   if (Rx[4] != READ)
-    Error("in 'bsl_getInfo()': wrong READ code (expect 0x%02x, received 0x%02x)", READ, Rx[4]);
+    Error("in 'bsl_getInfo()': wrong READ code (expect 0x%02x, received 0x%02x)", (uint8_t) READ, (uint8_t) (Rx[4]));
   if (Rx[5] != GO)
-    Error("in 'bsl_getInfo()': wrong GO code (expect 0x%02x, received 0x%02x)", GO, Rx[5]);
+    Error("in 'bsl_getInfo()': wrong GO code (expect 0x%02x, received 0x%02x)", (uint8_t) GO, (uint8_t) (Rx[5]));
   if (Rx[6] != WRITE)
-    Error("in 'bsl_getInfo()': wrong WRITE code (expect 0x%02x, received 0x%02x)", WRITE, Rx[6]);
+    Error("in 'bsl_getInfo()': wrong WRITE code (expect 0x%02x, received 0x%02x)", (uint8_t) WRITE, (uint8_t) (Rx[6]));
   if (Rx[7] != ERASE)
-    Error("in 'bsl_getInfo()': wrong ERASE code (expect 0x%02x, received 0x%02x)", ERASE, Rx[7]);
+    Error("in 'bsl_getInfo()': wrong ERASE code (expect 0x%02x, received 0x%02x)", (uint8_t) ERASE, (uint8_t) (Rx[7]));
   
 // print BSL data
 #ifdef DEBUG
-  printf("    version 0x%02x\n", Rx[2]);
+  printf("    version 0x%02x\n", (uint8_t) (Rx[2]));
   printf("    command codes:\n");
-  printf("      GET   0x%02x\n", Rx[3]);
-  printf("      READ  0x%02x\n", Rx[4]);
-  printf("      GO    0x%02x\n", Rx[5]);
-  printf("      WRITE 0x%02x\n", Rx[6]);
-  printf("      ERASE 0x%02x\n", Rx[7]);
+  printf("      GET   0x%02x\n", (uint8_t) (Rx[3]));
+  printf("      READ  0x%02x\n", (uint8_t) (Rx[4]));
+  printf("      GO    0x%02x\n", (uint8_t) (Rx[5]));
+  printf("      WRITE 0x%02x\n", (uint8_t) (Rx[6]));
+  printf("      ERASE 0x%02x\n", (uint8_t) (Rx[7]));
   fflush(stdout);
 #endif
 
@@ -502,7 +500,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memRead()': ACK1 failure (read 0x%2x)", Rx[0]);
+      Error("in 'bsl_memRead()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   
     /////
@@ -544,7 +542,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memRead()': ACK2 failure (read 0x%2x)", Rx[0]);
+      Error("in 'bsl_memRead()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   
     /////
@@ -578,7 +576,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     #if defined(USE_SPIDEV)
       else if (physInterface == SPI_SPIDEV) {
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
-        //printf("0x%02x  0x%02x  0x%02x\n", Rx[0], Rx[1], Rx[2]); fflush(stdout); getchar();
+        //printf("0x%02x  0x%02x  0x%02x\n", (uint8_t) (Rx[0]), (uint8_t) (Rx[1]), (uint8_t) (Rx[2])); fflush(stdout); getchar();
       }
     #endif
     if (len != lenRx)
@@ -586,7 +584,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memRead()': ACK3 failure (read 0x%2x)", Rx[0]);
+      Error("in 'bsl_memRead()': ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
     // copy data to buffer. Set HB to indicate data read
     for (i=1; i<lenRx; i++) {
@@ -685,7 +683,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
   // send command
   if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+      len = send_port(ptrPort, uartMode, lenTx, Tx);
   else if (physInterface == SPI_ARDUINO)
     len = send_spi_Arduino(ptrPort, lenTx, Tx);
   #if defined(USE_SPIDEV)
@@ -709,7 +707,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_memCheck()': ACK1 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_memCheck()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   
   /////
@@ -791,7 +789,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_memCheck()': ACK3 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_memCheck()': ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   // memory read succeeded -> memory exists
   return(1);
@@ -892,7 +890,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_flashSectorErase()': ACK1 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_flashSectorErase()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   
   /////
@@ -943,7 +941,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_flashSectorErase()': ACK2 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_flashSectorErase()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
   
   // measure time for sector erase
   tStop = millis();
@@ -1041,7 +1039,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_flashMassErase()': ACK1 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_flashMassErase()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   
   /////
@@ -1091,7 +1089,7 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_flashMassErase()': ACK2 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_flashMassErase()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
   
   // measure time for mass erase
   tStop = millis();
@@ -1232,7 +1230,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memWrite()': ACK1 failure (read 0x%2x)", Rx[0]);
+      Error("in 'bsl_memWrite()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
  
   
     /////
@@ -1275,7 +1273,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memWrite()': ACK2 failure (read 0x%2x)", Rx[0]);
+      Error("in 'bsl_memWrite()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   
     /////
@@ -1333,7 +1331,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memWrite()': ACK3 failure (read 0x%2x)", Rx[0]);
+      Error("in 'bsl_memWrite()': ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
     
     // print progress
     if (((++countBlock) % 8) == 0) {
@@ -1536,7 +1534,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
   
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_jumpTo()': ACK1 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_jumpTo()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   
   /////
@@ -1578,7 +1576,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
   
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_jumpTo()': ACK2 failure (read 0x%2x)", Rx[0]);
+    Error("in 'bsl_jumpTo()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   // print message
   if ((verbose == INFORM) || (verbose == CHATTY))
