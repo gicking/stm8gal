@@ -430,9 +430,8 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   // get timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
   *timeout = toptions.c_cc[VTIME] * 100;   // convert 0.1s to ms
   
-  
-  // number of bits
-  if (toptions.c_cflag & CS8)
+  // number of data bits
+  if ((toptions.c_cflag & CSIZE) == CS8)
     *numBits = 8;
   else
     *numBits = 7;
@@ -449,7 +448,7 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   }
   
   // get number of stop bits
-  if (toptions.c_cflag | CSTOPB)
+  if (toptions.c_cflag & CSTOPB)
     *numStop = 2;
   else
     *numStop = 1;
@@ -457,11 +456,11 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
 
   // get static RTS and DTR status (required for some multimeter optocouplers)
   ioctl(fpCom, TIOCMGET, &status);
-  if (status | TIOCM_RTS)
+  if (status & TIOCM_RTS)
     *RTS = 1;
   else
     *RTS = 0;
-  if (status | TIOCM_DTR)
+  if (status & TIOCM_DTR)
     *DTR = 1;
   else
     *DTR = 0;
@@ -599,8 +598,9 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   cfsetospeed(&toptions, brate);    // send
   
   // number of data bits
+  toptions.c_cflag &= ~CSIZE;       // clear data bits entry
   if (numBits == 7)
-    toptions.c_cflag |=  CS7;       // 8 data bits
+    toptions.c_cflag |=  CS7;       // 7 data bits
   else if (numBits == 8)
     toptions.c_cflag |=  CS8;       // 8 data bits
   else
@@ -625,10 +625,6 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     toptions.c_cflag &= ~CSTOPB;    // one stop bit
   else
     toptions.c_cflag |= CSTOPB;     // two stop bit
-  
-  // set 8 data bits
-  toptions.c_cflag &= ~CSIZE;       // clear data bits entry
-  toptions.c_cflag |= CS8;          // set 8 data bits
 
   // disable flow control
   toptions.c_cflag &= ~CRTSCTS;
@@ -735,7 +731,7 @@ void set_parity(HANDLE fpCom, uint8_t Parity) {
 
   // read port setting
   get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
-  
+
   // set new parity
   parity = Parity;
 
