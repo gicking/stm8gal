@@ -148,7 +148,7 @@ int main(int argc, char ** argv) {
 
   // get app name & version, and change console title
   get_app_name(argv[0], VERSION, appname, version);
-  sprintf(tmp, "%s (%s)", appname, version);
+  sprintf(tmp, "%s (v%s)", appname, version);
   setConsoleTitle(tmp);  
 
   
@@ -369,7 +369,7 @@ int main(int argc, char ** argv) {
   // on request (-h) or in case of parameter error print help page
   if ((printHelp==true) || (argc == 1)) {
     printf("\n");
-    printf("\n%s (%s)\n\n", appname, version);
+    printf("\n%s (v%s)\n\n", appname, version);
     printf("Program or read STM8 memory via built-in UART or SPI bootloader.\n");
     printf("For more information see https://github.com/gicking/stm8gal\n");
     printf("\n");
@@ -451,7 +451,7 @@ int main(int argc, char ** argv) {
   
   // print message
   if (verbose != MUTE)
-    printf("\n%s (%s)\n", appname, version);
+    printf("\n%s (v%s)\n", appname, version);
 
 
   ////////
@@ -500,12 +500,14 @@ int main(int argc, char ** argv) {
   
   // HW reset STM8 using DTR line (USB/RS232)
   else if (resetSTM8 == 2) {
-    printf("  reset via DTR ... ");
+    if (verbose != MUTE)
+      printf("  reset via DTR ... ");
     fflush(stdout);
     ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
     pulse_DTR(ptrPort, 10);
     close_port(&ptrPort);
-    printf("ok\n");
+    if (verbose != MUTE)
+      printf("ok\n");
     fflush(stdout);
     SLEEP(20);                        // allow BSL to initialize
   }
@@ -513,7 +515,8 @@ int main(int argc, char ** argv) {
   // SW reset STM8 via command 'Re5eT!' at 115.2kBaud with (8,0,1) (requires respective STM8 SW)
   else if (resetSTM8 == 3) {
     char buf[10] = "Re5eT!";          // reset command (same as in STM8 SW!)
-    printf("  reset via UART command ... ");
+    if (verbose != MUTE)
+      printf("  reset via UART command ... ");
     fflush(stdout);
     ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
     for (i=0; i<6; i++) {
@@ -521,7 +524,8 @@ int main(int argc, char ** argv) {
       SLEEP(10);
     }
     close_port(&ptrPort);
-    printf("ok\n");
+    if (verbose != MUTE)
+      printf("ok\n");
     fflush(stdout);
     SLEEP(20);                        // allow BSL to initialize
   }
@@ -536,10 +540,12 @@ int main(int argc, char ** argv) {
   // HW reset STM8 using header pin 12 (only Raspberry Pi!)
   #if defined(__ARMEL__) && defined(USE_WIRING)
     else if (resetSTM8 == 5) {
-      printf("  reset via Raspi pin 12 ... ");
+      if (verbose != MUTE)
+        printf("  reset via Raspi pin 12 ... ");
       fflush(stdout);
       pulse_GPIO(12, 20);
-      printf("ok\n");
+      if (verbose != MUTE)
+        printf("ok\n");
       fflush(stdout);
       SLEEP(20);                      // allow BSL to initialize
     }
@@ -687,17 +693,20 @@ int main(int argc, char ** argv) {
   if (physInterface == UART) {
     if (uartMode == 0) {
       set_parity(ptrPort, 2);
-      printf("  set UART mode: duplex\n");
-	}
+      if (verbose != MUTE)
+        printf("  set UART mode: duplex\n");
+    }
     else if (uartMode == 1) {
       set_parity(ptrPort, 0);
-      printf("  set UART mode: 1-wire\n");
-	}
+      if (verbose != MUTE)
+        printf("  set UART mode: 1-wire\n");
+    }
     else if (uartMode == 2) {
       char c = ACK;      // need to reply ACK first to revert bootloader
       set_parity(ptrPort, 0);
       send_port(ptrPort, 0, 1, &c);
-      printf("  set UART mode: 2-wire reply\n");
+      if (verbose != MUTE)
+        printf("  set UART mode: 2-wire reply\n");
     }
     else
       uartMode = bsl_getUartMode(ptrPort, verbose);
@@ -1040,7 +1049,7 @@ int main(int argc, char ** argv) {
     // dummy parameter: skip, is treated in 1st pass
     else {
       // dummy
-      printf("\ntest: '%s'\n", argv[i]);
+      //printf("\ntest: '%s'\n", argv[i]);
     }
 
   } // 2nd pass over commandline arguments
