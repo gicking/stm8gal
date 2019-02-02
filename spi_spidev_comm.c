@@ -13,15 +13,13 @@
 
 // include files
 #include "spi_spidev_comm.h"
+#include "main.h"
 #include "misc.h"
-#include "globals.h"
 
 
 
 /**
   \fn HANDLE init_spi_spidev(const char *port, uint32_t baudrate)
-   
-  \brief open SPI port
    
   \param[in] port       name of port as string
   \param[in] baudrate   SPI port speed in Baud
@@ -76,12 +74,8 @@ HANDLE init_spi_spidev(const char *port, uint32_t baudrate) {
   // open device
   //////
   fp = open(port, O_RDWR);
-  if (fp < 0) {
-    setConsoleColor(PRM_COLOR_RED);
-    fp = 0;
-    fprintf(stderr, "\n\nerror in 'init_spi_spidev(%s)': open port failed, exit!\n\n", port);
-    Exit(1, g_pauseOnExit);
-  }
+  if (fp < 0)
+    Error("in 'init_spi_spidev(%s)': open port failed", port);
 
 
   //////
@@ -90,27 +84,18 @@ HANDLE init_spi_spidev(const char *port, uint32_t baudrate) {
   
   // set SPI mode
   ret = ioctl(fp, SPI_IOC_WR_MODE32, &mode);
-  if (ret == -1) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_spi_spidev(%s)': set mode %d failed, exit!\n\n", port, mode);
-    Exit(1, g_pauseOnExit);
-  }
+  if (ret == -1)
+    Error("in 'init_spi_spidev(%s)': set mode %d failed", port, mode);
 
   // set SPI speed
   ret = ioctl(fp, SPI_IOC_WR_MAX_SPEED_HZ, &baudrate);
-  if (ret == -1) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_spi_spidev(%s)': set speed %d failed, exit!\n\n", port, baudrate);
-    Exit(1, g_pauseOnExit);
-  }
+  if (ret == -1)
+    Error("in 'init_spi_spidev(%s)': set speed %d failed", port, baudrate);
 
   // set bits per word
   ret = ioctl(fp, SPI_IOC_WR_BITS_PER_WORD, &bits);
-  if (ret == -1) {
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'init_spi_spidev(%s)': set frame width %d failed, exit!\n\n", port, bits);
-    Exit(1, g_pauseOnExit);
-  }
+  if (ret == -1)
+    Error("in 'init_spi_spidev(%s)': set frame width %d failed", port, bits);
 
   // wait 10ms
   usleep(10000);
@@ -126,9 +111,7 @@ HANDLE init_spi_spidev(const char *port, uint32_t baudrate) {
 
 /**
   \fn void close_spi_spidev(HANDLE *fp)
-   
-  \brief close SPI port
-  
+
   \param[in] fp    handle to SPI port
 
   close & release SPI port. 
@@ -149,13 +132,10 @@ void close_spi_spidev(HANDLE *fp) {
 /////////
 #if defined(__APPLE__) || defined(__unix__) 
 
+  // if open, close port
   if (*fp != 0) {
-    if (close(*fp) != 0) {
-      setConsoleColor(PRM_COLOR_RED);
-      *fp = 0;
-      fprintf(stderr, "\n\nerror in 'close_spi_spidev': close port failed, exit!\n\n");
-      Exit(1, g_pauseOnExit);
-    }
+    if (close(*fp) != 0)
+      Error("in 'close_spi_spidev': close port failed");
   }
   *fp = 0;
 
@@ -167,9 +147,7 @@ void close_spi_spidev(HANDLE *fp) {
 
 /**
   \fn uint32_t send_spi_spidev(HANDLE fp, uint32_t lenTx, char *Tx)
-   
-  \brief send data via SPI port
-  
+
   \param[in] fp       handle to SPI port
   \param[in] lenTx    number of bytes to send
   \param[in] Tx       array of bytes to send
@@ -215,8 +193,6 @@ uint32_t send_spi_spidev(HANDLE fp, uint32_t lenTx, char *Tx) {
 
 /**
   \fn uint32_t receive_spi_spidev(HANDLE fp, uint32_t lenRx, char *Rx)
-   
-  \brief receive data via SPI port
   
   \param[in]  fp      handle to SPI port
   \param[in]  lenRx   number of bytes to receive
@@ -262,8 +238,6 @@ uint32_t receive_spi_spidev(HANDLE fp, uint32_t lenRx, char *Rx) {
 /**
   \fn void spi_transfer(HANDLE fp, int len, uint8_t *Tx, uint8_t *Rx)
    
-  \brief send & receive data via SPI (parallel send)
-  
   \param[in]  fp      handle to SPI port
   \param[in]  len     number of bytes to send & receive
   \param[in]  Tx      array containing bytes to send
@@ -303,11 +277,8 @@ void spi_transfer(HANDLE fp, int len, uint8_t *Tx, uint8_t *Rx) {
 
   // send & receive data
   int ret = ioctl(fp, SPI_IOC_MESSAGE(1), &tr);
-  if (ret != 0){
-    setConsoleColor(PRM_COLOR_RED);
-    fprintf(stderr, "\n\nerror in 'spi_transfer': cannot transfer data (code %d), exit!\n\n", ret);
-    Exit(1, g_pauseOnExit);
-  }
+  if (ret != 0)
+    Error("in 'spi_transfer': cannot transfer data (code %d)", ret);
   
 #endif // __APPLE__ || __unix__
 

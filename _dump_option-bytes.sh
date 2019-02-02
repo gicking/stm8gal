@@ -15,14 +15,15 @@ cd `dirname $0`
 LOADER=./stm8gal
 
 # set other parameters
-FIRMWARE=./dummy.s19
-#FIRMWARE=./dummy.txt
+ADDRSTART=0x4800
+ADDRSTOP=0x487F
+OUTFILE=./OPT_dump.txt
 
 # set serial port
 PORT=/dev/ttyUSB0
 
-# use flash loader to upload new SW
-$LOADER -p $PORT -w $FIRMWARE -v 2
+# use flash loader to read out memory
+$LOADER -p $PORT -r $ADDRSTART $ADDRSTOP $OUTFILE -v 2
 
 echo
 read -p "press return to close window"

@@ -14,9 +14,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "version.h"
+#include <sys/time.h>
+
 #include "misc.h"
-#include "globals.h"
+#include "main.h"
+#include "version.h"
 
 
 // WIN32 specific
@@ -60,8 +62,22 @@
   #define BG_WHITE      ( BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY )
   #define BG_YELLOW     ( BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_INTENSITY )
 
-#endif // WIN32
+#elif defined(__APPLE__) || defined(__unix__)
 
+#endif // OS
+
+
+
+/**
+  \fn void Error(const char *format, ...)
+   
+  \param[in] code    return code of application to commandline
+  \param[in] pause   wait for keyboard input before terminating
+
+  Display error message and terminate program. Output format is identical to
+  printf(). Prior to program termination query for \<return\> unless
+  background operation is specified.
+*/
 void Error(const char *format, ...)
 {
   va_list vargs;
@@ -74,16 +90,16 @@ void Error(const char *format, ...)
   Exit(1, 1);
 }
 
+
+
 /**
   \fn void Exit(uint8_t code, uint8_t pause)
-   
-  \brief terminate program
    
   \param[in] code    return code of application to commandline
   \param[in] pause   wait for keyboard input before terminating
 
-  Terminate program. Replaces standard exit() routine which doesn't allow
-  for a \<return\> request prior to closing of the console window.
+  Terminate program. Replace standard exit() to query for \<return\> 
+  before termination, unless background operation is specified.
 */
 void Exit(uint8_t code, uint8_t pause) {
 
@@ -97,7 +113,7 @@ void Exit(uint8_t code, uint8_t pause) {
   setConsoleColor(PRM_COLOR_DEFAULT);
 
   // optionally prompt for <return>
-  if ((pause) && (!g_backgroungOperation)) {
+  if ((pause) && (!g_backgroundOperation)) {
     printf("\npress <return> to exit");
     fflush(stdout);
     fflush(stdin);
@@ -114,8 +130,6 @@ void Exit(uint8_t code, uint8_t pause) {
 
 /**
   \fn void stripPath(char *in, char *out)
-   
-  \brief strip path from application name
    
   \param[in] in      name of application incl. path
   \param[in] out     name of application excl. path
@@ -144,8 +158,6 @@ void stripPath(char *in, char *out) {
 /**
   \fn void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status)
    
-  \brief extract major / minor / build revision number from 16b identifier
-     
   \param[in]  vers      16b revision number in format xx.xxxxxxxx.xxxxx.x
   \param[out] major     major revision number [15:14] -> 0..3
   \param[out] minor     minor revision number [13:6] -> 0..255
@@ -174,38 +186,40 @@ void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, 
 
 
 /**
-  \fn void get_app_name(char *in, uint16_t vers, char *out)
+  \fn void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr)
    
-  \brief get application name and version
-   
-  \param[in] in      name of application incl. path
-  \param[in] vers    16b version identifier
-  \param[in] out     name of application + version number
+  \param[in]  appFull   name of application incl. path
+  \param[in]  versID    16b version identifier
+  \param[out] appName   name of application w/o path
+  \param[out] versStr   version number as string
 
   print application name and major / minor / build revision numbers. Remove path from app name
 */
-void get_app_name(char *in, uint16_t vers, char *out) {
+void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr) {
 
   int32_t   i;
   char      *tmp;
   uint8_t   major, minor, build, status;
 
   // find position of last path delimiter '/' (Posix) or '\' (Win)
-  tmp = in;
-  for (i=0; i<strlen(in); i++) {
-    if ((in[i] == '/') || (in[i] == '\\'))
-      tmp = in+i+1;
+  tmp = appFull;
+  for (i=0; i<strlen(appFull); i++) {
+    if ((appFull[i] == '/') || (appFull[i] == '\\'))
+      tmp = appFull+i+1;
   }
 
+  // copy app name w/o path
+  sprintf(appName, "%s", tmp);
+
+
   // extract major / minor / build revision number
-  get_version(vers, &major, &minor, &build, &status);
+  get_version(versID, &major, &minor, &build, &status);
   
-  // print app name & version
-  
+  // copy version data to string
   if (status==0)
-    sprintf(out, "%s (v%d.%d.%d beta)", tmp, major, minor, build);
+    sprintf(versStr, "v%d.%d.%d beta", major, minor, build);
   else
-    sprintf(out, "%s (v%d.%d.%d)", tmp, major, minor, build);
+    sprintf(versStr, "%d.%d.%d", major, minor, build);
 
 } // get_app_name
 
@@ -213,8 +227,6 @@ void get_app_name(char *in, uint16_t vers, char *out) {
 
 /**
   \fn void setConsoleTitle(const char *title)
-  
-  \brief set title of console window
   
   \param[in]  title   title for console window
   
@@ -228,7 +240,7 @@ void get_app_name(char *in, uint16_t vers, char *out) {
 void setConsoleTitle(const char *title) {
   
   // for background operation skip to avoid strange control characters 
-  if (g_backgroungOperation)
+  if (g_backgroundOperation)
     return;
 
 
@@ -250,19 +262,16 @@ void setConsoleTitle(const char *title) {
 /**
   \fn void setConsoleColor(uint8_t color)
   
-  \brief set console text color
-  
   \param[in] color  new text color
    
   switch text color in console output to specified value
     Win32: uses Windows API functions
     POSIX: uses VT100 escape codes
-    uC:    send command to PC
 */
 void setConsoleColor(uint8_t color) {
   
   // for background operation skip to avoid strange control characters 
-  if (g_backgroungOperation)
+  if (g_backgroundOperation)
     return;
 
 
@@ -406,5 +415,79 @@ void setConsoleColor(uint8_t color) {
 
 } // setConsoleColor
 
+  
+  
+/**
+  \fn uint64_t millis(void)
+  
+  \return time [ms] since start of program
+  
+  Return the number of milliseconds since the current program was launched. 
+  Due to used uint64_t format this number will not overflow in any realistic
+  time (in contrast to Arduino).
+*/
+uint64_t millis() {
+
+  // use below micros() for simplicity. On a PC overhead is negligible
+  return(micros()/1000LL);
+
+} // millis
+
+  
+  
+/**
+  \fn uint64_t micros(void)
+  
+  \return time [us] since start of program
+  
+  Return the number of microseconds since the current program was launched. 
+  Due to used uint64_t format this number will not overflow in any realistic
+  time (in contrast to Arduino).
+*/
+uint64_t micros() {
+
+  static bool      s_firstCall = true;
+  static uint64_t  s_microsStart = 0;
+  uint64_t         microsCurr;
+
+#if defined(WIN32)
+
+  static double    s_ticksPerMicros = 0;     // resolution of Windows fast core timer
+  LARGE_INTEGER    tick;
+
+  // on first call get resolution of fast core timer
+  if (s_firstCall) {
+    QueryPerformanceFrequency(&tick);
+    s_ticksPerMicros = (double) (tick.QuadPart) / 1e6;
+  }
+
+  // get time in us
+  QueryPerformanceCounter(&tick);
+  microsCurr = (uint64_t) (tick.QuadPart / s_ticksPerMicros);
+
+#endif // WIN32
+
+
+#if defined(__APPLE__) || defined(__unix__)
+  
+  // get current time
+  struct timeval  te; 
+  gettimeofday(&te, NULL);
+
+  // calculate milliseconds
+  microsCurr = te.tv_sec*1000000LL + te.tv_usec;
+
+#endif // WIN32
+
+  // on 1st call also store starting time and set flag
+  if (s_firstCall) {
+    s_firstCall = false;
+    s_microsStart = microsCurr;
+  }
+
+  // return micros since 1st call
+  return(microsCurr - s_microsStart);
+
+} // micros
 
 // end of file

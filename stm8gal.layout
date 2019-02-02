@@ -1,12 +1,12 @@
 [Editors]
-Focused=6
-Order=0,20,6
+Focused=0
+Order=0,20
 [Editor_0]
 Open=1
 Top=0
-CursorCol=5
-CursorRow=527
-TopLine=499
+CursorCol=1
+CursorRow=17
+TopLine=1
 LeftChar=1
 [Editor_1]
 Open=0
@@ -106,7 +106,7 @@ Top=0
 Open=0
 Top=0
 [Editor_20]
-CursorCol=43
+CursorCol=4
 CursorRow=22
 TopLine=22
 LeftChar=1
