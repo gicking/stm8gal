@@ -29,7 +29,7 @@
 Revision History
 ----------------
 
-v1.3.0b (2018-12-26)
+v1.3.0 (2019-01-02)
   - add multiple up- and downloads in single run
   - added option to print memory map and sector erase
   - fixed S19 export bugs for >16bit addresses and small images
