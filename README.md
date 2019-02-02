@@ -314,7 +314,7 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 
 # Revision History
 
-v1.3.0b (2018-12-26)
+v1.3.0 (2019-01-02)
   - add multiple up- and downloads in single run
   - added option to print memory map and sector erase
   - fixed S19 export bugs for >16bit addresses and small images
@@ -325,7 +325,7 @@ v1.3.0b (2018-12-26)
 
 ----------------
 
-v1.2.0b (2018-12-02)
+v1.2.0 (2018-12-02)
   - add automatic UART mode detection (duplex, 1-wire, 2-wire reply). See [UART mode issue](https://github.com/gicking/stm8gal/issues/7)
   - changed default UART baudrate to 115.2kBaud for robustness
 
