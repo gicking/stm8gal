@@ -20,6 +20,7 @@ rd /S /Q  .\doxygen\rtf
 rd /S /Q  .\doxygen\xml
 
 REM delete other output
+DEL .\dump.txt
 DEL .\.DS_Store
 DEL .\doxygen\.DS_Store
 DEL .\doxygen\images\.DS_Store

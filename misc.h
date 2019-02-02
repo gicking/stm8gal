@@ -33,37 +33,43 @@
 #define PRM_COLOR_YELLOW        7
 
 
-/// for sleep(ms) use system specific routines
+// system specific delay routines
 #if defined(WIN32)
-  #define SLEEP(a)    Sleep(a)
+  #define SLEEP(a)    Sleep(a)                     //< for sleep(ms) use system specific routines
 #elif defined(__APPLE__) || defined(__unix__)
-  #define SLEEP(a)    usleep((int32_t) a*1000L)
+  #define SLEEP(a)    usleep((int32_t) a*1000L)    //< for sleep(ms) use system specific routines
 #else
   #error OS not supported
 #endif
 
-/// Display error message and terminate
+/// display error message and terminate
 void Error(const char *format, ...);
 
 /// terminate program after cleaning up
-void        Exit(uint8_t code, uint8_t pause);
+void Exit(uint8_t code, uint8_t pause);
 
 /// strip path from application name
-void        stripPath(char *in, char *out);
+void stripPath(char *in, char *out);
 
 /// extract major / minor / build revision number from 16b identifier
-void        get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status);
+void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status);
 
 /// print application name and version
-void        get_app_name(char *in, uint16_t vers, char *out);
+void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr);
 
 /// set title of console window
 #if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
-void        setConsoleTitle(const char *title);
+  void setConsoleTitle(const char *title);
 #endif // WIN32 || __APPLE__ || __unix__
 
 /// set console text color
-void        setConsoleColor(uint8_t color);
+void setConsoleColor(uint8_t color);
+
+/// get milliseconds since start of program (as Arduino)
+uint64_t millis(void);
+
+/// get microseconds since start of program (as Arduino)
+uint64_t micros(void);
 
 #endif // _MISC_H_
 
