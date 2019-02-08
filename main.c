@@ -148,8 +148,6 @@ int main(int argc, char ** argv) {
 
   // get app name & version, and change console title
   get_app_name(argv[0], VERSION, appname, version);
-  sprintf(tmp, "%s (v%s)", appname, version);
-  setConsoleTitle(tmp);  
 
   
   /////////////////
@@ -368,6 +366,10 @@ int main(int argc, char ** argv) {
   
   // on request (-h) or in case of parameter error print help page
   if ((printHelp==true) || (argc == 1)) {
+
+    sprintf(tmp, "%s (v%s)", appname, version);
+    setConsoleTitle(tmp);  
+
     printf("\n");
     printf("\n%s (v%s)\n\n", appname, version);
     printf("Program or read STM8 memory via built-in UART or SPI bootloader.\n");
@@ -436,6 +438,11 @@ int main(int argc, char ** argv) {
   if (g_backgroundOperation)
     g_pauseOnExit = false;
 
+  if (g_backgroundOperation) {
+    sprintf(tmp, "%s (v%s)", appname, version);
+    setConsoleTitle(tmp);  
+  }
+  
   // reset console color (needs to be called once for Win32)      
   setConsoleColor(PRM_COLOR_DEFAULT);
 
