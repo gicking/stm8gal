@@ -62,6 +62,9 @@ void  move_image(uint16_t *imageBuf, uint32_t fromStart, uint32_t fromStop, uint
 /// export RAM image to file in Motorola s19 format
 void  export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose);
 
+/// export RAM image to file in Intel HEX format
+void  export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose);
+
 /// export RAM image to plain text file or print to console
 void  export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose);
 
