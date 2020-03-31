@@ -1053,6 +1053,122 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
 
 /**
+   \fn void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose)
+   
+   \param[in]  filename    name of output file
+   \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
+   \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+
+   export RAM image to file in Intel hexfile format. For description of 
+   Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
+*/
+
+void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+  FILE      *fp;               // file pointer
+  const int maxLine = 32;      // max. length of data line 
+  uint8_t   data;              // value to store
+  uint8_t   chk;               // checksum
+  uint32_t  addrStart, addrStop, numData;  // image data range
+  char      *shortname;        // filename w/o path
+  uint8_t   useEla = 0;        // whether ELA records needed
+  int32_t   addrEla;           // ELA record address
+    
+  // strip path from filename for readability
+  #if defined(WIN32)
+    shortname = strrchr(filename, '\\');
+  #else
+    shortname = strrchr(filename, '/');
+  #endif
+  if (!shortname)
+    shortname = filename;
+  else
+    shortname++;
+
+  // print message
+  if (verbose == SILENT)
+    printf("  export '%s' ... ", shortname);
+  else if (verbose == INFORM)
+    printf("  export IHX file '%s' ... ", shortname);
+  else if (verbose == CHATTY)
+    printf("  export Intel HEX file '%s' ... ", shortname);
+  fflush(stdout);
+
+  // open output file
+  fp=fopen(filename,"wb");
+  if (!fp)
+    Error("Failed to create file %s", filename);
+
+  // get min/max addresses and number of bytes (HB!=0x00) in image
+  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+
+  // use ELA records if address range is greater than 16 bits
+  if(addrStop > 0xFFFF) {
+    useEla = 1;
+    addrEla = -1;
+  }
+
+  uint32_t addr = addrStart;
+  while(addr <= addrStop) {
+    // find next data byte (=start address of next block)
+    while(((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop)) addr++;
+    uint32_t addrBlock = addr;
+
+    // end address reached -> done
+    if(addr > addrStop) break;
+    
+    // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)  
+    uint8_t lenBlock = 1;
+    while((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
+      lenBlock++;
+    }
+    
+    // write ELA record if upper 16-bits of block addr is different than last ELA addr
+    if(useEla && addrEla != (addrBlock >> 16)) {
+      addrEla = addrBlock >> 16;
+      chk = ~(0x02 + 0x04 + (uint8_t)addrEla + (uint8_t)(addrEla >> 8)) + 1;
+      fprintf(fp, ":02000004%04X%02X\n", (uint16_t)addrEla, chk);
+    }
+    
+    // write the data record
+    fprintf(fp, ":%02X%04X00", lenBlock, (uint16_t)addrBlock);
+    chk = lenBlock + (uint8_t)addrBlock + (uint8_t)(addrBlock >> 8);
+    for(uint8_t j = 0; j < lenBlock; j++) {
+      data = (uint8_t)(imageBuf[addrBlock+j] & 0x00FF);
+      chk += data;
+      fprintf(fp, "%02X", data);
+    }
+    chk = ~chk + 1;
+    fprintf(fp, "%02X\n", chk);
+    
+    // go to next potential block
+    addr += lenBlock;
+  } // loop over address range
+
+  // output end-of-file record
+  fprintf(fp, ":00000001FF\n");
+
+  // close output file
+  fflush(fp);
+  fclose(fp);
+
+  // print message
+  if ((verbose == SILENT) || (verbose == INFORM)) {
+    printf("done\n");
+  }
+  else if (verbose == CHATTY) {
+    if (numData>2048)
+      printf("done (%1.1fkB in 0x%04x - 0x%04x)\n", (float) numData/1024.0, addrStart, addrStop);
+    else if (numData>0)
+      printf("done (%dB in 0x%04x - 0x%04x)\n", numData, addrStart, addrStop);
+    else
+      printf("done, no data\n");
+  }
+  fflush(stdout);
+} // export_ihx
+
+
+
+/**
    \fn void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose)
    
    \param[in]  filename    name of output file or stdout ('console')
