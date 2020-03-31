@@ -57,5 +57,6 @@ tool_validation.*
 *.wed
 *.cdb
 *.ihx
+*.s19
 /stm8gal.exe
 *_dump.txt
