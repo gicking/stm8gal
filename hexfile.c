@@ -997,11 +997,11 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     ///////
 
     // save data, accound for address width
-    if (addrBlock <= 0xFFFF) {
+    if (addrStop <= 0xFFFF) {
       fprintf(fp, "S1%02X%04X", lenBlock+3, addrBlock);        // 16-bit address: 2B addr + data + 1B chk
       chk = (uint8_t) (lenBlock+3) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8);
     }
-    else if (addrBlock <= 0xFFFFFF) {
+    else if (addrStop <= 0xFFFFFF) {
       fprintf(fp, "S2%02X%06X", lenBlock+4, addrBlock);        // 24-bit address: 3B addr + data + 1B chk
       chk = (uint8_t) (lenBlock+4) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8) + (uint8_t) (addrBlock >> 16);
     }
@@ -1022,8 +1022,13 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   } // loop over address range 
 
-  // attach generic EOF line
-  fprintf(fp, "S903FFFFFE\n");
+  // attach appropriate termination record, according to type of data records used
+  if (addrStop <= 0xFFFF)
+    fprintf(fp, "S9030000FC\n");        // 16-bit addresses
+  else if (addrStop <= 0xFFFFFF)
+    fprintf(fp, "S804000000FB\n");      // 24-bit addresses
+  else
+    fprintf(fp, "S70500000000FA\n");    // 32-bit addresses
 
   // close output file
   fflush(fp);
