@@ -129,6 +129,7 @@ Supported import formats (option '-w'):
 Supported export formats (option '-r'):
   - print to stdout ('console')
   - Motorola S19 (*.s19)
+  - Intel Hex (*.hex, *.ihx)
   - ASCII table (*.txt) with 'hexAddr  hexValue'
   - Binary (*.bin) without starting address
 
