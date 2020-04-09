@@ -33,7 +33,7 @@
 #define PRM_COLOR_YELLOW        7
 
 
-// system specific delay routines
+// system specific delay routines [ms]
 #if defined(WIN32)
   #include <windows.h>
   #define SLEEP(a)    Sleep(a)                     //< for sleep(ms) use system specific routines
