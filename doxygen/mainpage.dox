@@ -5,8 +5,8 @@
 \brief     Program STM8 via UART or SPI interface and ROM bootloader. For details see <a href="https://github.com/gicking/stm8gal">project homepage</a>
 
 \author    Georg Icking-Konert
-\version   1.3.0
-\date      2018/12/20
+\version   1.4.0
+\date      2020/04/09
 
 \copyright Apache License 2.0
 

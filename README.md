@@ -315,6 +315,12 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 
 # Revision History
 
+v1.4.0 (2020-04-09)
+  - improved S19 export for >16bit addresses
+  - added IHX export option
+
+----------------
+
 v1.3.0 (2019-01-02)
   - add multiple up- and downloads in single run
   - added option to print memory map and sector erase

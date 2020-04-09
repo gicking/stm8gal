@@ -35,6 +35,7 @@
 
 // system specific delay routines
 #if defined(WIN32)
+  #include <windows.h>
   #define SLEEP(a)    Sleep(a)                     //< for sleep(ms) use system specific routines
 #elif defined(__APPLE__) || defined(__unix__)
   #define SLEEP(a)    usleep((int32_t) a*1000L)    //< for sleep(ms) use system specific routines

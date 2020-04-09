@@ -691,7 +691,7 @@ int main(int argc, char ** argv) {
   ////////
 
   // required to make flush work, for some reason
-  usleep(200000);
+  SLEEP(200);
   flush_port(ptrPort);
   
   // synchronize with bootloader. For UART also sync baudrate
