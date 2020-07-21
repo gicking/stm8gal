@@ -284,7 +284,7 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
 
   // wait specified duration
   SLEEP(duration);
-	
+
   // clear DTR
   status &= ~TIOCM_DTR;
   if (ioctl(fpCom, TIOCMSET, &status))
@@ -293,6 +293,61 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
 #endif // __APPLE__ || __unix__
 
 } // pulse_DTR
+
+
+
+/**
+  \fn void pulse_RTS(HANDLE *fpCom, uint32_t duration)
+
+  \param[in] fpCom      port handle
+  \param[in] duration   duration of RTS low pulse in ms
+
+  generate low pulse on RTS in [ms] to reset STM8.
+*/
+void pulse_RTS(HANDLE fpCom, uint32_t duration)
+{
+
+/////////
+// Win32 (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
+/////////
+#if defined(WIN32)
+
+    // set RTS
+    EscapeCommFunction(fpCom, SETRTS);
+
+    // wait specified duration
+    SLEEP(duration);
+
+    // clear RTS
+    EscapeCommFunction(fpCom, CLRRTS);
+
+#endif // WIN32
+
+/////////
+// Posix
+/////////
+#if defined(__APPLE__) || defined(__unix__)
+
+    int status;
+
+    ioctl(fpCom, TIOCMGET, &status);
+
+    // set RTS
+    status |= TIOCM_RTS;
+    if(ioctl(fpCom, TIOCMSET, &status))
+        Error("in 'pulse_RTS()': cannot set RTS status");
+
+    // wait specified duration
+    SLEEP(duration);
+
+    // clear RTS
+    status &= ~TIOCM_RTS;
+    if(ioctl(fpCom, TIOCMSET, &status))
+        Error("in 'pulse_RTS()': cannot reset RTS status");
+
+#endif // __APPLE__ || __unix__
+
+} // pulse_RTS
 
 
 
