@@ -666,7 +666,7 @@ void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, u
   *addrStart = 0xFFFFFFFFFFFFFFFF;
   *addrStop  = 0x0000000000000000;
   *numData   = 0;
-  for (uint64_t addr=scanStart; addr<=scanStop; addr++) {
+  for (uint64_t addr=scanStart; addr<scanStop; addr++) {
 
     // entry contains data (HB!=0x00)
     if (imageBuf[addr] & 0xFF00) {
