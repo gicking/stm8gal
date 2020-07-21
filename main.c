@@ -23,9 +23,13 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/types.h>
+
+#if !defined(_MSC_VER)
 #include <unistd.h>
-#include <time.h>
 #include <sys/time.h>
+#endif
+
+#include <time.h>
 
 // OS specific: Win32
 #if defined(WIN32)
@@ -98,7 +102,7 @@ int main(int argc, char ** argv) {
   int       verbose;              // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
   int       physInterface;        // bootloader interface: 0=UART (default), 1=SPI_ARDUINO, 2=SPI_SPIDEV
   char      portname[STRLEN] = ""; // name of communication port
-  HANDLE    ptrPort;              // handle to communication port
+  HANDLE    ptrPort          =0;  // handle to communication port
   int       baudrate;             // communication baudrate [Baud]
   int       uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
   int       resetSTM8;            // reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12 (default: manual)
