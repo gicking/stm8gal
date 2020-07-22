@@ -58,6 +58,9 @@ void        close_port(HANDLE *fpCom);
 /// generate low pulse on DTR in [ms] to reset STM8
 void        pulse_DTR(HANDLE fpCom, uint32_t duration);
 
+/// generate low pulse on RTS in [ms] to reset STM8
+void        pulse_RTS(HANDLE fpCom, uint32_t duration);
+
 /// generate low pulse on Raspberry pin in [ms] to reset STM8
 void        pulse_GPIO(int pin, uint32_t duration);
 
