@@ -159,7 +159,7 @@ int main(int argc, char ** argv) {
   /////////////////
 
   printHelp = false;
-  for (int i=1; i<argc; i++) {
+  for (i=1; i<argc; i++) {
 
     // print help
     if ((!strcmp(argv[i], "-h")) || (!strcmp(argv[i], "-help"))) {
@@ -862,7 +862,7 @@ int main(int argc, char ** argv) {
   // 2nd pass of commandline arguments: execute actions, e.g. upload and download files
   /////////////////
 
-  for (int i=1; i<argc; i++) {
+  for (i=1; i<argc; i++) {
 
     // debug
     //printf("\nargv[%d] = '%s'\n", i, argv[i]);
