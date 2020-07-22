@@ -452,9 +452,9 @@ int main(int argc, char ** argv) {
   setConsoleColor(PRM_COLOR_DEFAULT);
 
   // allocate and init global RAM image (>1MByte requires dynamic allocation)
-  if (!(imageBuf = malloc(LENIMAGEBUF * sizeof(*imageBuf))))
+  if (!(imageBuf = malloc((LENIMAGEBUF + 1) * sizeof(*imageBuf))))
     Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
-  memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+  memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
 
   /////////////////
@@ -819,7 +819,7 @@ int main(int argc, char ** argv) {
 
 
     // clear image buffer
-    memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
     // convert correct array containing s19 file to RAM image
     convert_s19(ptrRAM, lenRAM, imageBuf, MUTE);
@@ -837,7 +837,7 @@ int main(int argc, char ** argv) {
     fflush(stdout);
 
     // clear memory image again
-    memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
   } // if STM8S or low-density STM8L -> upload RAM code
 
@@ -942,7 +942,7 @@ int main(int argc, char ** argv) {
       load_file(infile, fileBuf, &lenFile, verbose);
 
       // clear image buffer
-      memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
       // convert to memory image, depending on file type
       if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
@@ -967,7 +967,7 @@ int main(int argc, char ** argv) {
         bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
 
       // clear memory image again
-      memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
     } // write
 
@@ -980,7 +980,7 @@ int main(int argc, char ** argv) {
       int       val;
 
       // clear image buffer
-      memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
       // get address and value and store to parameters for bsl_memWrite
       sscanf(argv[++i], "%" SCNx64, &addr);
@@ -998,7 +998,7 @@ int main(int argc, char ** argv) {
         bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
 
       // clear memory image again
-      memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
     } // set
 
@@ -1016,7 +1016,7 @@ int main(int argc, char ** argv) {
       strncpy(outfile, argv[++i], STRLEN-1);
 
       // clear image buffer
-      memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
       // read memory
       bsl_memRead(ptrPort, physInterface, uartMode, addrStart, addrStop, imageBuf, verbose);
@@ -1034,7 +1034,7 @@ int main(int argc, char ** argv) {
         export_txt("console", imageBuf, verbose);
 
       // clear image buffer
-      memset(imageBuf, 0, LENIMAGEBUF * sizeof(*imageBuf));
+      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
     } // read
 
