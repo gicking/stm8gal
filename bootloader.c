@@ -1136,6 +1136,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   char             Tx[1000], Rx[1000];                  // communication buffers
   int              lenTx, lenRx, len;                   // frame lengths
   uint8_t          chk;                                 // frame checksum
+  int              i, j;
 
 
   // update min/max addresses and number of bytes to write (HB!=0x00) for printout
@@ -1163,7 +1164,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   fflush(stdout);
 
   // init receive buffer
-  for (int i=0; i<1000; i++)
+  for (i=0; i<1000; i++)
     Rx[i] = 0;
 
   // check if port is open
@@ -1284,7 +1285,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     lenTx = 0;
     Tx[lenTx++] = lenBlock-1;     // -1 from BSL
     chk         = lenBlock-1;
-    for (int j=0; j<lenBlock; j++) {
+    for (j=0; j<lenBlock; j++) {
       Tx[lenTx] = (uint8_t) (imageBuf[addrBlock+j] & 0x00FF);  // only LB, HB indicates "defined"
       chk ^= Tx[lenTx];
       lenTx++;

@@ -152,7 +152,7 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   uint64_t  linecount, idx;
   uint8_t   type, len, chkRead, chkCalc;
   uint64_t  addr, addrStart, addrStop, numData;
-  int       val;
+  int       val, i;
 
   // print message
   if (verbose == INFORM)
@@ -200,7 +200,7 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
     // address (S1=16bit, S2=24bit, S3=32bit)
     addr = 0;
-    for (int i=0; i<type+1; i++) {
+    for (i=0; i<type+1; i++) {
 	  sprintf(tmp,"0x00");
       tmp[2] = line[4+(i*2)];
       tmp[3] = line[5+(i*2)];
@@ -217,7 +217,7 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     // read record data
     idx=6+(type*2);                     // start at position 8, 10, or 12, depending on record type
     len=len-1-(1+type);                 // substract chk and address length
-    for (int i=0; i<len; i++) {
+    for (i=0; i<len; i++) {
       sprintf(tmp,"0x00");
       strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
       sscanf(tmp, "%x", &val);          // interpret as hex data
@@ -282,7 +282,7 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   uint8_t   type, len, chkRead, chkCalc;
   uint64_t  addr, addrStart, addrStop, numData;
   uint64_t  addrOffset, addrJumpStart;
-  int       val;
+  int       val, i;
 
   // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
   (void) (addrJumpStart);
@@ -354,7 +354,7 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
       // get data
       idx = 9;                            // start at index 9
-      for (int i=0; i<len; i++) {
+      for (i=0; i<len; i++) {
         sprintf(tmp,"0x00");
         strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
         sscanf(tmp, "%x", &val);          // interpret as hex data
@@ -449,7 +449,7 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   uint64_t  linecount;
   char      sAddr[1000], sValue[1000];
   uint64_t  addr, addrStart, addrStop, numData;
-  int       val;
+  int       val, i;
 
   // print message
   if (verbose == INFORM)
@@ -492,7 +492,7 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     if ((sAddr[0] == '0') && ((sAddr[1] == 'x') || (sAddr[1] == 'X'))) {
 
       // check for valid characters 0-9, A-F
-      for (int i=2; i<strlen(sAddr); i++) {
+      for (i=2; i<strlen(sAddr); i++) {
         if (!isxdigit(sAddr[i]))
           Error("Line %u in table file: hex address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
       }
@@ -506,7 +506,7 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     else {
 
       // check for valid characters 0-9
-      for (int i=0; i<strlen(sAddr); i++) {
+      for (i=0; i<strlen(sAddr); i++) {
         if (!isdigit(sAddr[i]))
           Error("Line %u in table file: dec address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
       }
@@ -526,7 +526,7 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     if ((sValue[0] == '0') && ((sValue[1] == 'x') || (sValue[1] == 'X'))) {
 
       // check for valid characters 0-9, A-F
-      for (int i=2; i<strlen(sValue); i++) {
+      for (i=2; i<strlen(sValue); i++) {
         if (!isxdigit(sValue[i]))
           Error("Line %u in table file: hex value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
       }
@@ -540,7 +540,7 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     else {
 
       // check for valid characters 0-9
-      for (int i=0; i<strlen(sValue); i++) {
+      for (i=0; i<strlen(sValue); i++) {
         if (!isdigit(sValue[i]))
           Error("Line %u in table file: dec value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
       }
@@ -599,6 +599,7 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_t *imageBuf, uint8_t verbose) {
 
   uint64_t  addrStop, numData;
+  uint64_t  i;
 
   // print message
   if (verbose == INFORM)
@@ -616,7 +617,7 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
     Error("Binary file conversion: buffer size exceeded (%dMB vs %dMB)", (int) (addrStop/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
 
   // copy data and mark as set (HB=0xFF)
-  for (uint64_t i=0; i<numData; i++) {
+  for (i=0; i<numData; i++) {
     imageBuf[addrStart+i] = ((uint16_t) fileBuf[i]) | 0xFF00;
   }
 
@@ -654,6 +655,8 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
 */
 void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData) {
 
+  uint64_t   addr;
+  
   // simple checks of scan window
   if (scanStart > scanStop)
     Error("scan start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, scanStart, scanStop);
@@ -666,7 +669,7 @@ void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, u
   *addrStart = 0xFFFFFFFFFFFFFFFF;
   *addrStop  = 0x0000000000000000;
   *numData   = 0;
-  for (uint64_t addr=scanStart; addr<=scanStop; addr++) {
+  for (addr=scanStart; addr<=scanStop; addr++) {
 
     // entry contains data (HB!=0x00)
     if (imageBuf[addr] & 0xFF00) {
@@ -694,7 +697,7 @@ void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, u
 */
 void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose) {
 
-  uint64_t  numFilled;
+  uint64_t  addr, numFilled;
 
   // print message
   if (verbose == INFORM)
@@ -713,7 +716,7 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // loop over memory image and clear all data outside specified clipping window
   numFilled = 0;
-  for (uint64_t addr = addrStart; addr <= addrStop; addr++) {
+  for (addr = addrStart; addr <= addrStop; addr++) {
     numFilled++;                                      // count filled bytes for output below
     imageBuf[addr] = ((uint16_t) value) | 0xFF00;     // HB=0x00 indicates data undefined, LB contains data
   }
@@ -750,7 +753,7 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 */
 void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
 
-  uint64_t  numCleared;
+  uint64_t  addr, numCleared;
 
   // print message
   if (verbose == INFORM)
@@ -769,7 +772,7 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // loop over memory image and clear all data outside specified clipping window
   numCleared = 0;
-  for (uint64_t addr = 0; addr < (uint64_t)LENIMAGEBUF; addr++) {
+  for (addr = 0; addr < (uint64_t)LENIMAGEBUF; addr++) {
     if ((addr < addrStart) || (addr > addrStop)) {
       if (imageBuf[addr] & 0xFF00)
          numCleared++;                 // count deleted bytes for output below
@@ -809,7 +812,7 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 */
 void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
 
-  uint64_t  numCleared;
+  uint64_t  addr, numCleared;
 
   // print message
   if (verbose == INFORM)
@@ -828,7 +831,7 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
 
   // loop over memory image and clear all data inside specified window
   numCleared = 0;
-  for (uint64_t addr=0; addr<(uint64_t)LENIMAGEBUF; addr++) {
+  for (addr=0; addr<(uint64_t)LENIMAGEBUF; addr++) {
     if ((addr >= addrStart) && (addr <= addrStop)) {
       if (imageBuf[addr] & 0xFF00)
          numCleared++;                 // count deleted bytes for output below
@@ -869,7 +872,7 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
 */
 void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
 
-  uint64_t  numCopied;
+  uint64_t  numCopied, i;
 
   // print message
   if (verbose == INFORM)
@@ -892,7 +895,7 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // get number of data to copy (HB!=0x00)
   numCopied = 0;
-  for (uint64_t i=sourceStart; i<=sourceStop; i++) {
+  for (i=sourceStart; i<=sourceStop; i++) {
     if (imageBuf[i] & 0xFF00)
       numCopied++;
   }
@@ -934,7 +937,7 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 */
 void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
 
-  uint64_t  numMoved;
+  uint64_t  numMoved, i;
   uint16_t  *tmpImageBuf;   // temporary buffer
 
   // print message
@@ -958,7 +961,7 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // get number of data to move (HB!=0x00)
   numMoved = 0;
-  for (uint64_t i=sourceStart; i<=sourceStop; i++) {
+  for (i=sourceStart; i<=sourceStop; i++) {
     if (imageBuf[i] & 0xFF00)
       numMoved++;
   }
@@ -1017,6 +1020,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   uint32_t  chk;               // checksum
   uint64_t  addr, addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
+  int       j;
 
   // strip path from filename for readability
   #if defined(WIN32)
@@ -1087,7 +1091,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       fprintf(fp, "S3%02X%08X", lenBlock+5, (int) addrBlock);        // 32-bit address: 4B addr + data + 1B chk
       chk = (uint8_t) (lenBlock+5) + (uint8_t) addrBlock + (uint8_t) (addrBlock >> 8) + (uint8_t) (addrBlock >> 16) + (uint8_t) (addrBlock >> 24);
     }
-    for (int j=0; j<lenBlock; j++) {
+    for (j=0; j<lenBlock; j++) {
       data = (uint8_t) (imageBuf[addrBlock+j] & 0x00FF);
       chk += data;
       fprintf(fp, "%02X", data);
@@ -1144,6 +1148,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 */
 
 void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+	
   FILE      *fp;               // file pointer
   const int maxLine = 32;      // max. length of data line
   uint8_t   data;              // value to store
@@ -1152,6 +1157,8 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   char      *shortname;        // filename w/o path
   uint8_t   useEla = 0;        // whether ELA records needed
   int64_t   addrEla;           // ELA record address
+  uint8_t   j;
+  
 
   // strip path from filename for readability
   #if defined(WIN32)
@@ -1212,7 +1219,7 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     // write the data record
     fprintf(fp, ":%02X%04X00", lenBlock, (uint16_t)addrBlock);
     chk = lenBlock + (uint8_t)addrBlock + (uint8_t)(addrBlock >> 8);
-    for(uint8_t j = 0; j < lenBlock; j++) {
+    for (j = 0; j < lenBlock; j++) {
       data = (uint8_t)(imageBuf[addrBlock+j] & 0x00FF);
       chk += data;
       fprintf(fp, "%02X", data);
@@ -1265,7 +1272,8 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   uint64_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
   bool      flagFile = true;   // output to file or console?
-
+  uint64_t  i;
+  
   // output to stdout
   if (!strcmp(filename, "console")) {
     flagFile = false;
@@ -1316,7 +1324,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
 
   // output each defined value (HB!=0x00) in a separate line (addr \t value)
-  for (uint64_t i=addrStart; i<=addrStop; i++) {
+  for (i=addrStart; i<=addrStop; i++) {
     if (imageBuf[i] & 0xFF00) {
       if (!flagFile)
         fprintf(fp,"    ");
@@ -1365,7 +1373,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   FILE      *fp;               // file pointer
-  uint64_t  addrStart, addrStop, numData;  // address range to consider
+  uint64_t  addr, addrStart, addrStop, numData;  // address range to consider
   uint64_t  countByte;         // number of actually exported bytes
   uint8_t   val;
 
@@ -1399,7 +1407,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // store every value in address range. Undefined values are set to 0x00
   countByte = 0;
-  for (uint64_t addr=addrStart; addr<=addrStop; addr++) {
+  for (addr=addrStart; addr<=addrStop; addr++) {
     if (imageBuf[addr] & 0xFF00)
       val = (uint8_t) (imageBuf[addr] & 0x00FF);
     else
