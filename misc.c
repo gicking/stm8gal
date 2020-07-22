@@ -13,8 +13,12 @@
 
 #include <string.h>
 #include <stdlib.h>
+
+#if !defined(_MSC_VER)
 #include <unistd.h>
 #include <sys/time.h>
+#endif
+
 
 #include "misc.h"
 #include "main.h"
