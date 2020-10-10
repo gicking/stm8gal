@@ -15,7 +15,7 @@
 // include files
 #include "serial_comm.h"
 #include "main.h"
-#include "misc.h"
+#include "timer.h"
 #if defined(__ARMEL__) && defined(USE_WIRING)
   #include <wiringPi.h>       // for reset via GPIO
 #endif // __ARMEL__ && USE_WIRING
@@ -56,8 +56,9 @@ void list_ports(void) {
       NULL  // hTemplate must be NULL for comm devices
     );
     if (fpCom != INVALID_HANDLE_VALUE) {
-      if (j!=1) printf(", ");
-      printf("COM%d", i);
+      if (j!=1)
+	    print(STDOUT, ", ");
+      print(STDOUT, "COM%d", i);
       CloseHandle(fpCom);
       j++;
     }
@@ -81,36 +82,41 @@ void list_ports(void) {
       
       // FTDI FT232 or CH340 based USB-RS232 adapter (MacOS X)
       if (strstr(ent->d_name, "tty.") && strstr(ent->d_name, "usbserial")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+		  print(STDOUT, ", ");
+        print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
 
       // Prolific PL2303 based USB-RS232 adapter
       if (strstr(ent->d_name, "tty.PL2303")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+		  print(STDOUT, ", ");
+        print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
       
       // FTDI FT232 based USB-RS232 adapter (Ubuntu)
       if (strstr(ent->d_name, "ttyUSB")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+		  print(STDOUT, ", ");
+        print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
       
       // direct UART under Raspberry Pi / Raspbian 1+2
       if (strstr(ent->d_name, "ttyAMA")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+		  print(STDOUT, ", ");
+        print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
 
       // direct UART under Raspberry Pi / Raspbian 3 (see https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3)
       if (strstr(ent->d_name, "serial0")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+		  print(STDOUT, ", ");
+        print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
 
@@ -118,7 +124,6 @@ void list_ports(void) {
   }
   else
     Error("cannot list, check /dev for port name");
-  fflush(stdout);
 
 #endif // __APPLE__ || __unix__
 
@@ -850,7 +855,7 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
     lenRx = receive_port(fpCom, uartMode, numChars, Rx);
     if (lenRx != numChars)
       Error("in 'send_port()': read 1-wire echo failed");
-    //fprintf(stderr,"received echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
+    //print(STDERR,"received echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
   }
   
   // return number of sent bytes
@@ -961,7 +966,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
       
       // for UART reply mode with 2-wire interface echo each byte
       if (uartMode==2) {
-        //fprintf(stderr,"\nsent echo 0x%02x\n", *dest);
+        //print(STDERR, "\nsent echo 0x%02x\n", *dest);
         send_port(fpCom, uartMode, 1, dest);
       }
       
