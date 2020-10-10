@@ -87,14 +87,16 @@
 
 
 /**
-   \fn int print(output_t dest, char *fmt, ...)
+  \fn int print(output_t dest, char *fmt, ...)
 
-   \param dest      destination to print to (STDOUT or STDERR)
-   \param fmt       format string as for printf()
+  \param dest      destination to print to (STDOUT or STDERR)
+  \param fmt       format string as for printf()
 
-   \return message output function. Is separate to facilitate output to GUI window
+  \return number of printed characters (positive) or error (negative)
 
-   message output function. Is separate to facilitate output to GUI window.
+  message output function. Is separate to facilitate output to GUI window.
+  Output format is identical to printf(). 
+
 */
 int print(output_t dest, char *fmt, ...) {
   
@@ -120,6 +122,7 @@ int print(output_t dest, char *fmt, ...) {
     setConsoleColor(PRM_COLOR_DEFAULT);
   }
 
+  // return vsnprintf status
   return result;
 
 } // print()
@@ -127,27 +130,38 @@ int print(output_t dest, char *fmt, ...) {
 
 
 /**
-  \fn void Error(const char *format, ...)
+  \fn int Error(const char *format, ...)
    
   \param[in] code    return code of application to commandline
   \param[in] pause   wait for keyboard input before terminating
 
-  Display error message and terminate program. Output format is identical to
-  printf(). Prior to program termination query for \<return\> unless
-  background operation is specified.
+  \return number of printed characters (positive) or error (negative)
+
+  Display error message and terminate program. 
+  Output format is identical to printf(). 
+  Prior to program termination query for \<return\> unless background operation is specified.
 */
-void Error(char *fmt, ...)
+int Error(char *fmt, ...)
 {
-  // print message
-  print(STDERR, "Error: ");
+  int   result;
+  char  str[500];
+    
+  // create string containing message
   va_list args;
   va_start(args, fmt);
-  print(STDERR, fmt, args);
+  result = vsnprintf(str, 500, fmt, args);
   va_end(args);
-  print(STDERR, "\n");
+
+  // output to stderr in red
+  setConsoleColor(PRM_COLOR_RED);
+  fprintf(stderr, "\nError: %s\n", str);
+  setConsoleColor(PRM_COLOR_DEFAULT);
   
   // terminate program
   Exit(1, 1);
+  
+  // return vsnprintf status (avoid compiler warning)
+  return result;
   
 } // Error()
 
@@ -564,7 +578,7 @@ int main(int argc, char ** argv) {
     #else
       printf("    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 6=RTS line (RS232) (default: manual)\n");
     #endif
-    printf("    -i/-interface [line]            communication interface: 0=UART (default: UART)\n");
+    printf("    -i/-interface [line]            communication interface: 0=UART");
     #if defined(USE_SPI_ARDUINO)
       printf(", 1=SPI via Arduino");
     #endif
