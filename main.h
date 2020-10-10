@@ -57,6 +57,10 @@ typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
   typedef enum {UART=0, SPI_ARDUINO} physInterface_t;
 #endif
 
+/// destination stream for below print routine
+typedef enum {STDOUT=0, STDERR=1} output_t;
+
+
 
 /*******
   global variables
@@ -77,6 +81,21 @@ global bool           g_backgroundOperation;
 
 // undefine global keyword
 #undef global
+
+
+/*******
+  global functions
+*******/
+
+/// message output function. Is separate to facilitate output to GUI window
+int print(output_t dest, char *fmt, ...);
+
+/// display error message and terminate
+void Error(char *format, ...);
+
+/// terminate program after cleaning up
+void Exit(uint8_t code, uint8_t pause);
+
 
 #endif // _MAIN_H_
 

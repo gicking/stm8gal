@@ -15,12 +15,9 @@
 */
 
 // include files
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <stdarg.h>
-#include <stdint.h>
-#include <ctype.h>
+//#include <stdint.h>
+//#include <ctype.h>
 #include <fcntl.h>
 #include <sys/types.h>
 
@@ -58,13 +55,18 @@
 #define _MAIN_
   #include "main.h"
 #undef _MAIN_
-#include "misc.h"
 #include "serial_comm.h"
-#include "spi_spidev_comm.h"
-#include "spi_Arduino_comm.h"
+#if defined(USE_SPIDEV)
+  #include "spi_spidev_comm.h"
+#endif
+#if defined (USE_SPI_ARDUINO)
+  #include "spi_Arduino_comm.h"
+#endif
 #include "bootloader.h"
 #include "hexfile.h"
 #include "version.h"
+#include "console.h"
+#include "timer.h"
 
 
 // device dependent flash w/e routines
@@ -82,6 +84,179 @@
 
 // max length of filenames
 #define  STRLEN   1000
+
+
+/**
+   \fn int print(output_t dest, char *fmt, ...)
+
+   \param dest      destination to print to (STDOUT or STDERR)
+   \param fmt       format string as for printf()
+
+   \return message output function. Is separate to facilitate output to GUI window
+
+   message output function. Is separate to facilitate output to GUI window.
+*/
+int print(output_t dest, char *fmt, ...) {
+  
+  int   result;
+  char  str[500];
+    
+  // create string containing message
+  va_list args;
+  va_start(args, fmt);
+  result = vsnprintf(str, 500, fmt, args);
+  va_end(args);
+
+  // output to stdout
+  if (dest == STDOUT) {
+    fprintf(stdout, "%s", str);
+    fflush(stdout);
+  }
+
+  // output to stderr in red
+  else if (dest == STDERR) {
+    setConsoleColor(PRM_COLOR_RED);
+    fprintf(stderr, "%s", str);
+    setConsoleColor(PRM_COLOR_DEFAULT);
+  }
+
+  return result;
+
+} // print()
+
+
+
+/**
+  \fn void Error(const char *format, ...)
+   
+  \param[in] code    return code of application to commandline
+  \param[in] pause   wait for keyboard input before terminating
+
+  Display error message and terminate program. Output format is identical to
+  printf(). Prior to program termination query for \<return\> unless
+  background operation is specified.
+*/
+void Error(char *fmt, ...)
+{
+  // print message
+  print(STDERR, "Error: ");
+  va_list args;
+  va_start(args, fmt);
+  print(STDERR, fmt, args);
+  va_end(args);
+  print(STDERR, "\n");
+  
+  // terminate program
+  Exit(1, 1);
+  
+} // Error()
+
+
+
+/**
+  \fn void Exit(uint8_t code, uint8_t pause)
+   
+  \param[in] code    return code of application to commandline
+  \param[in] pause   wait for keyboard input before terminating
+
+  Terminate program. Replace standard exit() to query for \<return\> 
+  before termination, unless background operation is specified.
+*/
+void Exit(uint8_t code, uint8_t pause) {
+
+  // on error code !=0 ring bell
+  if (code) {
+    printf("\a");
+    fflush(stdout);
+  }
+  
+  // reset text color to default, just to be sure
+  setConsoleColor(PRM_COLOR_DEFAULT);
+
+  // optionally prompt for <return>
+  if ((pause) && (!g_backgroundOperation)) {
+    printf("\npress <return> to exit");
+    fflush(stdout);
+    fflush(stdin);
+    getchar();
+  }
+  printf("\n");
+
+  // terminate application
+  exit(code);
+
+} // Exit
+
+
+
+/**
+  \fn void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status)
+   
+  \param[in]  vers      16b revision number in format xx.xxxxxxxx.xxxxx.x
+  \param[out] major     major revision number [15:14] -> 0..3
+  \param[out] minor     minor revision number [13:6] -> 0..255
+  \param[out] build     build number [5:1] -> 0..31
+  \param[out] status    status [0] -> 0=beta; 1=released
+
+  extract major / minor / build revision number from 16b identifier
+  in format xx.xxxxxxxx.xxxxx.x
+*/
+void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status) {
+
+  // major version ([15:14] -> 0..7)
+  *major = (uint8_t) ((vers & 0xC000) >> 14);
+  
+  // minor version ([13:6] -> 0..255)
+  *minor = (uint8_t) ((vers & 0x3FC0) >> 6);
+  
+  // build number ([5:1] -> 0..31)
+  *build = (uint8_t) ((vers&0x003E) >> 1);
+  
+  // release status ([0] -> 0=beta; 1=released)
+  *status = (uint8_t) (vers&0x0001);
+  
+} // get_version
+
+
+
+/**
+  \fn void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr)
+   
+  \param[in]  appFull   name of application incl. path
+  \param[in]  versID    16b version identifier
+  \param[out] appName   name of application w/o path
+  \param[out] versStr   version number as string
+
+  print application name and major / minor / build revision numbers. Remove path from app name
+*/
+void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr) {
+
+  int32_t   i;
+  char      *tmp;
+  uint8_t   major, minor, build, status;
+
+  // find position of last path delimiter '/' (Posix) or '\' (Win)
+  tmp = appFull;
+  for (i=0; i<strlen(appFull); i++) {
+    if ((appFull[i] == '/') || (appFull[i] == '\\'))
+      tmp = appFull+i+1;
+  }
+
+  // copy app name w/o path
+  sprintf(appName, "%s", tmp);
+
+
+  // extract major / minor / build revision number
+  get_version(versID, &major, &minor, &build, &status);
+  
+  // copy version data to string
+  if (status==0)
+    sprintf(versStr, "v%d.%d.%d beta", major, minor, build);
+  else
+    sprintf(versStr, "%d.%d.%d", major, minor, build);
+
+} // get_app_name
+
 
 
 /**
@@ -389,11 +564,14 @@ int main(int argc, char ** argv) {
     #else
       printf("    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 6=RTS line (RS232) (default: manual)\n");
     #endif
-    #ifdef USE_SPIDEV
-      printf("    -i/-interface [line]            communication interface: 0=UART, 1=SPI via Arduino, 2=SPI via spidev (default: UART)\n");
-    #else
-      printf("    -i/-interface [line]            communication interface: 0=UART, 1=SPI via Arduino (default: UART)\n");
+    printf("    -i/-interface [line]            communication interface: 0=UART (default: UART)\n");
+    #if defined(USE_SPI_ARDUINO)
+      printf(", 1=SPI via Arduino");
     #endif
+    #if defined(USE_SPIDEV)
+      printf(", 2=SPI via spidev");
+    #endif
+    printf(" (default: UART)\n");
     printf("    -u/-uart-mode [mode]            UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)\n");
     printf("    -p/-port [name]                 communication port (default: list available ports)\n");
     printf("    -b/-baudrate [speed]            communication baudrate in Baud (default: 115200)\n");
@@ -608,57 +786,59 @@ int main(int argc, char ** argv) {
   } // UART
 
   // SPI via Arduino
-  else if (physInterface == SPI_ARDUINO) {
+  #if defined(USE_SPI_ARDUINO)
+    else if (physInterface == SPI_ARDUINO) {
 
-    // open port
-    if (verbose == INFORM)
-      printf("  open Arduino port '%s' ... ", portname);
-    else if (verbose == CHATTY)
-      printf("  open Arduino port '%s' with %gkBaud SPI ... ", portname, (float) ARDUINO_BAUDRATE / 1000.0);
-    fflush(stdout);
-    ptrPort = init_port(portname, ARDUINO_BAUDRATE, 100, 8, 0, 1, 0, 0);
-    if ((verbose == INFORM) || (verbose == CHATTY))
-      printf("ok\n");
-    fflush(stdout);
-
-    // wait until after Arduino bootloader
-    if ((verbose == INFORM) || (verbose == CHATTY))
-      printf("  wait for Arduino bootloader ... ");
-    fflush(stdout);
-    SLEEP(2000);
-    if ((verbose == INFORM) || (verbose == CHATTY))
-      printf("ok\n");
-    fflush(stdout);
-
-    // init SPI interface and set NSS pin to high
-    if (verbose == CHATTY) {
-      if (baudrate < 1000000L)
-        printf("  init SPI with %gkBaud... ", (float) baudrate / 1000.0);
-      else
-        printf("  init SPI with %gMBaud... ", (float) baudrate / 1000000.0);
-    }
-    fflush(stdout);
-    setPin_Arduino(ptrPort, ARDUINO_CSN_PIN, 1);
-    configSPI_Arduino(ptrPort, baudrate, ARDUINO_MSBFIRST, ARDUINO_SPI_MODE0);
-    if (verbose == CHATTY)
-      printf("ok\n");
-    fflush(stdout);
-
-    // HW reset STM8 using Arduino pin 8 -> delay until Arduino port is open
-    if (resetSTM8 == 4) {
-      if ((verbose == INFORM) || (verbose == CHATTY))
-        printf("  reset via Arduino pin %d ... ", ARDUINO_RESET_PIN);
+      // open port
+      if (verbose == INFORM)
+        printf("  open Arduino port '%s' ... ", portname);
+      else if (verbose == CHATTY)
+        printf("  open Arduino port '%s' with %gkBaud SPI ... ", portname, (float) ARDUINO_BAUDRATE / 1000.0);
       fflush(stdout);
-      setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 0);
-      SLEEP(1);
-      setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 1);
+      ptrPort = init_port(portname, ARDUINO_BAUDRATE, 100, 8, 0, 1, 0, 0);
       if ((verbose == INFORM) || (verbose == CHATTY))
         printf("ok\n");
       fflush(stdout);
-      SLEEP(20);                      // allow BSL to initialize
-    }
 
-  } // SPI via Arduino
+      // wait until after Arduino bootloader
+      if ((verbose == INFORM) || (verbose == CHATTY))
+        printf("  wait for Arduino bootloader ... ");
+      fflush(stdout);
+      SLEEP(2000);
+      if ((verbose == INFORM) || (verbose == CHATTY))
+        printf("ok\n");
+      fflush(stdout);
+
+      // init SPI interface and set NSS pin to high
+      if (verbose == CHATTY) {
+        if (baudrate < 1000000L)
+          printf("  init SPI with %gkBaud... ", (float) baudrate / 1000.0);
+        else
+          printf("  init SPI with %gMBaud... ", (float) baudrate / 1000000.0);
+      }
+      fflush(stdout);
+      setPin_Arduino(ptrPort, ARDUINO_CSN_PIN, 1);
+      configSPI_Arduino(ptrPort, baudrate, ARDUINO_MSBFIRST, ARDUINO_SPI_MODE0);
+      if (verbose == CHATTY)
+        printf("ok\n");
+      fflush(stdout);
+
+      // HW reset STM8 using Arduino pin 8 -> delay until Arduino port is open
+      if (resetSTM8 == 4) {
+        if ((verbose == INFORM) || (verbose == CHATTY))
+          printf("  reset via Arduino pin %d ... ", ARDUINO_RESET_PIN);
+        fflush(stdout);
+        setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 0);
+        SLEEP(1);
+        setPin_Arduino(ptrPort, ARDUINO_RESET_PIN, 1);
+        if ((verbose == INFORM) || (verbose == CHATTY))
+          printf("ok\n");
+        fflush(stdout);
+        SLEEP(20);                      // allow BSL to initialize
+      }
+  
+    } // SPI via Arduino
+  #endif // USE_SPI_ARDUINO
 
   // SPI via spidev
   #if defined(USE_SPIDEV)
@@ -683,10 +863,14 @@ int main(int argc, char ** argv) {
 
   // unknown interface -> error
   else {
-    #if defined(USE_SPIDEV)
+    #if defined(USE_SPI_ARDUINO) && defined(USE_SPIDEV)
       Error("interface %d not supported (0=UART, 1=SPI via Arduino, 2=SPI via spidev)", physInterface);
-    #else
+    #elif defined(USE_SPI_ARDUINO)
       Error("interface %d not supported (0=UART, 1=SPI via Arduino)", physInterface);
+    #elif defined(USE_SPIDEV)
+      Error("interface %d not supported (0=UART, 2=SPI via spidev)", physInterface);
+    #else
+	  Error("interface %d not supported (0=UART)", physInterface);
     #endif
   }
 
