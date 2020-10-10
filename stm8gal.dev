@@ -1,7 +1,7 @@
 [Project]
 FileName=stm8gal.dev
 Name=stm8gal
-UnitCount=22
+UnitCount=24
 Type=1
 Ver=2
 ObjFiles=
@@ -10,7 +10,7 @@ Libs=
 PrivateResource=
 ResourceIncludes=
 MakeIncludes=
-Compiler=
+Compiler=-DUSE_SPI_ARDUINO_@@_
 CppCompiler=
 Linker=
 IsCpp=0
@@ -26,8 +26,8 @@ UseCustomMakefile=0
 CustomMakefile=
 IncludeVersionInfo=0
 SupportXPThemes=0
-CompilerSet=0
-CompilerSettings=0000000000000000000000000
+CompilerSet=3
+CompilerSettings=0000000100100000000000000
 LogOutput=
 LogOutputEnabled=0
 
@@ -61,26 +61,6 @@ AutoIncBuildNr=0
 SyncProduct=0
 
 [Unit2]
-FileName=misc.c
-CompileCpp=0
-Folder=stm8gal
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit3]
-FileName=misc.h
-CompileCpp=0
-Folder=stm8gal
-Compile=1
-Link=1
-Priority=1000
-OverrideBuildCmd=0
-BuildCmd=
-
-[Unit4]
 FileName=main.h
 CompileCpp=0
 Folder=
@@ -90,7 +70,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit5]
+[Unit3]
 FileName=serial_comm.c
 CompileCpp=0
 Folder=stm8gal
@@ -100,7 +80,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit6]
+[Unit4]
 FileName=serial_comm.h
 CompileCpp=0
 Folder=stm8gal
@@ -110,7 +90,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit7]
+[Unit5]
 FileName=bootloader.c
 CompileCpp=0
 Folder=stm8gal
@@ -120,7 +100,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit8]
+[Unit6]
 FileName=hexfile.c
 CompileCpp=0
 Folder=stm8gal
@@ -130,7 +110,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit9]
+[Unit7]
 FileName=bootloader.h
 CompileCpp=0
 Folder=stm8gal
@@ -140,7 +120,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit10]
+[Unit8]
 FileName=hexfile.h
 CompileCpp=0
 Folder=stm8gal
@@ -150,7 +130,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit11]
+[Unit9]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.0.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -160,7 +140,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit12]
+[Unit10]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.2.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -170,7 +150,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit13]
+[Unit11]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.3.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -180,7 +160,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit14]
+[Unit12]
 FileName=STM8_Routines\E_W_ROUTINEs_32K_ver_1.4.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -190,7 +170,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit15]
+[Unit13]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.0.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -200,7 +180,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit16]
+[Unit14]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.1.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -210,7 +190,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit17]
+[Unit15]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.2.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -220,7 +200,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit18]
+[Unit16]
 FileName=STM8_Routines\E_W_ROUTINEs_128K_ver_2.4.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -230,7 +210,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit19]
+[Unit17]
 FileName=STM8_Routines\E_W_ROUTINEs_256K_ver_1.0.h
 CompileCpp=0
 Folder=STM8_Routines
@@ -240,7 +220,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit20]
+[Unit18]
 FileName=version.h
 CompileCpp=0
 Folder=
@@ -250,7 +230,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit21]
+[Unit19]
 FileName=spi_Arduino_comm.c
 CompileCpp=0
 Folder=
@@ -260,7 +240,7 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
-[Unit22]
+[Unit20]
 FileName=spi_Arduino_comm.h
 CompileCpp=0
 Folder=
@@ -270,8 +250,38 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=
 
+[Unit21]
+FileName=console.c
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit22]
+FileName=console.h
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
 [Unit23]
-FileName=spi_Arduino_comm.h
+FileName=timer.c
+CompileCpp=0
+Folder=
+Compile=1
+Link=1
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit24]
+FileName=timer.h
 CompileCpp=0
 Folder=
 Compile=1
