@@ -17,6 +17,9 @@
 #ifndef _HEXFILE_H_
 #define _HEXFILE_H_
 
+// include files
+#include <stdint.h>
+
 /// buffer size [B] for files
 #define  LENFILEBUF   50*1024*1024
 

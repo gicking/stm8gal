@@ -17,13 +17,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <inttypes.h>
 #include <ctype.h>
 #include "hexfile.h"
 #include "main.h"
-#include "misc.h"
 
 
 /**
@@ -90,8 +86,7 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
 
   // print message
   if (verbose >= SILENT)
-    printf("  load '%s' ... ", shortname);
-  fflush(stdout);
+	print(STDOUT, "  load '%s' ... ", shortname);
 
   // open file to read
   if (!(fp = fopen(filename, "rb")))
@@ -117,19 +112,18 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)){
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if ((*lenFileBuf)>1024*1024)
-      printf("done (%1.1fMB)\n", (float) (*lenFileBuf)/1024.0/1024.0);
+      print(STDOUT, "done (%1.1fMB)\n", (float) (*lenFileBuf)/1024.0/1024.0);
     else if ((*lenFileBuf)>1024)
-      printf("done (%1.1fkB)\n", (float) (*lenFileBuf)/1024.0);
+      print(STDOUT, "done (%1.1fkB)\n", (float) (*lenFileBuf)/1024.0);
     else if ((*lenFileBuf)>0)
-      printf("done (%dB)\n", (int) (*lenFileBuf));
+      print(STDOUT, "done (%dB)\n", (int) (*lenFileBuf));
     else
-      printf("done, no data read\n");
+      print(STDOUT, "done, no data read\n");
   }
-  fflush(stdout);
 
 } // load_file
 
@@ -156,10 +150,9 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM)
-    printf("  convert S19 ... ");
+    print(STDOUT, "  convert S19 ... ");
   else if (verbose == CHATTY)
-    printf("  convert Motorola S19 file ... ");
-  fflush(stdout);
+    print(STDOUT, "  convert Motorola S19 file ... ");
 
 
   //////
@@ -246,19 +239,18 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
 
 } // convert_s19
 
@@ -289,10 +281,9 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM)
-    printf("  convert IHX ... ");
+    print(STDOUT, "  convert IHX ... ");
   else if (verbose == CHATTY)
-    printf("  convert Intel HEX file ... ");
-  fflush(stdout);
+    print(STDOUT, "  convert Intel HEX file ... ");
 
 
   //////
@@ -413,19 +404,18 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
 
 } // convert_ihx
 
@@ -453,10 +443,9 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM)
-    printf("  convert table ... ");
+    print(STDOUT, "  convert table ... ");
   else if (verbose == CHATTY)
-    printf("  convert ASCII table file ... ");
-  fflush(stdout);
+    print(STDOUT, "  convert ASCII table file ... ");
 
 
   //////
@@ -566,19 +555,18 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
 
 } // convert_txt
 
@@ -603,10 +591,9 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
 
   // print message
   if (verbose == INFORM)
-    printf("  convert binary ... ");
+    print(STDOUT, "  convert binary ... ");
   else if (verbose == CHATTY)
-    printf("  convert binary data ... ");
-  fflush(stdout);
+    print(STDOUT, "  convert binary data ... ");
 
   // calculate number of bytes and last address
   numData  = lenFileBuf;
@@ -623,19 +610,18 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
 
 } // convert_bin
 
@@ -701,10 +687,9 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM)
-    printf("  fill image ... ");
+    print(STDOUT, "  fill image ... ");
   else if (verbose == CHATTY)
-    printf("  fill memory image ... ");
-  fflush(stdout);
+    print(STDOUT, "  fill memory image ... ");
 
   // simple checks of scan window
   if (addrStart > addrStop)
@@ -723,19 +708,18 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numFilled>1024*1024)
-      printf("done, filled %1.1fMB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, value, addrStart, addrStop);
+      print(STDOUT, "done, filled %1.1fMB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, value, addrStart, addrStop);
     else if (numFilled>1024)
-      printf("done, filled %1.1fkB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, value, addrStart, addrStop);
+      print(STDOUT, "done, filled %1.1fkB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, value, addrStart, addrStop);
     else if (numFilled>0)
-      printf("done, filled %dB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, value, addrStart, addrStop);
+      print(STDOUT, "done, filled %dB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, value, addrStart, addrStop);
     else
-      printf("done, no data filled\n");
+      print(STDOUT, "done, no data filled\n");
   }
-  fflush(stdout);
 
 } // fill_image
 
@@ -757,10 +741,9 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM)
-    printf("  clip image ... ");
+    print(STDOUT, "  clip image ... ");
   else if (verbose == CHATTY)
-    printf("  clip memory image ... ");
-  fflush(stdout);
+    print(STDOUT, "  clip memory image ... ");
 
   // simple checks of scan window
   if (addrStart > addrStop)
@@ -782,19 +765,18 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numCleared>1024*1024)
-      printf("done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
     else if (numCleared>1024)
-      printf("done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
+      print(STDOUT, "done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
     else if (numCleared>0)
-      printf("done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
+      print(STDOUT, "done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
     else
-      printf("done, no data cleared\n");
+      print(STDOUT, "done, no data cleared\n");
   }
-  fflush(stdout);
 
 } // clip_image
 
@@ -816,10 +798,9 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
 
   // print message
   if (verbose == INFORM)
-    printf("  clear image ... ");
+    print(STDOUT, "  clear image ... ");
   else if (verbose == CHATTY)
-    printf("  clear memory image ... ");
-  fflush(stdout);
+    print(STDOUT, "  clear memory image ... ");
 
   // simple checks of scan window
   if (addrStart > addrStop)
@@ -841,19 +822,18 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numCleared>1024*1024)
-      printf("done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
     else if (numCleared>1024)
-      printf("done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
+      print(STDOUT, "done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
     else if (numCleared>0)
-      printf("done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
+      print(STDOUT, "done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
     else
-      printf("done, no data cut\n");
+      print(STDOUT, "done, no data cut\n");
   }
-  fflush(stdout);
 
 } // cut_image
 
@@ -876,10 +856,9 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM)
-    printf("  copy data ... ");
+    print(STDOUT, "  copy data ... ");
   else if (verbose == CHATTY)
-    printf("  copy image data ... ");
-  fflush(stdout);
+    print(STDOUT, "  copy image data ... ");
 
   // simple checks of scan window
   if (sourceStart > sourceStop)
@@ -906,19 +885,18 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numCopied>1024*1024)
-      printf("done, copied %1.1fMB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
+      print(STDOUT, "done, copied %1.1fMB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numCopied>1024)
-      printf("done, copied %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0, sourceStart, sourceStop, destinationStart);
+      print(STDOUT, "done, copied %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numCopied>0)
-      printf("done, copied %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied, sourceStart, sourceStop, destinationStart);
+      print(STDOUT, "done, copied %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied, sourceStart, sourceStop, destinationStart);
     else
-      printf("done, no data copied\n");
+      print(STDOUT, "done, no data copied\n");
   }
-  fflush(stdout);
 
 } // copy_image
 
@@ -942,10 +920,9 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM)
-    printf("  move data ... ");
+    print(STDOUT, "  move data ... ");
   else if (verbose == CHATTY)
-    printf("  move image data ... ");
-  fflush(stdout);
+    print(STDOUT, "  move image data ... ");
 
   // simple checks of scan window
   if (sourceStart > sourceStop)
@@ -984,19 +961,18 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numMoved>1024*1024)
-      printf("done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
+      print(STDOUT, "done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numMoved>1024)
-      printf("done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0, sourceStart, sourceStop, destinationStart);
+      print(STDOUT, "done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numMoved>0)
-      printf("done, moved %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved, sourceStart, sourceStop, destinationStart);
+      print(STDOUT, "done, moved %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved, sourceStart, sourceStop, destinationStart);
     else
-      printf("done, no data moved\n");
+      print(STDOUT, "done, no data moved\n");
   }
-  fflush(stdout);
 
 } // move_image
 
@@ -1035,12 +1011,11 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if (verbose == SILENT)
-    printf("  export '%s' ... ", shortname);
+    print(STDOUT, "  export '%s' ... ", shortname);
   else if (verbose == INFORM)
-    printf("  export S19 file '%s' ... ", shortname);
+    print(STDOUT, "  export S19 file '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    printf("  export Motorola S19 file '%s' ... ", shortname);
-  fflush(stdout);
+    print(STDOUT, "  export Motorola S19 file '%s' ... ", shortname);
 
   // open output file
   fp=fopen(filename,"wb");
@@ -1071,7 +1046,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     while ((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
       lenBlock++;
     }
-    //printf("0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
+    //print(STDOUT, "0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
 
 
     ///////
@@ -1118,19 +1093,18 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
 
 } // export_s19
 
@@ -1173,12 +1147,11 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if (verbose == SILENT)
-    printf("  export '%s' ... ", shortname);
+    print(STDOUT, "  export '%s' ... ", shortname);
   else if (verbose == INFORM)
-    printf("  export IHX file '%s' ... ", shortname);
+    print(STDOUT, "  export IHX file '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    printf("  export Intel HEX file '%s' ... ", shortname);
-  fflush(stdout);
+    print(STDOUT, "  export Intel HEX file '%s' ... ", shortname);
 
   // open output file
   fp=fopen(filename,"wb");
@@ -1240,19 +1213,19 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
+
 } // export_ihx
 
 
@@ -1279,8 +1252,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     flagFile = false;
     fp = stdout;
     if (verbose > MUTE)
-      printf("  print memory\n");
-    fflush(stdout);
+      print(STDOUT, "  print memory\n");
   }
 
   // output to file
@@ -1300,12 +1272,11 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
     // print message
     if (verbose == SILENT)
-      printf("  export '%s' ... ", shortname);
+      print(STDOUT, "  export '%s' ... ", shortname);
     else if (verbose == INFORM)
-      printf("  export table '%s' ... ", shortname);
+      print(STDOUT, "  export table '%s' ... ", shortname);
     else if (verbose == CHATTY)
-      printf("  export ASCII table to file '%s' ... ", shortname);
-    fflush(stdout);
+      print(STDOUT, "  export ASCII table to file '%s' ... ", shortname);
 
     // open output file
     fp=fopen(filename,"wb");
@@ -1329,7 +1300,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       if (!flagFile)
         fprintf(fp,"    ");
       fprintf(fp, "0x%" PRIx64 "	0x%02x\n", i, (imageBuf[i] & 0xFF));
-      //printf("0x%" PRIx64 "   0x%04x   0x%02x\n", i, imageBuf[i], (imageBuf[i] & 0xFF));
+      //print(STDOUT, "0x%" PRIx64 "   0x%04x   0x%02x\n", i, imageBuf[i], (imageBuf[i] & 0xFF));
     }
   }
 
@@ -1342,19 +1313,18 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
 
 } // export_txt
 
@@ -1390,12 +1360,11 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if (verbose == SILENT)
-    printf("  export '%s' ... ", shortname);
+    print(STDOUT, "  export '%s' ... ", shortname);
   else if (verbose == INFORM)
-    printf("  export binary '%s' ... ", shortname);
+    print(STDOUT, "  export binary '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    printf("  export binary to file '%s' ... ", shortname);
-  fflush(stdout);
+    print(STDOUT, "  export binary to file '%s' ... ", shortname);
 
   // open output file
   fp=fopen(filename,"wb");
@@ -1413,7 +1382,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     else
       val = 0x00;
     fwrite(&val,sizeof(val), 1, fp); // write byte per byte (image is 16-bit)
-    //printf("0x%04x   0x%04x   0x%02x\n", addr, imageBuf[addr], (imageBuf[addr] & 0xFF));
+    //print(STDOUT, "0x%04x   0x%04x   0x%02x\n", addr, imageBuf[addr], (imageBuf[addr] & 0xFF));
     countByte++;
   }
 
@@ -1423,19 +1392,18 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    printf("done\n");
+    print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (countByte>1024*1024)
-      printf("done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0/1024.0, addrStart, addrStop);
     else if (countByte>1024)
-      printf("done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0, addrStart, addrStop);
+      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0, addrStart, addrStop);
     else if (countByte>0)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) countByte, addrStart, addrStop);
+      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) countByte, addrStart, addrStop);
     else
-      printf("done, no data\n");
+      print(STDOUT, "done, no data\n");
   }
-  fflush(stdout);
 
 } // export_bin
 
