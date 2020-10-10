@@ -91,7 +91,7 @@ global bool           g_backgroundOperation;
 int print(output_t dest, char *fmt, ...);
 
 /// display error message and terminate
-void Error(char *format, ...);
+int Error(char *format, ...);
 
 /// terminate program after cleaning up
 void Exit(uint8_t code, uint8_t pause);
