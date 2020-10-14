@@ -19,6 +19,7 @@
 #include <string.h>
 #include <ctype.h>
 #include "hexfile.h"
+#include "console.h"
 #include "main.h"
 
 
@@ -74,7 +75,7 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
   FILE      *fp;
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
   #else
     const char *shortname = strrchr(filename, '/');
@@ -86,7 +87,7 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
 
   // print message
   if (verbose >= SILENT)
-	print(STDOUT, "  load '%s' ... ", shortname);
+    console_print(STDOUT, "  load '%s' ... ", shortname);
 
   // open file to read
   if (!(fp = fopen(filename, "rb")))
@@ -112,17 +113,17 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)){
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if ((*lenFileBuf)>1024*1024)
-      print(STDOUT, "done (%1.1fMB)\n", (float) (*lenFileBuf)/1024.0/1024.0);
+      console_print(STDOUT, "done (%1.1fMB)\n", (float) (*lenFileBuf)/1024.0/1024.0);
     else if ((*lenFileBuf)>1024)
-      print(STDOUT, "done (%1.1fkB)\n", (float) (*lenFileBuf)/1024.0);
+      console_print(STDOUT, "done (%1.1fkB)\n", (float) (*lenFileBuf)/1024.0);
     else if ((*lenFileBuf)>0)
-      print(STDOUT, "done (%dB)\n", (int) (*lenFileBuf));
+      console_print(STDOUT, "done (%dB)\n", (int) (*lenFileBuf));
     else
-      print(STDOUT, "done, no data read\n");
+      console_print(STDOUT, "done, no data read\n");
   }
 
 } // load_file
@@ -150,9 +151,9 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  convert S19 ... ");
+    console_print(STDOUT, "  convert S19 ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  convert Motorola S19 file ... ");
+    console_print(STDOUT, "  convert Motorola S19 file ... ");
 
 
   //////
@@ -239,17 +240,17 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // convert_s19
@@ -281,9 +282,9 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  convert IHX ... ");
+    console_print(STDOUT, "  convert IHX ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  convert Intel HEX file ... ");
+    console_print(STDOUT, "  convert Intel HEX file ... ");
 
 
   //////
@@ -404,17 +405,17 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // convert_ihx
@@ -443,9 +444,9 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  convert table ... ");
+    console_print(STDOUT, "  convert table ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  convert ASCII table file ... ");
+    console_print(STDOUT, "  convert ASCII table file ... ");
 
 
   //////
@@ -555,17 +556,17 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // convert_txt
@@ -591,9 +592,9 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  convert binary ... ");
+    console_print(STDOUT, "  convert binary ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  convert binary data ... ");
+    console_print(STDOUT, "  convert binary data ... ");
 
   // calculate number of bytes and last address
   numData  = lenFileBuf;
@@ -610,17 +611,17 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     else if (numData>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // convert_bin
@@ -687,9 +688,9 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  fill image ... ");
+    console_print(STDOUT, "  fill image ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  fill memory image ... ");
+    console_print(STDOUT, "  fill memory image ... ");
 
   // simple checks of scan window
   if (addrStart > addrStop)
@@ -708,17 +709,17 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numFilled>1024*1024)
-      print(STDOUT, "done, filled %1.1fMB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, value, addrStart, addrStop);
+      console_print(STDOUT, "done, filled %1.1fMB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0/1024.0, value, addrStart, addrStop);
     else if (numFilled>1024)
-      print(STDOUT, "done, filled %1.1fkB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, value, addrStart, addrStop);
+      console_print(STDOUT, "done, filled %1.1fkB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numFilled/1024.0, value, addrStart, addrStop);
     else if (numFilled>0)
-      print(STDOUT, "done, filled %dB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, value, addrStart, addrStop);
+      console_print(STDOUT, "done, filled %dB with 0x%02x within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (int) numFilled, value, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data filled\n");
+      console_print(STDOUT, "done, no data filled\n");
   }
 
 } // fill_image
@@ -741,9 +742,9 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  clip image ... ");
+    console_print(STDOUT, "  clip image ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  clip memory image ... ");
+    console_print(STDOUT, "  clip memory image ... ");
 
   // simple checks of scan window
   if (addrStart > addrStop)
@@ -765,17 +766,17 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numCleared>1024*1024)
-      print(STDOUT, "done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done, clipped %1.1fMB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
     else if (numCleared>1024)
-      print(STDOUT, "done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done, clipped %1.1fkB outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
     else if (numCleared>0)
-      print(STDOUT, "done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
+      console_print(STDOUT, "done, clipped %" PRId64 "B outside 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data cleared\n");
+      console_print(STDOUT, "done, no data cleared\n");
   }
 
 } // clip_image
@@ -798,9 +799,9 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  clear image ... ");
+    console_print(STDOUT, "  clear image ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  clear memory image ... ");
+    console_print(STDOUT, "  clear memory image ... ");
 
   // simple checks of scan window
   if (addrStart > addrStop)
@@ -822,17 +823,17 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numCleared>1024*1024)
-      print(STDOUT, "done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done, cut %1.1fMB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0/1024.0, addrStart, addrStop);
     else if (numCleared>1024)
-      print(STDOUT, "done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done, cut %1.1fkB within 0x%" PRIx64 " - 0x%" PRIx64 "\n", (float) numCleared/1024.0, addrStart, addrStop);
     else if (numCleared>0)
-      print(STDOUT, "done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
+      console_print(STDOUT, "done, cut %" PRId64 "B within 0x%" PRIx64 " - 0x%" PRIx64 "\n", numCleared, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data cut\n");
+      console_print(STDOUT, "done, no data cut\n");
   }
 
 } // cut_image
@@ -856,9 +857,9 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  copy data ... ");
+    console_print(STDOUT, "  copy data ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  copy image data ... ");
+    console_print(STDOUT, "  copy image data ... ");
 
   // simple checks of scan window
   if (sourceStart > sourceStop)
@@ -885,17 +886,17 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numCopied>1024*1024)
-      print(STDOUT, "done, copied %1.1fMB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
+      console_print(STDOUT, "done, copied %1.1fMB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numCopied>1024)
-      print(STDOUT, "done, copied %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0, sourceStart, sourceStop, destinationStart);
+      console_print(STDOUT, "done, copied %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numCopied/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numCopied>0)
-      print(STDOUT, "done, copied %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied, sourceStart, sourceStop, destinationStart);
+      console_print(STDOUT, "done, copied %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numCopied, sourceStart, sourceStop, destinationStart);
     else
-      print(STDOUT, "done, no data copied\n");
+      console_print(STDOUT, "done, no data copied\n");
   }
 
 } // copy_image
@@ -920,9 +921,9 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  move data ... ");
+    console_print(STDOUT, "  move data ... ");
   else if (verbose == CHATTY)
-    print(STDOUT, "  move image data ... ");
+    console_print(STDOUT, "  move image data ... ");
 
   // simple checks of scan window
   if (sourceStart > sourceStop)
@@ -961,17 +962,17 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
 
   // print message
   if (verbose == INFORM) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numMoved>1024*1024)
-      print(STDOUT, "done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
+      console_print(STDOUT, "done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numMoved>1024)
-      print(STDOUT, "done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0, sourceStart, sourceStop, destinationStart);
+      console_print(STDOUT, "done, moved %1.1fkB from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", (float) numMoved/1024.0, sourceStart, sourceStop, destinationStart);
     else if (numMoved>0)
-      print(STDOUT, "done, moved %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved, sourceStart, sourceStop, destinationStart);
+      console_print(STDOUT, "done, moved %" PRId64 "B from 0x%" PRIx64 " - 0x%" PRIx64 " to 0x%" PRIx64 "\n", numMoved, sourceStart, sourceStop, destinationStart);
     else
-      print(STDOUT, "done, no data moved\n");
+      console_print(STDOUT, "done, no data moved\n");
   }
 
 } // move_image
@@ -999,7 +1000,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   int       j;
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
   #else
     shortname = strrchr(filename, '/');
@@ -1011,11 +1012,11 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if (verbose == SILENT)
-    print(STDOUT, "  export '%s' ... ", shortname);
+    console_print(STDOUT, "  export '%s' ... ", shortname);
   else if (verbose == INFORM)
-    print(STDOUT, "  export S19 file '%s' ... ", shortname);
+    console_print(STDOUT, "  export S19 file '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    print(STDOUT, "  export Motorola S19 file '%s' ... ", shortname);
+    console_print(STDOUT, "  export Motorola S19 file '%s' ... ", shortname);
 
   // open output file
   fp=fopen(filename,"wb");
@@ -1046,7 +1047,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     while ((lenBlock < maxLine) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxLine)) {
       lenBlock++;
     }
-    //print(STDOUT, "0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
+    //console_print(STDOUT, "0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
 
 
     ///////
@@ -1093,17 +1094,17 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // export_s19
@@ -1135,7 +1136,7 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
   #else
     shortname = strrchr(filename, '/');
@@ -1147,11 +1148,11 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if (verbose == SILENT)
-    print(STDOUT, "  export '%s' ... ", shortname);
+    console_print(STDOUT, "  export '%s' ... ", shortname);
   else if (verbose == INFORM)
-    print(STDOUT, "  export IHX file '%s' ... ", shortname);
+    console_print(STDOUT, "  export IHX file '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    print(STDOUT, "  export Intel HEX file '%s' ... ", shortname);
+    console_print(STDOUT, "  export Intel HEX file '%s' ... ", shortname);
 
   // open output file
   fp=fopen(filename,"wb");
@@ -1213,17 +1214,17 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // export_ihx
@@ -1252,7 +1253,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     flagFile = false;
     fp = stdout;
     if (verbose > MUTE)
-      print(STDOUT, "  print memory\n");
+      console_print(STDOUT, "  print memory\n");
   }
 
   // output to file
@@ -1260,7 +1261,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     flagFile = true;
 
     // strip path from filename for readability
-    #if defined(WIN32)
+    #if defined(WIN32) || defined(WIN64)
       shortname = strrchr(filename, '\\');
     #else
       shortname = strrchr(filename, '/');
@@ -1272,11 +1273,11 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
     // print message
     if (verbose == SILENT)
-      print(STDOUT, "  export '%s' ... ", shortname);
+      console_print(STDOUT, "  export '%s' ... ", shortname);
     else if (verbose == INFORM)
-      print(STDOUT, "  export table '%s' ... ", shortname);
+      console_print(STDOUT, "  export table '%s' ... ", shortname);
     else if (verbose == CHATTY)
-      print(STDOUT, "  export ASCII table to file '%s' ... ", shortname);
+      console_print(STDOUT, "  export ASCII table to file '%s' ... ", shortname);
 
     // open output file
     fp=fopen(filename,"wb");
@@ -1300,7 +1301,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       if (!flagFile)
         fprintf(fp,"    ");
       fprintf(fp, "0x%" PRIx64 "	0x%02x\n", i, (imageBuf[i] & 0xFF));
-      //print(STDOUT, "0x%" PRIx64 "   0x%04x   0x%02x\n", i, imageBuf[i], (imageBuf[i] & 0xFF));
+      //console_print(STDOUT, "0x%" PRIx64 "   0x%04x   0x%02x\n", i, imageBuf[i], (imageBuf[i] & 0xFF));
     }
   }
 
@@ -1313,17 +1314,17 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (numData>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0/1024.0, addrStart, addrStop);
     if (numData>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) numData/1024.0, addrStart, addrStop);
     else if (numData>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // export_txt
@@ -1348,7 +1349,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   uint8_t   val;
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
   #else
     const char *shortname = strrchr(filename, '/');
@@ -1360,11 +1361,11 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if (verbose == SILENT)
-    print(STDOUT, "  export '%s' ... ", shortname);
+    console_print(STDOUT, "  export '%s' ... ", shortname);
   else if (verbose == INFORM)
-    print(STDOUT, "  export binary '%s' ... ", shortname);
+    console_print(STDOUT, "  export binary '%s' ... ", shortname);
   else if (verbose == CHATTY)
-    print(STDOUT, "  export binary to file '%s' ... ", shortname);
+    console_print(STDOUT, "  export binary to file '%s' ... ", shortname);
 
   // open output file
   fp=fopen(filename,"wb");
@@ -1382,7 +1383,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     else
       val = 0x00;
     fwrite(&val,sizeof(val), 1, fp); // write byte per byte (image is 16-bit)
-    //print(STDOUT, "0x%04x   0x%04x   0x%02x\n", addr, imageBuf[addr], (imageBuf[addr] & 0xFF));
+    //console_print(STDOUT, "0x%04x   0x%04x   0x%02x\n", addr, imageBuf[addr], (imageBuf[addr] & 0xFF));
     countByte++;
   }
 
@@ -1392,17 +1393,17 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // print message
   if ((verbose == SILENT) || (verbose == INFORM)) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if (verbose == CHATTY) {
     if (countByte>1024*1024)
-      print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fMB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0/1024.0, addrStart, addrStop);
     else if (countByte>1024)
-      print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "done (%1.1fkB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (float) countByte/1024.0, addrStart, addrStop);
     else if (countByte>0)
-      print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) countByte, addrStart, addrStop);
+      console_print(STDOUT, "done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) countByte, addrStart, addrStop);
     else
-      print(STDOUT, "done, no data\n");
+      console_print(STDOUT, "done, no data\n");
   }
 
 } // export_bin

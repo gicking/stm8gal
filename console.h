@@ -24,8 +24,8 @@
 #define PRM_COLOR_WHITE         6
 #define PRM_COLOR_YELLOW        7
 
-// WIN32 specific
-#if defined(WIN32)
+// Windows specific
+#if defined(WIN32) || defined(WIN64)
 
   #include "windows.h"
 
@@ -70,13 +70,26 @@
 #endif // OS
 
 
+/// destination stream for console_print()
+typedef enum {STDOUT=0, STDERR=1} output_t;
+
+
 /// set title of console window
-#if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
+#if defined(WIN32) || defined(WIN64) || defined(__APPLE__) || defined(__unix__)
   void setConsoleTitle(const char *title);
-#endif // WIN32 || __APPLE__ || __unix__
+#endif // WIN32 || WIN64 || __APPLE__ || __unix__
 
 /// set console text color
 void setConsoleColor(uint8_t color);
+
+/// message output function. Is separate to facilitate output to GUI window
+int console_print(output_t dest, char *fmt, ...);
+
+/// display error message and terminate
+int Error(char *format, ...);
+
+/// terminate program after cleaning up
+void Exit(uint8_t code, uint8_t pause);
 
 
 #endif // _CONSOLE_H_

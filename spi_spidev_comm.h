@@ -25,8 +25,8 @@
 // only if SPI via spidev is set in Makefile
 #if defined(USE_SPIDEV)
 
-  // OS specific: Win32
-  #if defined(WIN32)
+  // OS specific: Windows
+  #if defined(WIN32) || defined(WIN64)
     #error Windows not supported
   
   // OS specific: Posix
