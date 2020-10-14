@@ -13,7 +13,9 @@
 
 // include files
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
+#include <stdarg.h>
 #include "console.h"
 #include "main.h"
 
@@ -29,7 +31,7 @@
 */
  
 // 
-#if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
+#if defined(WIN32) || defined(WIN64) || defined(__APPLE__) || defined(__unix__)
 void setConsoleTitle(const char *title) {
   
   // for background operation skip to avoid strange control characters 
@@ -37,7 +39,7 @@ void setConsoleTitle(const char *title) {
     return;
 
 
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
   SetConsoleTitle(title);
 
 #elif defined(__APPLE__) || defined(__unix__)
@@ -48,7 +50,7 @@ void setConsoleTitle(const char *title) {
 #endif
 
 } // SetTitle
-#endif // WIN32 || __APPLE__ || __unix__
+#endif // WIN32 || WIN64 || __APPLE__ || __unix__
 
 
   
@@ -68,7 +70,7 @@ void setConsoleColor(uint8_t color) {
     return;
 
 
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   static WORD                   oldColor, colorBck;
   static char                   flag=0;
@@ -207,5 +209,122 @@ void setConsoleColor(uint8_t color) {
 #endif
 
 } // setConsoleColor
+
+
+
+/**
+  \fn int console_print(output_t dest, char *fmt, ...)
+
+  \param dest      destination to print to (STDOUT or STDERR)
+  \param fmt       format string as for printf()
+
+  \return number of printed characters (positive) or error (negative)
+
+  message output function. Is separate to facilitate output to GUI window.
+  Output format is identical to printf(). 
+
+*/
+int console_print(output_t dest, char *fmt, ...) {
+  
+  int   result;
+  char  str[500];
+    
+  // create string containing message
+  va_list args;
+  va_start(args, fmt);
+  result = vsnprintf(str, 500, fmt, args);
+  va_end(args);
+
+  // output to stdout
+  if (dest == STDOUT) {
+    fprintf(stdout, "%s", str);
+    fflush(stdout);
+  }
+
+  // output to stderr in red
+  else if (dest == STDERR) {
+    setConsoleColor(PRM_COLOR_RED);
+    fprintf(stderr, "%s", str);
+    setConsoleColor(PRM_COLOR_DEFAULT);
+  }
+
+  // return vsnprintf status
+  return result;
+
+} // console_print()
+
+
+
+/**
+  \fn int Error(const char *format, ...)
+   
+  \param[in] code    return code of application to commandline
+  \param[in] pause   wait for keyboard input before terminating
+
+  \return number of printed characters (positive) or error (negative)
+
+  Display error message and terminate program. 
+  Output format is identical to printf(). 
+  Prior to program termination query for \<return\> unless background operation is specified.
+*/
+int Error(char *fmt, ...)
+{
+  int   result;
+  char  str[500];
+    
+  // create string containing message
+  va_list args;
+  va_start(args, fmt);
+  result = vsnprintf(str, 500, fmt, args);
+  va_end(args);
+
+  // output to stderr in red
+  setConsoleColor(PRM_COLOR_RED);
+  fprintf(stderr, "\nError: %s\n", str);
+  setConsoleColor(PRM_COLOR_DEFAULT);
+  
+  // terminate program
+  Exit(1, 1);
+  
+  // return vsnprintf status (avoid compiler warning)
+  return result;
+  
+} // Error()
+
+
+
+/**
+  \fn void Exit(uint8_t code, uint8_t pause)
+   
+  \param[in] code    return code of application to commandline
+  \param[in] pause   wait for keyboard input before terminating
+
+  Terminate program. Replace standard exit() to query for \<return\> 
+  before termination, unless background operation is specified.
+*/
+void Exit(uint8_t code, uint8_t pause) {
+
+  // on error code !=0 ring bell
+  if (code) {
+    printf("\a");
+    fflush(stdout);
+  }
+  
+  // reset text color to default, just to be sure
+  setConsoleColor(PRM_COLOR_DEFAULT);
+
+  // optionally prompt for <return>
+  if ((pause) && (!g_backgroundOperation)) {
+    printf("\npress <return> to exit");
+    fflush(stdout);
+    fflush(stdin);
+    getchar();
+  }
+  printf("\n");
+
+  // terminate application
+  exit(code);
+
+} // Exit
 
 // end of file

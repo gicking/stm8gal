@@ -23,8 +23,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-// OS specific: Win32
-#if defined(WIN32)
+// OS specific: Windows
+#if defined(WIN32) || defined(WIN64)
   #include <windows.h>
   #include <conio.h>
 

@@ -13,6 +13,7 @@
 
 // include files
 #include "spi_Arduino_comm.h"
+#include "console.h"
 #include "main.h"
 #include "serial_comm.h"
 #include "timer.h"
@@ -205,10 +206,10 @@ uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char 
   
   // debug SPI data
   #if defined(DEBUG)
-    print(STDERR, "n  MOSI  MISO\n");
+    console_print(STDERR, "n  MOSI  MISO\n");
     for (i=0; i<lenFrame; i++)
-      print(STDERR, "%d  0x%02x  0x%02x\n", i, Tx[3+i], Rx[2+i]);
-    print(STDERR, "\n");  
+      console_print(STDERR, "%d  0x%02x  0x%02x\n", i, Tx[3+i], Rx[2+i]);
+    console_print(STDERR, "\n");  
   #endif
 
   // return number of SPI bytes

@@ -51,14 +51,15 @@
 typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
 
 /// physical bootloader interface 
-#if defined(USE_SPIDEV)
-  typedef enum {UART=0, SPI_ARDUINO, SPI_SPIDEV} physInterface_t;
+#if defined(USE_SPIDEV) && defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1, SPI_SPIDEV=2} physInterface_t;
+#elif defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1} physInterface_t;
+#elif defined(USE_SPIDEV)
+  typedef enum {UART=0, SPI_SPIDEV=2} physInterface_t;
 #else
-  typedef enum {UART=0, SPI_ARDUINO} physInterface_t;
+  typedef enum {UART=0} physInterface_t;
 #endif
-
-/// destination stream for below print routine
-typedef enum {STDOUT=0, STDERR=1} output_t;
 
 
 
@@ -81,20 +82,6 @@ global bool           g_backgroundOperation;
 
 // undefine global keyword
 #undef global
-
-
-/*******
-  global functions
-*******/
-
-/// message output function. Is separate to facilitate output to GUI window
-int print(output_t dest, char *fmt, ...);
-
-/// display error message and terminate
-int Error(char *format, ...);
-
-/// terminate program after cleaning up
-void Exit(uint8_t code, uint8_t pause);
 
 
 #endif // _MAIN_H_

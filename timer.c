@@ -48,7 +48,7 @@ uint64_t micros() {
   static uint64_t  s_microsStart = 0;
   uint64_t         microsCurr;
 
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   static double    s_ticksPerMicros = 0;     // resolution of Windows fast core timer
   LARGE_INTEGER    tick;
@@ -63,7 +63,7 @@ uint64_t micros() {
   QueryPerformanceCounter(&tick);
   microsCurr = (uint64_t) (tick.QuadPart / s_ticksPerMicros);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 #if defined(__APPLE__) || defined(__unix__)
@@ -75,7 +75,7 @@ uint64_t micros() {
   // calculate milliseconds
   microsCurr = te.tv_sec*1000000LL + te.tv_usec;
 
-#endif // WIN32
+#endif // __APPLE__ || __unix__
 
   // on 1st call also store starting time and set flag
   if (s_firstCall) {

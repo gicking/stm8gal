@@ -12,6 +12,7 @@
 
 
 #include "bootloader.h"
+#include "console.h"
 #include "main.h"
 #include "hexfile.h"
 #include "timer.h"
@@ -43,7 +44,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
 
   // print message
   if (verbose >= SILENT)
-    print(STDOUT, "  synchronize ... ");
+    console_print(STDOUT, "  synchronize ... ");
 
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -111,15 +112,15 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   // check if ok
   if ((len==lenRx) && (Rx[0]==ACK)) {
     if (verbose == SILENT)
-      print(STDOUT, "done\n");
+      console_print(STDOUT, "done\n");
     else if (verbose > SILENT)
-      print(STDOUT, "done (ACK)\n");
+      console_print(STDOUT, "done (ACK)\n");
   }
   else if ((len==lenRx) && (Rx[0]==NACK)) {
     if (verbose == SILENT)
-      print(STDOUT, "done\n");
+      console_print(STDOUT, "done\n");
     else if (verbose > SILENT)
-      print(STDOUT, "done (NACK)\n");
+      console_print(STDOUT, "done (NACK)\n");
   }
   else if (len==lenRx)
     Error("in 'bsl_sync()': wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
@@ -156,7 +157,7 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
 
   // print message
   if (verbose == CHATTY)
-    print(STDOUT, "  check UART mode ... ");
+    console_print(STDOUT, "  check UART mode ... ");
 
   // reduce timeout for faster check
   set_timeout(ptrPort, 100);
@@ -168,7 +169,7 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   do {
     len = send_port(ptrPort, 0, lenTx, Tx);
     len = receive_port(ptrPort, 0, lenRx, Rx);
-    //print(STDOUT, "\nmode 1: %d  0x%02x\n", len, (uint8_t) (Rx[0]));
+    //console_print(STDOUT, "\nmode 1: %d  0x%02x\n", len, (uint8_t) (Rx[0]));
     SLEEP(10);
   } while (len==0);
 
@@ -198,11 +199,11 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   // print message
   if (verbose == CHATTY) {
     if (uartMode == 0)
-      print(STDOUT, "done (duplex)\n");
+      console_print(STDOUT, "done (duplex)\n");
     else if (uartMode == 1)
-      print(STDOUT, "done (1-wire)\n");
+      console_print(STDOUT, "done (1-wire)\n");
     else
-      print(STDOUT, "done (2-wire reply)\n");
+      console_print(STDOUT, "done (2-wire reply)\n");
   }
 
   // return found mode
@@ -236,7 +237,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 
   // print message
   if (verbose >= SILENT)
-    print(STDOUT, "  get device info ... ");
+    console_print(STDOUT, "  get device info ... ");
 
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -266,14 +267,14 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   {
     *family = STM8S;
     #ifdef DEBUG
-      print(STDOUT, "family STM8S\n");
+      console_print(STDOUT, "family STM8S\n");
     #endif
   }
   else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100, SILENT))   // STM8L
   {
     *family = STM8L;
     #ifdef DEBUG
-      print(STDOUT, "family STM8L\n");
+      console_print(STDOUT, "family STM8L\n");
     #endif
   }
   else
@@ -292,7 +293,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   else
     Error("in 'bsl_getInfo()': cannot identify device");
   #ifdef DEBUG
-    print(STDOUT, "flash size: %d\n", (int) (*flashsize));
+    console_print(STDOUT, "flash size: %d\n", (int) (*flashsize));
   #endif
 
   // restore timeout to avoid timeouts during flash operation
@@ -364,13 +365,13 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 
 // print BSL data
 #ifdef DEBUG
-  print(STDOUT, "    version 0x%02x\n", (uint8_t) (Rx[2]));
-  print(STDOUT, "    command codes:\n");
-  print(STDOUT, "      GET   0x%02x\n", (uint8_t) (Rx[3]));
-  print(STDOUT, "      READ  0x%02x\n", (uint8_t) (Rx[4]));
-  print(STDOUT, "      GO    0x%02x\n", (uint8_t) (Rx[5]));
-  print(STDOUT, "      WRITE 0x%02x\n", (uint8_t) (Rx[6]));
-  print(STDOUT, "      ERASE 0x%02x\n", (uint8_t) (Rx[7]));
+  console_print(STDOUT, "    version 0x%02x\n", (uint8_t) (Rx[2]));
+  console_print(STDOUT, "    command codes:\n");
+  console_print(STDOUT, "      GET   0x%02x\n", (uint8_t) (Rx[3]));
+  console_print(STDOUT, "      READ  0x%02x\n", (uint8_t) (Rx[4]));
+  console_print(STDOUT, "      GO    0x%02x\n", (uint8_t) (Rx[5]));
+  console_print(STDOUT, "      WRITE 0x%02x\n", (uint8_t) (Rx[6]));
+  console_print(STDOUT, "      ERASE 0x%02x\n", (uint8_t) (Rx[7]));
 #endif
 
   // copy version number
@@ -379,19 +380,19 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   // print message
   if (*family == STM8S) {
     if (verbose == SILENT)
-      print(STDOUT, "done (STM8S; %dkB)\n", *flashsize);
+      console_print(STDOUT, "done (STM8S; %dkB)\n", *flashsize);
     else if (verbose == INFORM)
-      print(STDOUT, "done (STM8S; %dkB flash)\n", *flashsize);
+      console_print(STDOUT, "done (STM8S; %dkB flash)\n", *flashsize);
     else if (verbose == CHATTY)
-      print(STDOUT, "done (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+      console_print(STDOUT, "done (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
   }
   else {
     if (verbose == SILENT)
-      print(STDOUT, "done (STM8L; %dkB)\n", *flashsize);
+      console_print(STDOUT, "done (STM8L; %dkB)\n", *flashsize);
     else if (verbose == INFORM)
-      print(STDOUT, "done (STM8L; %dkB flash)\n", *flashsize);
+      console_print(STDOUT, "done (STM8L; %dkB flash)\n", *flashsize);
     else if (verbose == CHATTY)
-      print(STDOUT, "done (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+      console_print(STDOUT, "done (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
   }
 
   // avoid compiler warnings
@@ -428,21 +429,21 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // print message
   if (verbose == SILENT) {
     if (numBytes > 1024)
-      print(STDOUT, "  read %1.1fkB ", (float) numBytes/1024.0);
+      console_print(STDOUT, "  read %1.1fkB ", (float) numBytes/1024.0);
     else
-      print(STDOUT, "  read %dB ", (int) numBytes);
+      console_print(STDOUT, "  read %dB ", (int) numBytes);
   }
   else if (verbose == INFORM) {
     if (numBytes > 1024)
-      print(STDOUT, "  read %1.1fkB ", (float) numBytes/1024.0);
+      console_print(STDOUT, "  read %1.1fkB ", (float) numBytes/1024.0);
     else
-      print(STDOUT, "  read %dB ", (int) numBytes);
+      console_print(STDOUT, "  read %dB ", (int) numBytes);
   }
   else if (verbose == CHATTY) {
     if (numBytes > 1024)
-      print(STDOUT, "  read %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (float) numBytes/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "  read %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (float) numBytes/1024.0, addrStart, addrStop);
     else
-      print(STDOUT, "  read %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (int) numBytes, addrStart, addrStop);
+      console_print(STDOUT, "  read %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (int) numBytes, addrStart, addrStop);
   }
 
   // simple checks of scan window
@@ -610,7 +611,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
 	#if defined(USE_SPIDEV)
       else if (physInterface == SPI_SPIDEV) {
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
-        //print(STDOUT, "0x%02x  0x%02x  0x%02x\n", (uint8_t) (Rx[0]), (uint8_t) (Rx[1]), (uint8_t) (Rx[2])); getchar();
+        //console_print(STDOUT, "0x%02x  0x%02x  0x%02x\n", (uint8_t) (Rx[0]), (uint8_t) (Rx[1]), (uint8_t) (Rx[2])); getchar();
       }
     #endif
     else
@@ -625,28 +626,28 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     // copy data to buffer. Set HB to indicate data read
     for (i=1; i<lenRx; i++) {
       imageBuf[addr+i-1] = ((uint16_t) (Rx[i]) | 0xFF00);
-      //print(STDOUT, "%d 0x%02x\n", i, (uint8_t) (Rx[i])); getchar();
+      //console_print(STDOUT, "%d 0x%02x\n", i, (uint8_t) (Rx[i])); getchar();
       countBytes++;
     }
 
     // print progress
     if ((countBytes % 1024) == 0) {
       if (verbose == SILENT) {
-        print(STDOUT, ".");
+        console_print(STDOUT, ".");
         if ((countBytes % (10*1024)) == 0)
-          print(STDOUT, " ");
+          console_print(STDOUT, " ");
       }
       else if (verbose == INFORM) {
         if (numBytes > 1024)
-          print(STDOUT, "%c  read %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
+          console_print(STDOUT, "%c  read %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
         else
-          print(STDOUT, "%c  read %dB / %dB ", '\r', (int) countBytes, (int) numBytes);
+          console_print(STDOUT, "%c  read %dB / %dB ", '\r', (int) countBytes, (int) numBytes);
       }
       else if (verbose == CHATTY) {
         if (numBytes > 1024)
-          print(STDOUT, "%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addrStart, addrStop);
+          console_print(STDOUT, "%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addrStart, addrStop);
         else
-          print(STDOUT, "%c  read %dB / %dB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (int) countBytes, (int) numBytes, addrStart, addrStop);
+          console_print(STDOUT, "%c  read %dB / %dB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (int) countBytes, (int) numBytes, addrStart, addrStop);
       }
     }
 
@@ -655,18 +656,18 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
 
   // print message
   if (verbose == SILENT)
-    print(STDOUT, " done\n");
+    console_print(STDOUT, " done\n");
   else if (verbose == INFORM) {
     if (numBytes > 1024)
-      print(STDOUT, "%c  read %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
+      console_print(STDOUT, "%c  read %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
     else
-      print(STDOUT, "%c  read %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numBytes);
+      console_print(STDOUT, "%c  read %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numBytes);
   }
   else if (verbose == CHATTY) {
     if (numBytes > 1024)
-      print(STDOUT, "%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addrStart, addrStop);
     else
-      print(STDOUT, "%c  read %dB / %dB from 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (int) countBytes, (int) numBytes, addrStart, addrStop);
+      console_print(STDOUT, "%c  read %dB / %dB from 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (int) countBytes, (int) numBytes, addrStart, addrStop);
   }
 
   // avoid compiler warnings
@@ -882,18 +883,18 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 
   // print message
   if (verbose == SILENT) {
-    print(STDOUT, "  erase sector ... ");
+    console_print(STDOUT, "  erase sector ... ");
   }
   else if (verbose == INFORM) {
-    print(STDOUT, "  erase flash sector %d ... ", (int) sector);
+    console_print(STDOUT, "  erase flash sector %d ... ", (int) sector);
   }
   else if (verbose == CHATTY) {
     if (addr>0xFFFFFF)
-      print(STDOUT, "  erase flash sector %d @ 0x%" PRIx64 " ... ", (int) sector, addr);
+      console_print(STDOUT, "  erase flash sector %d @ 0x%" PRIx64 " ... ", (int) sector, addr);
     else if (addr>0xFFFF)
-      print(STDOUT, "  erase flash sector %d @ 0x%" PRIx64 " ... ", (int) sector, addr);
+      console_print(STDOUT, "  erase flash sector %d @ 0x%" PRIx64 " ... ", (int) sector, addr);
     else
-      print(STDOUT, "  erase flash sector %d @ 0x%" PRIx64 " ... ", (int) sector, addr);
+      console_print(STDOUT, "  erase flash sector %d @ 0x%" PRIx64 " ... ", (int) sector, addr);
   }
 
 
@@ -1021,10 +1022,10 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 
   // print message
   if (verbose == SILENT) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if ((verbose == INFORM) || (verbose == CHATTY)) {
-    print(STDOUT, "done, time %dms\n", (int)(tStop-tStart));
+    console_print(STDOUT, "done, time %dms\n", (int)(tStop-tStart));
   }
 
   // avoid compiler warnings
@@ -1054,10 +1055,10 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
 
   // print message
   if (verbose == SILENT) {
-    print(STDOUT, "  mass erase ... ");
+    console_print(STDOUT, "  mass erase ... ");
   }
   else if ((verbose == INFORM) || (verbose == CHATTY)) {
-    print(STDOUT, "  flash mass erase ... ");
+    console_print(STDOUT, "  flash mass erase ... ");
   }
 
 
@@ -1183,10 +1184,10 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
 
   // print message
   if (verbose == SILENT) {
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
   }
   else if ((verbose == INFORM) || (verbose == CHATTY)) {
-    print(STDOUT, "done, time %1.1fs\n", (float)(tStop-tStart)/1000.0);
+    console_print(STDOUT, "done, time %1.1fs\n", (float)(tStop-tStart)/1000.0);
   }
 
   // avoid compiler warnings
@@ -1227,21 +1228,21 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   // print message
   if (verbose == SILENT) {
     if (numData > 1024)
-      print(STDOUT, "  write %1.1fkB ", (float) numData/1024.0);
+      console_print(STDOUT, "  write %1.1fkB ", (float) numData/1024.0);
     else
-      print(STDOUT, "  write %dB ", (int) numData);
+      console_print(STDOUT, "  write %dB ", (int) numData);
   }
   else if (verbose == INFORM) {
     if (numData > 1024)
-      print(STDOUT, "  write %1.1fkB ", (float) numData/1024.0);
+      console_print(STDOUT, "  write %1.1fkB ", (float) numData/1024.0);
     else
-      print(STDOUT, "  write %dB ", (int) numData);
+      console_print(STDOUT, "  write %dB ", (int) numData);
   }
   else if (verbose == CHATTY) {
     if (numData > 1024)
-      print(STDOUT, "  write %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "  write %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (float) numData/1024.0, addrStart, addrStop);
     else
-      print(STDOUT, "  write %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "  write %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (int) numData, addrStart, addrStop);
   }
 
   // init receive buffer
@@ -1274,7 +1275,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     while ((lenBlock < maxBlock) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxBlock)) {
       lenBlock++;
     }
-    //print(STDOUT, "0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
+    //console_print(STDOUT, "0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
 
     /////
     // send write command
@@ -1442,21 +1443,21 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     // print progress
     if (((++countBlock) % 8) == 0) {
       if (verbose == SILENT) {
-        print(STDOUT, ".");
+        console_print(STDOUT, ".");
         if ((countBlock % (10*8)) == 0)
-          print(STDOUT, " ");
+          console_print(STDOUT, " ");
       }
       else if (verbose == INFORM) {
         if (numData > 1024)
-          print(STDOUT, "%c  write %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
+          console_print(STDOUT, "%c  write %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
         else
-          print(STDOUT, "%c  write %dB / %dB ", '\r', (int) countBytes, (int) numData);
+          console_print(STDOUT, "%c  write %dB / %dB ", '\r', (int) countBytes, (int) numData);
       }
       else if (verbose == CHATTY) {
         if (numData > 1024)
-          print(STDOUT, "%c  write %1.1fkB / %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numData/1024.0, addrStart, addrStop);
+          console_print(STDOUT, "%c  write %1.1fkB / %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numData/1024.0, addrStart, addrStop);
         else
-          print(STDOUT, "%c  write %dB / %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (int) countBytes, (int) numData, addrStart, addrStop);
+          console_print(STDOUT, "%c  write %dB / %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (int) countBytes, (int) numData, addrStart, addrStop);
       }
     }
 
@@ -1467,18 +1468,18 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
   // print message
   if (verbose == SILENT)
-    print(STDOUT, " done\n");
+    console_print(STDOUT, " done\n");
   else if (verbose == INFORM) {
     if (numData > 1024)
-      print(STDOUT, "%c  write %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
+      console_print(STDOUT, "%c  write %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
     else
-      print(STDOUT, "%c  write %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numData);
+      console_print(STDOUT, "%c  write %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numData);
   }
   else if (verbose == CHATTY) {
     if (numData > 1024)
-      print(STDOUT, "%c  write %1.1fkB / %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0, addrStart, addrStop);
+      console_print(STDOUT, "%c  write %1.1fkB / %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0, addrStart, addrStop);
     else
-      print(STDOUT, "%c  write %dB / %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (int) countBytes, (int) numData, addrStart, addrStop);
+      console_print(STDOUT, "%c  write %dB / %dB in 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (int) countBytes, (int) numData, addrStart, addrStop);
   }
 
   // avoid compiler warnings
@@ -1529,7 +1530,7 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
     while (((addr+lenRead) <= addrStop) && (imageBuf[addr+lenRead] & 0xFF00)) {
       lenRead++;
     }
-    //print(STDOUT, "0x%04x   0x%04x   %d\n", addr, addr+lenBlock-1, lenRead);
+    //console_print(STDOUT, "0x%04x   0x%04x   %d\n", addr, addr+lenBlock-1, lenRead);
 
     // read back from STM8
     bsl_memRead(ptrPort, physInterface, uartMode, addr, addr+lenRead-1, tmpImageBuf, verbose);
@@ -1542,7 +1543,7 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
 
   // print messgage
   if (verbose != MUTE)
-    print(STDOUT, "  verify memory ... ");
+    console_print(STDOUT, "  verify memory ... ");
 
   // compare defined data data entries (HB!=0x00)
   for (addr=addrStart; addr<=addrStop; addr++) {
@@ -1554,7 +1555,7 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
 
   // print messgage
   if (verbose != MUTE)
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
 
   // release temporary RAM buffer
   free(tmpImageBuf);
@@ -1587,9 +1588,9 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
 
   // print message
   if (verbose == INFORM)
-    print(STDOUT, "  jump to 0x%" PRIx64 " ... ", addr);
+    console_print(STDOUT, "  jump to 0x%" PRIx64 " ... ", addr);
   else if (verbose == CHATTY)
-    print(STDOUT, "  jump to address 0x%" PRIx64 " ... ", addr);
+    console_print(STDOUT, "  jump to address 0x%" PRIx64 " ... ", addr);
 
   // init receive buffer
   for (i=0; i<1000; i++)
@@ -1698,7 +1699,7 @@ uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
 
   // print message
   if ((verbose == INFORM) || (verbose == CHATTY))
-    print(STDOUT, "done\n");
+    console_print(STDOUT, "done\n");
 
   // avoid compiler warnings
   return(0);
