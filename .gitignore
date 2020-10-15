@@ -60,3 +60,9 @@ tool_validation.*
 *.s19
 /stm8gal.exe
 *_dump.txt
+MSVC/x64/
+MSVC/Debug/
+MSVC/Release/
+*.opensdf
+*.sdf
+*.suo
