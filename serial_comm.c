@@ -14,8 +14,8 @@
 
 // include files
 #include "serial_comm.h"
-#include "main.h"
-#include "misc.h"
+#include "console.h"
+#include "timer.h"
 #if defined(__ARMEL__) && defined(USE_WIRING)
   #include <wiringPi.h>       // for reset via GPIO
 #endif // __ARMEL__ && USE_WIRING
@@ -31,9 +31,9 @@
 void list_ports(void) {
   
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   HANDLE        fpCom = NULL;
   uint16_t      i, j;
@@ -56,14 +56,15 @@ void list_ports(void) {
       NULL  // hTemplate must be NULL for comm devices
     );
     if (fpCom != INVALID_HANDLE_VALUE) {
-      if (j!=1) printf(", ");
-      printf("COM%d", i);
+      if (j!=1)
+	    console_print(STDOUT, ", ");
+      console_print(STDOUT, "COM%d", i);
       CloseHandle(fpCom);
       j++;
     }
   }
   
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -81,36 +82,41 @@ void list_ports(void) {
       
       // FTDI FT232 or CH340 based USB-RS232 adapter (MacOS X)
       if (strstr(ent->d_name, "tty.") && strstr(ent->d_name, "usbserial")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+          console_print(STDOUT, ", ");
+        console_print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
 
       // Prolific PL2303 based USB-RS232 adapter
       if (strstr(ent->d_name, "tty.PL2303")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+          console_print(STDOUT, ", ");
+        console_print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
       
       // FTDI FT232 based USB-RS232 adapter (Ubuntu)
       if (strstr(ent->d_name, "ttyUSB")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+          console_print(STDOUT, ", ");
+        console_print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
       
       // direct UART under Raspberry Pi / Raspbian 1+2
       if (strstr(ent->d_name, "ttyAMA")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+          console_print(STDOUT, ", ");
+        console_print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
 
       // direct UART under Raspberry Pi / Raspbian 3 (see https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3)
       if (strstr(ent->d_name, "serial0")) {
-        if (i!=1) printf(", ");
-        printf("/dev/%s", ent->d_name);
+        if (i!=1)
+          console_print(STDOUT, ", ");
+        console_print(STDOUT, "/dev/%s", ent->d_name);
         i++;
       }
 
@@ -118,7 +124,6 @@ void list_ports(void) {
   }
   else
     Error("cannot list, check /dev for port name");
-  fflush(stdout);
 
 #endif // __APPLE__ || __unix__
 
@@ -145,9 +150,9 @@ void list_ports(void) {
 HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
 
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   char          port_tmp[100];
   HANDLE        fpCom = NULL;
@@ -170,7 +175,7 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
   // reset COM port error buffer
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -207,9 +212,9 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 void close_port(HANDLE *fpCom) {
 
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   BOOL      fSuccess;
 
@@ -220,7 +225,7 @@ void close_port(HANDLE *fpCom) {
   }
   *fpCom = NULL;
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -252,9 +257,9 @@ void close_port(HANDLE *fpCom) {
 void pulse_DTR(HANDLE fpCom, uint32_t duration) {
   
 /////////
-// Win32 (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
+// Windows (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   // set DTR
   EscapeCommFunction(fpCom, SETDTR);
@@ -265,7 +270,7 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
   // clear DTR
   EscapeCommFunction(fpCom, CLRDTR);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -308,9 +313,9 @@ void pulse_RTS(HANDLE fpCom, uint32_t duration)
 {
 
 /////////
-// Win32 (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
+// Windows (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
     // set RTS
     EscapeCommFunction(fpCom, SETRTS);
@@ -321,7 +326,7 @@ void pulse_RTS(HANDLE fpCom, uint32_t duration)
     // clear RTS
     EscapeCommFunction(fpCom, CLRRTS);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 /////////
 // Posix
@@ -400,9 +405,9 @@ void pulse_GPIO(int pin, uint32_t duration) {
 void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR) {
 
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DCB           fDCB;
   COMMTIMEOUTS  fTimeout;
@@ -433,7 +438,7 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
     Error("in 'get_port_attribute': GetCommTimeouts() failed with code %d", (int) GetLastError());
   *timeout = fTimeout.ReadTotalTimeoutConstant;       // this parameter fits also for timeout=0
   
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -543,9 +548,9 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
 void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DCB           fDCB;
   BOOL          fSuccess;
@@ -599,7 +604,7 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   if (!fSuccess)
     Error("in 'set_port_attribute()': set port timeout failed with code %d", (int) GetLastError());
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -819,9 +824,9 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
   
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DWORD   numChars;
   
@@ -829,7 +834,7 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
   WriteFile(fpCom, Tx, lenTx, &numChars, NULL);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -850,7 +855,7 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
     lenRx = receive_port(fpCom, uartMode, numChars, Rx);
     if (lenRx != numChars)
       Error("in 'send_port()': read 1-wire echo failed");
-    //fprintf(stderr,"received echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
+    //console_print(STDERR,"received echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
   }
   
   // return number of sent bytes
@@ -878,9 +883,9 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DWORD     numChars, numTmp;
   uint32_t  i;
@@ -911,7 +916,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
   // return number of bytes received
   return((uint32_t) numChars);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -961,7 +966,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
       
       // for UART reply mode with 2-wire interface echo each byte
       if (uartMode==2) {
-        //fprintf(stderr,"\nsent echo 0x%02x\n", *dest);
+        //console_print(STDERR, "\nsent echo 0x%02x\n", *dest);
         send_port(fpCom, uartMode, 1, dest);
       }
       
@@ -994,14 +999,14 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 void flush_port(HANDLE fpCom) {
 
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   // purge all port buffers (see http://msdn.microsoft.com/en-us/library/windows/desktop/aa363428%28v=vs.85%29.aspx)
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
