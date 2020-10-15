@@ -20,6 +20,9 @@
 #include "main.h"
 
 
+/// optimize for background operation, e.g. skip prompts and console colors
+static bool           g_backgroundOperation;
+
 /**
   \fn void setConsoleTitle(const char *title)
   
@@ -54,6 +57,30 @@ void setConsoleTitle(const char *title) {
 
 
   
+/**
+  \fn void Console_SetBackgroundOperation(bool bgOperation)
+  
+  \param[in] bgOperation  True: background operation; False: Foreground
+
+  Sets module variable to enable or disable background operation
+   
+*/
+void Console_SetBackgroundOperation(bool bgOperation) {
+  
+  g_backgroundOperation = bgOperation; 
+}
+
+/**
+  \fn bool Console_GetBackgroundOperation(void)
+  
+  Returns module variable to enable or disable background operation
+
+*/
+bool Console_GetBackgroundOperation(void) {
+  
+  return(g_backgroundOperation); 
+}
+
 /**
   \fn void setConsoleColor(uint8_t color)
   
