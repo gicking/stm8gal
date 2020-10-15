@@ -796,7 +796,8 @@ int main(int argc, char ** argv) {
   flush_port(ptrPort);
 
   // synchronize with bootloader. For UART also sync baudrate
-  bsl_sync(ptrPort, physInterface, verbose);
+  if (bsl_sync(ptrPort, physInterface, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+    Error("Fatal Error");
 
   // for UART set or auto-detect UART mode (0=duplex, 1=1-wire, 2=2-wire reply, others=auto-detect)
   if (physInterface == UART) {
@@ -818,12 +819,15 @@ int main(int argc, char ** argv) {
         printf("  set UART mode: 2-wire reply\n");
     }
     else
-      uartMode = bsl_getUartMode(ptrPort, verbose);
+      if (bsl_getUartMode(ptrPort, &uartMode, verbose) != STM8GAL_BOOTLOADER_NO_ERROR )
+        Error("Fatal Error");
   } // UART interface
   fflush(stdout);
 
   // get bootloader info for selecting RAM w/e routines for flash
-  bsl_getInfo(ptrPort, physInterface, uartMode, &flashsize, &versBSL, &family, verbose);
+  if (bsl_getInfo(ptrPort, physInterface, uartMode, &flashsize, &versBSL, &family, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+    Error("Fatal Error");
+
 
   // for STM8S and 8kB STM8L upload RAM routines, else skip
   if ((family == STM8S) || (flashsize==8)) {
@@ -928,7 +932,9 @@ int main(int argc, char ** argv) {
     if (verbose == CHATTY)
       printf("  upload RAM routines ... ");
     fflush(stdout);
-    bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, MUTE);
+    if (bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, MUTE) != STM8GAL_BOOTLOADER_NO_ERROR)
+      Error("Fatal Error");
+
     if (verbose == CHATTY)
       printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
     fflush(stdout);
@@ -1057,11 +1063,13 @@ int main(int argc, char ** argv) {
       get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
 
       // upload memory image to STM8
-      bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      if (bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+        Error("Fatal Error");
 
       // optionally verify upload
       if (verifyUpload)
-        bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        if (bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+          Error("Fatal Error");
 
       // clear memory image again
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
@@ -1088,11 +1096,13 @@ int main(int argc, char ** argv) {
       get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
 
       // upload memory image to STM8
-      bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      if (bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+        Error("Fatal Error");
 
       // optionally verify upload
       if (verifyUpload)
-        bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        if (bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+          Error("Fatal Error");
 
       // clear memory image again
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
@@ -1116,7 +1126,8 @@ int main(int argc, char ** argv) {
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
       // read memory
-      bsl_memRead(ptrPort, physInterface, uartMode, addrStart, addrStop, imageBuf, verbose);
+      if (bsl_memRead(ptrPort, physInterface, uartMode, addrStart, addrStop, imageBuf, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+        Error("Fatal Error");
 
       // export in format depending on file extension
       if (strstr(outfile, ".s19") != NULL)   // Motorola S-record format
@@ -1144,7 +1155,8 @@ int main(int argc, char ** argv) {
       sscanf(argv[++i], "%" SCNx64, &addr);
 
       // trigger flash mass erase
-      bsl_flashSectorErase(ptrPort, physInterface, uartMode, addr, verbose);
+      if (bsl_flashSectorErase(ptrPort, physInterface, uartMode, addr, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+        Error("Fatal Error");
 
     } // sector_erase
 
@@ -1153,7 +1165,8 @@ int main(int argc, char ** argv) {
     else if ((!strcmp(argv[i], "-E")) || (!strcmp(argv[i], "-erase-full"))) {
 
       // trigger flash mass erase
-      bsl_flashMassErase(ptrPort, physInterface, uartMode, verbose);
+      if (bsl_flashMassErase(ptrPort, physInterface, uartMode, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+        Error("Fatal Error");
 
     } // mass_erase
 
@@ -1182,7 +1195,8 @@ int main(int argc, char ** argv) {
     #endif
 
     // jumpt to application
-    bsl_jumpTo(ptrPort, physInterface, uartMode, jumpAddr, verbose);
+    if (bsl_jumpTo(ptrPort, physInterface, uartMode, jumpAddr, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
+      Error("Fatal Error");
 
   } // jump to STM8 address
 
