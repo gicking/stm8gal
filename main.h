@@ -51,11 +51,16 @@
 typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
 
 /// physical bootloader interface 
-#if defined(USE_SPIDEV)
-  typedef enum {UART=0, SPI_ARDUINO, SPI_SPIDEV} physInterface_t;
+#if defined(USE_SPIDEV) && defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1, SPI_SPIDEV=2} physInterface_t;
+#elif defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1} physInterface_t;
+#elif defined(USE_SPIDEV)
+  typedef enum {UART=0, SPI_SPIDEV=2} physInterface_t;
 #else
-  typedef enum {UART=0, SPI_ARDUINO} physInterface_t;
+  typedef enum {UART=0} physInterface_t;
 #endif
+
 
 
 /*******
@@ -77,6 +82,7 @@ global bool           g_backgroundOperation;
 
 // undefine global keyword
 #undef global
+
 
 #endif // _MAIN_H_
 
