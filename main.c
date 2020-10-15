@@ -508,7 +508,7 @@ int main(int argc, char ** argv) {
   #if defined(USE_SPIDEV)
     if ((physInterface == SPI_ARDUINO) || (physInterface == SPI_SPIDEV))
       verifyUpload = false;
-  #else
+  #elif defined(USE_SPI_ARDUINO)
     if (physInterface == SPI_ARDUINO)
       verifyUpload = false;
   #endif
@@ -1174,7 +1174,7 @@ int main(int argc, char ** argv) {
     #if defined(USE_SPIDEV)
       if ((physInterface==SPI_SPIDEV) || (physInterface==SPI_ARDUINO))
         SLEEP(500);
-    #else
+    #elif defined(USE_SPI_ARDUINO)
       if (physInterface==SPI_ARDUINO)
         SLEEP(500);
     #endif
