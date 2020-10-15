@@ -18,6 +18,7 @@
 #include <stdarg.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <stdbool.h>
 
 #if !defined(_MSC_VER)
   #include <unistd.h>
@@ -83,7 +84,8 @@
 // max length of filenames
 #define  STRLEN   1000
 
-
+/// wait for \<return\> prior to closing console window
+static bool           g_pauseOnExit;
 
 /**
   \fn void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status)
@@ -193,7 +195,7 @@ int main(int argc, char ** argv) {
 
   // initialize global variables
   g_pauseOnExit         = false;  // no wait for <return> before terminating (dummy)
-  g_backgroundOperation = false;  // assume foreground application
+  Console_SetBackgroundOperation( false );  // assume foreground application
 
   // initialize default arguments
   portname[0]    = '\0';          // no default port name
@@ -260,7 +262,7 @@ int main(int argc, char ** argv) {
 
     // optimize for background operation, e.g. skip prompts and colors
     else if ((!strcmp(argv[i], "-B")) || (!strcmp(argv[i], "-background"))) {
-      g_backgroundOperation = true;
+      Console_SetBackgroundOperation(true);
     } // background
 
 
@@ -514,10 +516,10 @@ int main(int argc, char ** argv) {
   #endif
 
   // for background operation avoid prompt on exit
-  if (g_backgroundOperation)
+  if (Console_GetBackgroundOperation())
     g_pauseOnExit = false;
 
-  if (g_backgroundOperation) {
+  if (Console_GetBackgroundOperation()) {
     sprintf(tmp, "%s (v%s)", appname, version);
     setConsoleTitle(tmp);
   }
@@ -544,7 +546,7 @@ int main(int argc, char ** argv) {
   // if no port name is given, list all available ports and query
   ////////
   if (strlen(portname) == 0) {
-    if (!g_backgroundOperation) {
+    if (!Console_GetBackgroundOperation()) {
       printf("  enter comm port name ( ");
       list_ports();
       printf(" ): ");
@@ -572,7 +574,7 @@ int main(int argc, char ** argv) {
 
   // manually reset STM8
   else if (resetSTM8 == 1) {
-    if (!g_backgroundOperation) {
+    if (!Console_GetBackgroundOperation()) {
       printf("  reset STM8 and press <return>");
       fflush(stdout);
       fflush(stdin);

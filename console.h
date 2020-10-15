@@ -14,6 +14,8 @@
 #ifndef _CONSOLE_H_
 #define _CONSOLE_H_
 
+#include <stdbool.h>
+
 // color codes 
 #define PRM_COLOR_DEFAULT       0
 #define PRM_COLOR_BLACK         1
@@ -78,6 +80,12 @@ typedef enum {STDOUT=0, STDERR=1} output_t;
 #if defined(WIN32) || defined(WIN64) || defined(__APPLE__) || defined(__unix__)
   void setConsoleTitle(const char *title);
 #endif // WIN32 || WIN64 || __APPLE__ || __unix__
+
+/// Sets module variable to enable or disable background operation
+void Console_SetBackgroundOperation(bool bgOperation);
+
+/// Returns module variable to enable or disable background operation
+bool Console_GetBackgroundOperation(void);
 
 /// set console text color
 void setConsoleColor(uint8_t color);
