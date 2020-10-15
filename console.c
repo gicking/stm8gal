@@ -72,7 +72,7 @@ void setConsoleColor(uint8_t color) {
 
 #if defined(WIN32) || defined(WIN64)
 
-  static WORD                   oldColor, colorBck;
+;  static WORD                   oldColor, colorBck;
   static char                   flag=0;
   CONSOLE_SCREEN_BUFFER_INFO    csbiInfo; 
   
