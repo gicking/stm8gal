@@ -17,6 +17,11 @@
 #ifndef _HEXFILE_H_
 #define _HEXFILE_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 // include files
 #include <stdint.h>
 
@@ -76,5 +81,9 @@ void  export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose);
 
 /// export RAM image to binary file (w/o address)
 void  export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // _HEXFILE_H_

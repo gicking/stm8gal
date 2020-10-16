@@ -15,6 +15,11 @@
 #ifndef _SPI_ARDUINO_COMM_H_
 #define _SPI_ARDUINO_COMM_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 // includes
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,6 +60,10 @@ void      setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state);
 
 /// send/receive SPI frames via Arduino USB<->SPI bridge
 uint32_t  sendReceiveSPI_Arduino(HANDLE fp, uint8_t pin, uint32_t lenFrame, char *bufTx, char *bufRx);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // _SPI_ARDUINO_COMM_H_
 
