@@ -78,8 +78,10 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
       else if (physInterface == SPI_SPIDEV)
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
-    else
+    else {
+      console_print(STDOUT, "unknown interface %d", (int) physInterface );
       return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
       return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
@@ -100,8 +102,10 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
       else if (physInterface == SPI_SPIDEV)
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
-    else
+    else {
+      console_print(STDOUT, "unknown interface %d", (int) physInterface );
       return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    }
 
     // increase retry counter
     count++;
@@ -124,10 +128,12 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
     else if (verbose > SILENT)
       console_print(STDOUT, "done (NACK)\n");
   }
-  else if (len==lenRx)
-  {
-    if ( verbose > SILENT )
-        console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
+  else if (count >= 50) {
+    console_print(STDOUT, "too many sync retires");
+    return(STM8GAL_BOOTLOADER_TOO_MANY_SYNC_ATTEMPTS);
+  }
+  else if (len==lenRx) {
+    console_print(STDOUT, "wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
     return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
   }
   else
@@ -160,7 +166,8 @@ STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8
 
   int   len, lenTx, lenRx;
   char  Tx[1000], Rx[1000];
-  uint8_t uartMode = 255;
+  
+  *mode = 255;
 
   // print message
   if (verbose == CHATTY)
@@ -182,15 +189,15 @@ STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8
 
   // tested empirically...
   if (Rx[0] == ACK) {              // UART mode 0: 2-wire duplex, no SW reply, even parity
-    uartMode = 0;
+    *mode = 0;
     set_parity(ptrPort, 2);
   }
   else if (Rx[0] == Tx[0]) {       // UART mode 1: 1-wire reply, no SW reply, no parity
-    uartMode = 1;
+    *mode = 1;
     set_parity(ptrPort, 0);
   }
   else if (Rx[0] == NACK) {        // UART mode 2: 2-wire reply, SW reply, no parity
-    uartMode = 2;
+    *mode = 2;
     set_parity(ptrPort, 0);
   }
   else {
@@ -207,16 +214,16 @@ STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8
 
   // print message
   if (verbose == CHATTY) {
-    if (uartMode == 0)
+    if (*mode == 0)
       console_print(STDOUT, "done (duplex)\n");
-    else if (uartMode == 1)
+    else if (*mode == 1)
       console_print(STDOUT, "done (1-wire)\n");
     else
       console_print(STDOUT, "done (2-wire reply)\n");
   }
 
   // return found mode
-  return(uartMode);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_getUartMode
 
@@ -272,13 +279,13 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   }
 
   // check address of EEPROM. STM8L starts at 0x1000, STM8S starts at 0x4000
-  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x004000, SILENT)) {     // STM8S
+  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x004000, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR) {     // STM8S
     *family = STM8S;
     #ifdef DEBUG
       console_print(STDOUT, "family STM8S\n");
     #endif
   }
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100, SILENT)) { // STM8L
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR) { // STM8L
     *family = STM8L;
     #ifdef DEBUG
       console_print(STDOUT, "family STM8L\n");
@@ -289,13 +296,13 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
 
 
   // check if adress in flash exists. Check highest flash address to determine size
-  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x047FFF, SILENT))       // extreme density (256kB)
+  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x047FFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)       // extreme density (256kB)
     *flashsize = 256;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x027FFF, SILENT))  // high density (128kB)
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x027FFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)  // high density (128kB)
     *flashsize = 128;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00FFFF, SILENT))  // medium density (32kB)
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00FFFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)  // medium density (32kB)
     *flashsize = 32;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x009FFF, SILENT))  // low density (8kB)
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x009FFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)  // low density (8kB)
     *flashsize = 8;
   else
     return(STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_DEVICE);
@@ -330,8 +337,10 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
     else if (physInterface == SPI_SPIDEV)
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
-  else
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+  else {
+    console_print(STDOUT, "unknown interface %d", (int) physInterface );
+    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+  }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
     return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
@@ -423,7 +432,7 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   }
 
   // avoid compiler warnings
-  return(0);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_getInfo
 
@@ -733,7 +742,7 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
   }
 
   // avoid compiler warnings
-  return(0);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_memRead
 
@@ -748,7 +757,7 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
   \param[in]  addr           address to check
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (0=Memory Exists, >0=fail)
 
   check if microcontrolles address exists. Specifically read 1B from microcontroller
   memory via READ command. If it fails, memory doesn't exist. Used to get STM8 type
@@ -939,7 +948,7 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   }
 
   // memory read succeeded -> memory exists
-  return(1);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_memCheck
 
@@ -1134,7 +1143,7 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   }
 
   // avoid compiler warnings
-  return(0);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_flashSectorErase
 
@@ -1314,7 +1323,7 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   }
 
   // avoid compiler warnings
-  return(0);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_flashMassErase
 
@@ -1635,7 +1644,7 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
   }
 
   // avoid compiler warnings
-  return(0);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_memWrite
 
@@ -1713,7 +1722,7 @@ STM8gal_Bootloader_errors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface,
   free(tmpImageBuf);
 
   // avoid compiler warnings
-  return(0);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_memVerify
 
@@ -1874,7 +1883,7 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
     console_print(STDOUT, "done\n");
 
   // avoid compiler warnings
-  return(0);
+  return(STM8GAL_BOOTLOADER_NO_ERROR);
 
 } // bsl_jumpTo
 

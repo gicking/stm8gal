@@ -66,3 +66,4 @@ MSVC/Release/
 *.opensdf
 *.sdf
 *.suo
+*.user
