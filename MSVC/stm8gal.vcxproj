@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -20,19 +20,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\bootloader.c" />
+    <ClCompile Include="..\console.c" />
     <ClCompile Include="..\hexfile.c" />
     <ClCompile Include="..\main.c" />
-    <ClCompile Include="..\misc.c" />
     <ClCompile Include="..\serial_comm.c" />
     <ClCompile Include="..\spi_Arduino_comm.c" />
+    <ClCompile Include="..\timer.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\bootloader.h" />
+    <ClInclude Include="..\console.h" />
     <ClInclude Include="..\hexfile.h" />
     <ClInclude Include="..\main.h" />
-    <ClInclude Include="..\misc.h" />
     <ClInclude Include="..\serial_comm.h" />
     <ClInclude Include="..\spi_Arduino_comm.h" />
+    <ClInclude Include="..\timer.h" />
     <ClInclude Include="..\version.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
