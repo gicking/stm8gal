@@ -29,6 +29,14 @@ stm8gal
 *.x86_64
 *.hex
 
+# MSVC output
+MSVC/x64/*
+MSVC/Debug/*
+MSVC/Release/*
+*.opensdf
+*.sdf
+*.suo
+
 # Doxygen output
 doxygen/html/*
 doxygen/latex/*
