@@ -506,9 +506,10 @@ int main(int argc, char ** argv) {
 
   // read back after writing doesn't work for SPI (don't know why)
   #if defined(USE_SPIDEV)
-    if ((physInterface == SPI_ARDUINO) || (physInterface == SPI_SPIDEV))
+    if (physInterface == SPI_SPIDEV)
       verifyUpload = false;
-  #else
+  #endif
+  #if defined(USE_SPI_ARDUINO)
     if (physInterface == SPI_ARDUINO)
       verifyUpload = false;
   #endif
@@ -1172,9 +1173,10 @@ int main(int argc, char ** argv) {
 
     // don't know why, but seems to be required for SPI
     #if defined(USE_SPIDEV)
-      if ((physInterface==SPI_SPIDEV) || (physInterface==SPI_ARDUINO))
+      if (physInterface==SPI_SPIDEV)
         SLEEP(500);
-    #else
+    #endif
+    #if defined(USE_SPI_ARDUINO)
       if (physInterface==SPI_ARDUINO)
         SLEEP(500);
     #endif
