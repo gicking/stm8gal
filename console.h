@@ -14,6 +14,11 @@
 #ifndef _CONSOLE_H_
 #define _CONSOLE_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 // color codes 
 #define PRM_COLOR_DEFAULT       0
 #define PRM_COLOR_BLACK         1
@@ -91,6 +96,9 @@ int Error(char *format, ...);
 /// terminate program after cleaning up
 void Exit(uint8_t code, uint8_t pause);
 
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // _CONSOLE_H_
 

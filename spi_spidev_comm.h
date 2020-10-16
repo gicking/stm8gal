@@ -15,6 +15,10 @@
 #ifndef _SPI_SPIDEV_COMM_H_
 #define _SPI_SPIDEV_COMM_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 // generic ANSI
 #include <stdio.h>
@@ -65,6 +69,10 @@
   void        spi_transfer(HANDLE fp, int len, uint8_t *Tx, uint8_t *Rx);
   
 #endif // USE_SPIDEV
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
   
 #endif // _SPI_SPIDEV_COMM_H_
 
