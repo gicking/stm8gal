@@ -66,28 +66,6 @@ typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
   typedef enum {UART=0} physInterface_t;
 #endif
 
-
-
-/*******
-  global variables
-*******/
-
-/// define globals only once (with _MAIN_ defined)
-#ifdef _MAIN_
-  #define global
-#else
-  #define global extern
-#endif
-
-/// wait for \<return\> prior to closing console window
-global bool           g_pauseOnExit;
-
-/// optimize for background operation, e.g. skip prompts and console colors
-global bool           g_backgroundOperation;
-
-// undefine global keyword
-#undef global
-
 #ifdef __cplusplus
 } // extern "C"
 #endif
