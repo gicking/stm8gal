@@ -177,7 +177,7 @@ int main(int argc, char ** argv) {
   char      portname[STRLEN]="";  // name of communication port
   HANDLE    ptrPort = 0;          // handle to communication port
   int       baudrate;             // communication baudrate [Baud]
-  int       uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
+  uint8_t   uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
   int       resetSTM8;            // reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default: manual)
   uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
   bool      verifyUpload;         // verify memory after upload
