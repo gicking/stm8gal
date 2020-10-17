@@ -31,7 +31,7 @@ Revision History
 
 v1.4.1 (2020-10-15)
   - split output in seperate function for GUI support
-  - add support for C++ compiler (see https://embeddedartistry.com/blog/2017/05/01/mixing-c-and-c-extern-c/) 
+  - improvements by Mark Stokes to simplify re-use as library (https://github.com/gicking/stm8gal/pull/16)
 
 ----------------
 
