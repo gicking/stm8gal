@@ -57,7 +57,7 @@ void list_ports(void) {
     );
     if (fpCom != INVALID_HANDLE_VALUE) {
       if (j!=1)
-	    console_print(STDOUT, ", ");
+        console_print(STDOUT, ", ");
       console_print(STDOUT, "COM%d", i);
       CloseHandle(fpCom);
       j++;
