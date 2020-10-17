@@ -44,36 +44,59 @@ extern "C"
 #define PFLASH_START      0x8000    //< starting address of flash (same for all STM8 devices)
 #define PFLASH_BLOCKSIZE  1024      //< size of flash block for erase or block write (same for all STM8 devices)
 
+typedef enum STM8gal_Bootloader_errors
+{
+    STM8GAL_BOOTLOADER_NO_ERROR = 0,
+    STM8GAL_BOOTLOADER_PORT_NOT_OPEN,
+    STM8GAL_BOOTLOADER_TOO_MANY_SYNC_ATTEMPTS,
+    STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE,
+    STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED,
+    STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT,
+    STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED,
+    STM8GAL_BOOTLOADER_CANNOT_SEND_TO_PORT,
+    STM8GAL_BOOTLOADER_CANNOT_DETERMINE_UART_MODE,
+    STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_FAMILY,
+    STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_DEVICE,
+    STM8GAL_BOOTLOADER_INCORRECT_GET_CODE,
+    STM8GAL_BOOTLOADER_INCORRECT_READ_CODE,
+    STM8GAL_BOOTLOADER_INCORRECT_GO_CODE,
+    STM8GAL_BOOTLOADER_INCORRECT_WRITE_CODE,
+    STM8GAL_BOOTLOADER_INCORRECT_ERASE_CODE,
+    STM8GAL_BOOTLOADER_ADDRESS_NOT_EXIST,
+    STM8GAL_BOOTLOADER_ADDRESS_START_GREATER_END,
+    STM8GAL_BOOTLOADER_ADDRESS_START_GREATER_BUFFER,
+    STM8GAL_BOOTLOADER_ADDRESS_END_GREATER_BUFFER,
+} STM8gal_Bootloader_errors_t;
 
 /// synchronize to microcontroller BSL
-uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose);
 
 /// determine UART mode
-uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8_t verbose);
 
 /// get microcontroller type and BSL version
-uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose);
 
 /// read from microcontroller memory
-uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose);
 
 /// check if address exists
-uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose);
 
 /// erase microcontroller flash sector
-uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose);
 
 /// mass erase microcontroller P- and D-flash
-uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose);
 
 /// upload to microcontroller flash or RAM
-uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);
 
 /// verify microcontroller memory content vs. or RAM image
-uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);
 
 /// jump to flash or RAM
-uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose);
+STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose);
 
 #ifdef __cplusplus
 } // extern "C"
