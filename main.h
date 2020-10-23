@@ -41,9 +41,6 @@ extern "C"
 /// UART communication timeout
 #define  TIMEOUT  1000
 
-/// max. number of bootloader synchronization attempts
-#define  RETRY    15
-
 // activate debug output
 //#define DEBUG
 
@@ -51,20 +48,6 @@ extern "C"
 /*******
   global typedefs
 *******/
-
-/// verbosity level in readable way, from no output to very chatty
-typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
-
-/// physical bootloader interface 
-#if defined(USE_SPIDEV) && defined(USE_SPI_ARDUINO)
-  typedef enum {UART=0, SPI_ARDUINO=1, SPI_SPIDEV=2} physInterface_t;
-#elif defined(USE_SPI_ARDUINO)
-  typedef enum {UART=0, SPI_ARDUINO=1} physInterface_t;
-#elif defined(USE_SPIDEV)
-  typedef enum {UART=0, SPI_SPIDEV=2} physInterface_t;
-#else
-  typedef enum {UART=0} physInterface_t;
-#endif
 
 #ifdef __cplusplus
 } // extern "C"

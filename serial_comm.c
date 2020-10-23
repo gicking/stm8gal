@@ -20,15 +20,17 @@
   #include <wiringPi.h>       // for reset via GPIO
 #endif // __ARMEL__ && USE_WIRING
 
-
+STM8gal_SerialErrors_t g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
 
 /**
   \fn void list_ports(void)
    
+  \return operation status (STM8gal_SerialErrors_t)
+
   print list of all available COM ports. I don't know how to do this in
   a better way than to actually try and open each of them...
 */
-void list_ports(void) {
+STM8gal_SerialErrors_t list_ports(void) {
   
 /////////
 // Windows
@@ -39,6 +41,8 @@ void list_ports(void) {
   uint16_t      i, j;
   char          port_tmp[100];
     
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
+
   // loop 1..255 over ports and list each available
   j=1;
   for (i=1; i<=255; i++) {
@@ -122,10 +126,15 @@ void list_ports(void) {
 
     }
   }
-  else
-    Error("cannot list, check /dev for port name");
+  else {
+    console_print(STDOUT, "cannot list, check /dev for port name");
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_LIST_PORTS;
+    return(g_serialCommsLastError);
+  }
 
 #endif // __APPLE__ || __unix__
+
+  return(g_serialCommsLastError);
 
 } // list_ports
 
@@ -134,6 +143,7 @@ void list_ports(void) {
 /**
   \fn HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR)
    
+  \param[out]fpCom      handle to comm port
   \param[in] port       name of port as string
   \param[in] baudrate   comm port speed in Baud (must be supported by port)
   \param[in] timeout    timeout between chars in ms
@@ -143,11 +153,11 @@ void list_ports(void) {
   \param[in] RTS        Request To Send (required for some multimeter optocouplers)
   \param[in] DTR        Data Terminal Ready (required for some multimeter optocouplers)
 
-  \return           handle to comm port
-  
+  \return operation status (STM8gal_SerialErrors_t)
+ 
   open comm port for communication, set properties (baudrate, timeout,...). 
 */
-HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
+STM8gal_SerialErrors_t init_port(HANDLE *fpCom, const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
 
 /////////
 // Windows
@@ -155,13 +165,14 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 #if defined(WIN32) || defined(WIN64)
 
   char          port_tmp[100];
-  HANDLE        fpCom = NULL;
     
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
+
   // required to allow COM ports >COM9
   sprintf(port_tmp,"\\\\.\\%s", port);    
   
   // create handle to COM-port
-  fpCom = CreateFile(port_tmp,
+  *fpCom = CreateFile(port_tmp,
     GENERIC_READ | GENERIC_WRITE,  // both read & write
     0,    // must be opened with exclusive-access
     NULL, // no security attributes
@@ -169,11 +180,14 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
     0,    // not overlapped I/O
     NULL  // hTemplate must be NULL for comm devices
   );
-  if (fpCom == INVALID_HANDLE_VALUE)
-    Error("in 'init_port(%s)': open port failed with code %d", port, (int) GetLastError());
+  if (*fpCom == INVALID_HANDLE_VALUE) {
+    console_print(STDOUT, "in 'init_port(%s)': open port failed with code %d", port, (int) GetLastError());
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_OPEN_PORT;
+    return(g_serialCommsLastError);
+  }
 
   // reset COM port error buffer
-  PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
+  PurgeComm(*fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
 
 #endif // WIN32 || WIN64
 
@@ -187,16 +201,19 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 
   // open port
   fpCom = open(port, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
-  if (fpCom == -1)
-    Error("in 'init_port(%s)': open port failed", port);
+  if (fpCom == -1) {
+    console_print(STDOUT, "in 'init_port(%s)': open port failed", port);
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_OPEN_PORT;
+    return(g_serialCommsLastError);
+  }
 
 #endif // __APPLE__ || __unix__
   
   // set port attributes
-  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+  set_port_attribute(*fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
   
   // return comm port handle
-  return fpCom;
+  return(g_serialCommsLastError);
 
 } // init_port
 
@@ -209,7 +226,7 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 
   close & release comm port. 
 */
-void close_port(HANDLE *fpCom) {
+STM8gal_SerialErrors_t close_port(HANDLE *fpCom) {
 
 /////////
 // Windows
@@ -218,10 +235,14 @@ void close_port(HANDLE *fpCom) {
 
   BOOL      fSuccess;
 
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
+  
   if (*fpCom != NULL) {
     fSuccess = CloseHandle(*fpCom);
-    if (!fSuccess)
-      Error("in 'close_port': close port failed with code %d", (int) GetLastError());
+    if (!fSuccess) {
+      console_print(STDOUT, "in 'close_port': close port failed with code %d", (int) GetLastError());
+      g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_CLOSE_PORT;
+    }
   }
   *fpCom = NULL;
 
@@ -235,13 +256,16 @@ void close_port(HANDLE *fpCom) {
 
   // if open, close port
   if (*fpCom != 0) {
-    if (close(*fpCom) != 0)
-      Error("in 'close_port': close port failed");
+    if (close(*fpCom) != 0) {
+      console_print(STDOUT, "in 'close_port': close port failed with code %d", (int) GetLastError());
+      g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_CLOSE_PORT;
+    }
   }
   *fpCom = 0;
 
 #endif // __APPLE__ || __unix__
 
+  return(g_serialCommsLastError);
 } // close_port
 
 
@@ -254,7 +278,9 @@ void close_port(HANDLE *fpCom) {
 
   generate low pulse on DTR in [ms] to reset STM8.
 */
-void pulse_DTR(HANDLE fpCom, uint32_t duration) {
+STM8gal_SerialErrors_t pulse_DTR(HANDLE fpCom, uint32_t duration) {
+  
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
   
 /////////
 // Windows (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
@@ -284,18 +310,26 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
 
   // set DTR
   status |= TIOCM_DTR;
-  if (ioctl(fpCom, TIOCMSET, &status))
-    Error("in 'pulse_DTR()': cannot set DTS status");
+  if (ioctl(fpCom, TIOCMSET, &status)) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_IO;
+    console_print(STDOUT, "in 'pulse_DTR()': cannot set DTS status");
+    return(g_serialCommsLastError);
+  }
 
   // wait specified duration
   SLEEP(duration);
 
   // clear DTR
   status &= ~TIOCM_DTR;
-  if (ioctl(fpCom, TIOCMSET, &status))
-    Error("in 'pulse_DTR()': cannot reset DTS status");
+  if (ioctl(fpCom, TIOCMSET, &status)) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_IO;
+    console_print(STDOUT, "in 'pulse_DTR()': cannot reset DTS status");
+    return(g_serialCommsLastError);
+  }
 
 #endif // __APPLE__ || __unix__
+
+  return(g_serialCommsLastError);
 
 } // pulse_DTR
 
@@ -307,10 +341,14 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
   \param[in] fpCom      port handle
   \param[in] duration   duration of RTS low pulse in ms
 
+  \return operation status (STM8gal_SerialErrors_t)
+ 
   generate low pulse on RTS in [ms] to reset STM8.
 */
-void pulse_RTS(HANDLE fpCom, uint32_t duration)
+STM8gal_SerialErrors_t pulse_RTS(HANDLE fpCom, uint32_t duration)
 {
+
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
 
 /////////
 // Windows (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
@@ -339,18 +377,27 @@ void pulse_RTS(HANDLE fpCom, uint32_t duration)
 
     // set RTS
     status |= TIOCM_RTS;
-    if(ioctl(fpCom, TIOCMSET, &status))
-        Error("in 'pulse_RTS()': cannot set RTS status");
+    if(ioctl(fpCom, TIOCMSET, &status)) {
+        g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_IO;
+        console_print(STDOUT, "in 'pulse_RTS()': cannot set RTS status");
+        return(g_serialCommsLastError);
+    }
+
 
     // wait specified duration
     SLEEP(duration);
 
     // clear RTS
     status &= ~TIOCM_RTS;
-    if(ioctl(fpCom, TIOCMSET, &status))
-        Error("in 'pulse_RTS()': cannot reset RTS status");
+    if(ioctl(fpCom, TIOCMSET, &status)) {
+        g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_IO;
+        console_print(STDOUT, "in 'pulse_RTS()': cannot reset RTS status");
+        return(g_serialCommsLastError);
+    }
 
 #endif // __APPLE__ || __unix__
+
+    return(g_serialCommsLastError);
 
 } // pulse_RTS
 
@@ -400,9 +447,11 @@ void pulse_GPIO(int pin, uint32_t duration) {
   \param[out] RTS        Request To Send (required for some multimeter optocouplers)
   \param[out] DTR        Data Terminal Ready (required for some multimeter optocouplers)
 
+  \return operation status (STM8gal_SerialErrors_t)
+ 
   get current attributes of an already open comm port.
 */
-void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR) {
+STM8gal_SerialErrors_t get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR) {
 
 /////////
 // Windows
@@ -413,10 +462,15 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   COMMTIMEOUTS  fTimeout;
   BOOL          fSuccess;
 
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
+
   // get the current port configuration
   fSuccess = GetCommState(fpCom, &fDCB);
-  if (!fSuccess)
-    Error("in 'get_port_attribute': GetCommState() failed with code %d", (int) GetLastError());
+  if (!fSuccess) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG;
+    console_print(STDOUT, "in 'get_port_attribute': GetCommState() failed with code %d", (int) GetLastError());
+    return(g_serialCommsLastError);
+  }
 
   // get port settings
   *baudrate = fDCB.BaudRate;        // baud rate (19200, 57600, 115200)
@@ -434,8 +488,11 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   
   // get port timeout
   fSuccess = GetCommTimeouts(fpCom, &fTimeout);
-  if (!fSuccess)
-    Error("in 'get_port_attribute': GetCommTimeouts() failed with code %d", (int) GetLastError());
+  if (!fSuccess) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG;
+    console_print(STDOUT, "in 'get_port_attribute': GetCommTimeouts() failed with code %d", (int) GetLastError());
+    return(g_serialCommsLastError);
+  }
   *timeout = fTimeout.ReadTotalTimeoutConstant;       // this parameter fits also for timeout=0
   
 #endif // WIN32 || WIN64
@@ -450,8 +507,11 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   int             status;
   
   // get attributes
-  if (tcgetattr(fpCom, &toptions) < 0)
-    Error("in 'get_port_attribute': get port attributes failed");
+  if (tcgetattr(fpCom, &toptions) < 0) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG;
+    console_print(STDOUT, "in 'get_port_attribute': get port attributes failed");
+    return(g_serialCommsLastError);
+  }
   
   // get baudrate
   speed_t brate = cfgetospeed(&toptions);
@@ -526,6 +586,9 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
     *DTR = 0;
 
 #endif // __APPLE__ || __unix__
+
+  return(g_serialCommsLastError);
+
      
 } // get_port_attribute
 
@@ -543,10 +606,14 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   \param[in] RTS        Request To Send (required for some multimeter optocouplers)
   \param[in] DTR        Data Terminal Ready (required for some multimeter optocouplers)
 
+  \return operation status (STM8gal_SerialErrors_t)
+ 
   change attributes of an already open comm port.
 */
-void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
+STM8gal_SerialErrors_t set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
   
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
+
 /////////
 // Windows
 /////////
@@ -561,8 +628,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   
   // get the current port configuration
   fSuccess = GetCommState(fpCom, &fDCB);
-  if (!fSuccess)
-    Error("in 'set_port_attribute()': get port attributes failed with code %d", (int) GetLastError());
+  if (!fSuccess) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG;
+    console_print(STDOUT, "in 'set_port_attribute()': get port attributes failed with code %d", (int) GetLastError());
+    return(g_serialCommsLastError);
+  }
 
   // change port settings
   fDCB.BaudRate = baudrate;         // set the baud rate (19200, 57600, 115200)
@@ -586,8 +656,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
 
   // set new COM state
   fSuccess = SetCommState(fpCom, &fDCB);
-  if (!fSuccess)
-    Error("in 'set_port_attribute()': set port attributes failed with code %d", (int) GetLastError());
+  if (!fSuccess) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_PORT_CONFIG;
+    console_print(STDOUT, "in 'set_port_attribute()': set port attributes failed with code %d", (int) GetLastError());
+    return(g_serialCommsLastError);
+  }
 
 
   // set timeouts for port to avoid hanging of program. For simplicity set all timeouts to same value.
@@ -601,8 +674,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   fTimeout.WriteTotalTimeoutMultiplier  = 0;           // time per write byte (use contant timeout instead) 
   fTimeout.WriteTotalTimeoutConstant    = timeout;
   fSuccess = SetCommTimeouts(fpCom, &fTimeout);
-  if (!fSuccess)
-    Error("in 'set_port_attribute()': set port timeout failed with code %d", (int) GetLastError());
+  if (!fSuccess) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_PORT_CONFIG;
+    console_print(STDOUT, "in 'set_port_attribute()': set port timeout failed with code %d", (int) GetLastError());
+    return(g_serialCommsLastError);
+  }
 
 #endif // WIN32 || WIN64
 
@@ -617,8 +693,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   
   
   // get attributes
-  if (tcgetattr(fpCom, &toptions) < 0)
-    Error("in 'set_port_attribute()': get port attributes failed");
+  if (tcgetattr(fpCom, &toptions) < 0) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG;
+    console_print(STDOUT, "in 'set_port_attribute()': get port attributes failed");
+    return(g_serialCommsLastError);
+  }
   
   // set baudrate
   speed_t brate = baudrate; // let you override switch below if needed
@@ -651,7 +730,9 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     case 230400: brate=B230400; break;
 #endif
     default: 
-      Error("in 'set_port_attribute()': unsupported baudrate %d Baud", (int) baudrate);
+      g_serialCommsLastError = STM8GAL_SERIALCOMMS_UNSUPPORTED_BAUD_RATE;
+      console_print(STDOUT, "in 'set_port_attribute()': unsupported baudrate %d Baud", (int) baudrate);
+      return(g_serialCommsLastError);
   }
   cfmakeraw(&toptions);
   cfsetispeed(&toptions, brate);    // receive
@@ -663,8 +744,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     toptions.c_cflag |=  CS7;       // 7 data bits
   else if (numBits == 8)
     toptions.c_cflag |=  CS8;       // 8 data bits
-  else
-    Error("in 'set_port_attribute()': unknown number of data bits %d", (int) numBits);
+  else {
+      g_serialCommsLastError = STM8GAL_SERIALCOMMS_UNKNOWN_NUMBER_DATA_BITS;
+      console_print(STDOUT, "in 'set_port_attribute()': unknown number of data bits %d", (int) numBits);
+      return(g_serialCommsLastError);
+  }
 
   // parity bit (0=none, 1=odd, 2=even)
   if (parity == 0)
@@ -677,8 +761,12 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     toptions.c_cflag |=  PARENB;
     toptions.c_cflag &=  ~PARODD;
   }
-  else
-    Error("in 'set_port_attribute()': unknown parity %d", (int) parity);
+  else {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_UNKNOWN_PARITY;
+    console_print(STDOUT, "in 'set_port_attribute()': unknown parity %d", (int) parity);
+    return(g_serialCommsLastError);
+  }
+
 
   // number of stop bits
   if (numStop == 1)
@@ -700,9 +788,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   toptions.c_cc[VTIME] = timeout/100;   // convert ms to 0.1s
 
   // set term properties
-  if (tcsetattr(fpCom, TCSANOW, &toptions) < 0)
-    Error("in 'set_port_attribute()': set port attributes failed");
-  
+  if (tcsetattr(fpCom, TCSANOW, &toptions) < 0) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_PORT_CONFIG;
+    console_print(STDOUT, "in 'set_port_attribute()': set port attributes failed");
+    return(g_serialCommsLastError);
+  }
   
   // set static RTS and DTR status (required for some multimeter optocouplers)
   ioctl(fpCom, TIOCMGET, &status);
@@ -714,11 +804,15 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     status |= TIOCM_DTR;
   else
     status &= ~TIOCM_DTR;
-  if (ioctl(fpCom, TIOCMSET, &status))
-    Error("in 'set_port_attribute()': cannot set RTS status");
+  if (ioctl(fpCom, TIOCMSET, &status)) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_SET_PORT_CONFIG;
+    console_print(STDOUT, "in 'set_port_attribute()': cannot set RTS status");
+    return(g_serialCommsLastError);
+  }
   
 #endif // __APPLE__ || __unix__
 
+   return(g_serialCommsLastError);
      
 } // set_port_attribute
 
@@ -730,21 +824,26 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   \param[in] fpCom      handle to comm port
   \param[in] Baudrate   new comm port speed in Baud (must be supported by port)
 
+  \return operation status (STM8gal_SerialErrors_t)
+ 
   set new baudrate for an already open comm port.
 */
-void set_baudrate(HANDLE fpCom, uint32_t Baudrate) {
+STM8gal_SerialErrors_t set_baudrate(HANDLE fpCom, uint32_t Baudrate) {
   
   uint32_t   baudrate, timeout;
   uint8_t    numBits, parity, numStop, RTS, DTR;
 
   // read port setting
-  get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
+  if (get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR) == STM8GAL_SERIALCOMMS_NO_ERROR) {
   
-  // set new baudrate
-  baudrate = Baudrate;
+    // set new baudrate
+    baudrate = Baudrate;
 
-  // change port setting
-  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+    // change port setting
+    set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+  }
+
+  return(g_serialCommsLastError);
 
 } // set_baudrate
 
@@ -756,21 +855,26 @@ void set_baudrate(HANDLE fpCom, uint32_t Baudrate) {
   \param[in] fpCom      handle to comm port
   \param[in] Timeout    new timeout in ms
 
+  \return operation status (STM8gal_SerialErrors_t)
+ 
   set new timeout for an already open comm port
 */
-void set_timeout(HANDLE fpCom, uint32_t Timeout) {
+STM8gal_SerialErrors_t set_timeout(HANDLE fpCom, uint32_t Timeout) {
   
   uint32_t   baudrate, timeout;
   uint8_t    numBits, parity, numStop, RTS, DTR;
 
   // read port setting
-  get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
+  if (get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR) == STM8GAL_SERIALCOMMS_NO_ERROR) {
   
-  // set new timeout
-  timeout = Timeout;
+    // set new timeout
+    timeout = Timeout;
 
-  // change port setting
-  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+    // change port setting
+    set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+  }
+
+  return(g_serialCommsLastError);
 
 } // set_timeout
 
@@ -782,57 +886,62 @@ void set_timeout(HANDLE fpCom, uint32_t Timeout) {
   \param[in] fpCom      handle to comm port
   \param[in] Parity     parity control by HW (0=none, 1=odd, 2=even)
 
+  \return operation status (STM8gal_SerialErrors_t)
+ 
   set new parity for an already open comm port
 */
-void set_parity(HANDLE fpCom, uint8_t Parity) {
+STM8gal_SerialErrors_t set_parity(HANDLE fpCom, uint8_t Parity) {
 
   uint32_t   baudrate, timeout;
   uint8_t    numBits, parity, numStop, RTS, DTR;
 
   // read port setting
-  get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
+  if (get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR) == STM8GAL_SERIALCOMMS_NO_ERROR) {
 
-  // set new parity
-  parity = Parity;
+    // set new parity
+    parity = Parity;
 
-  // change port setting
-  set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+    // change port setting
+    set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
+  }
+
+  return(g_serialCommsLastError);
 
 } // set_parity
 
 
 
 /**
-  \fn uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx)
+  \fn STM8gal_SerialErrors_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx, uint32_t *numChars)
    
   \param[in] fpCom      handle to comm port
   \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in] lenTx      number of bytes to send
   \param[in] Tx         array of bytes to send
+  \param[out]numChars   Number of characters actually sent
 
-  \return number of sent bytes
+  \return operation status (STM8gal_SerialErrors_t)
   
   send data via comm port. Use this function to facilitate serial communication
   on different platforms, e.g. Win32 and Posix.
   If uartMode==1 (1-wire interface), read back LIN echo 
 */
-uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
+STM8gal_SerialErrors_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx, uint32_t *numChars) {
 
   // for reading back LIN echo 
   char      Rx[1000];
   uint32_t  lenRx;
   
-  
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
+
 /////////
 // Windows
 /////////
 #if defined(WIN32) || defined(WIN64)
 
-  DWORD   numChars;
-  
   // send data & return number of sent bytes
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
-  WriteFile(fpCom, Tx, lenTx, &numChars, NULL);
+  WriteFile(fpCom, Tx, lenTx, numChars, NULL);
 
 #endif // WIN32 || WIN64
 
@@ -842,24 +951,26 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
 /////////
 #if defined(__APPLE__) || defined(__unix__) 
 
-  uint32_t  numChars;
-  
   // send data & return number of sent bytes
-  numChars = write(fpCom, Tx, lenTx);
+  *numChars = write(fpCom, Tx, lenTx);
 
 #endif // __APPLE__ || __unix__
 
 
   // for 1-wire UART interface, read back LIN echo and ignore
   if (uartMode == 1) {
-    lenRx = receive_port(fpCom, uartMode, numChars, Rx);
-    if (lenRx != numChars)
-      Error("in 'send_port()': read 1-wire echo failed");
+    if (receive_port(fpCom, uartMode, *numChars, Rx, &lenRx) == STM8GAL_SERIALCOMMS_NO_ERROR)
+      if (lenRx != *numChars) {
+        g_serialCommsLastError = STM8GAL_SERIALCOMMS_FAILED_ONE_WIRE_ECHO;
+        console_print(STDOUT, "in 'send_port()': read 1-wire echo failed");
+        return(g_serialCommsLastError);
+      }
     //console_print(STDERR,"received echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
   }
   
-  // return number of sent bytes
-  return((uint32_t) numChars);
+  // number of sent bytes is returned by parameter *numChars
+
+  return(g_serialCommsLastError);
 
 } // send_port
 
@@ -872,14 +983,15 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
   \param[in]  uartMode  UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in]  lenRx     number of bytes to receive
   \param[out] Rx        array containing bytes received
+  \param[out] numChars  number of characters received
   
-  \return number of received bytes
+  \return operation status (STM8gal_SerialErrors_t)
   
   receive data via comm port. Use this function to facilitate serial communication
   on different platforms, e.g. Win32 and Posix
   If uartMode==2 (UART reply mode with 2-wire interface), reply each byte from STM8 -> SLOW
 */
-uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) {
+STM8gal_SerialErrors_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx, uint32_t *numChars) {
 
   
 /////////
@@ -887,19 +999,22 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 /////////
 #if defined(WIN32) || defined(WIN64)
 
-  DWORD     numChars, numTmp;
+  DWORD     numTmp;
   uint32_t  i;
   
+  g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
+
   // for UART reply mode with 2-wire interface echo each received bytes -> SLOW
   if (uartMode==2) {
     
     // echo each byte as it is received
-    numChars = 0;
+    *numChars = 0;
     for (i=0; i<lenRx; i++) {
       ReadFile(fpCom, Rx+i, 1, &numTmp, NULL);
       if (numTmp == 1) {
-        numChars++;
-        send_port(fpCom, uartMode, 1, Rx+i);
+        *numChars += 1;
+        if (send_port(fpCom, uartMode, 1, Rx+i, &numTmp) != STM8GAL_SERIALCOMMS_NO_ERROR)
+          return(STM8GAL_SERIALCOMMS_SEND_ERROR);
       }
       else
         break;
@@ -910,12 +1025,9 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
   
   // UART duplex mode or 1-wire interface -> receive all bytes in single block -> fast
   else {
-    ReadFile(fpCom, Rx, lenRx, &numChars, NULL);
+    ReadFile(fpCom, Rx, lenRx, numChars, NULL);
   }
   
-  // return number of bytes received
-  return((uint32_t) numChars);
-
 #endif // WIN32 || WIN64
 
 
@@ -925,15 +1037,18 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 #if defined(__APPLE__) || defined(__unix__) 
 
   char            *dest = Rx;
-  uint32_t        remaining = lenRx, got = 0, received = 0;
+  uint32_t        remaining = lenRx, got = 0;
   struct          timeval tv;
   fd_set          fdr;
   struct termios  toptions;
   uint32_t        timeout;
   
   // get terminal attributes
-  if (tcgetattr(fpCom, &toptions) < 0)
-    Error("in 'receive_port': get port attributes failed");
+  if (tcgetattr(fpCom, &toptions) < 0) {
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG;
+    console_print(STDOUT, "in 'receive_port': get port attributes failed");
+    return(g_serialCommsLastError);
+  }
   
   // get terminal timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
   timeout = toptions.c_cc[VTIME] * 100;        // convert 0.1s to ms
@@ -948,9 +1063,8 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
     // wait for data to come in using select
     FD_ZERO(&fdr);
     FD_SET(fpCom, &fdr);
-    if (select(fpCom + 1, &fdr, NULL, NULL, &tv) != 1) {
-      return(received);
-    }
+    if (select(fpCom + 1, &fdr, NULL, NULL, &tv) != 1)
+      return(g_serialCommsLastError);
 
     // read a response, we know there's data waiting
     got = read(fpCom, dest, remaining);
@@ -959,9 +1073,8 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
     if (got == -1) {
       if (errno == EAGAIN)
         continue;
-      else
-        return(received);
-    } 
+      else 
+        return(g_serialCommsLastError);
     else if (got > 0) {
       
       // for UART reply mode with 2-wire interface echo each byte
@@ -973,16 +1086,17 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
       // figure out how many bytes are left and increment dest pointer through buffer
       dest += got;
       remaining -= got;
-      received += got;
+      *numChars += got;
       
     } // received bytes
 
   } // while (remaining != 0)
 
-  // return number of received bytes
-  return(received);
-  
 #endif // __APPLE__ || __unix__
+
+  // number of received bytes is returned by parameter *numChars
+
+  return(g_serialCommsLastError);
 
 } // receive_port
 
@@ -996,8 +1110,9 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
   flush port input & output buffer. Use this function to facilitate serial communication
   on different platforms, e.g. Win32 and Posix
 */
-void flush_port(HANDLE fpCom) {
+STM8gal_SerialErrors_t flush_port(HANDLE fpCom) {
 
+    g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
 /////////
 // Windows
 /////////
@@ -1019,6 +1134,18 @@ void flush_port(HANDLE fpCom) {
   
 #endif // __APPLE__ || __unix__
 
+  return(g_serialCommsLastError);
+
 } // flush_port
+
+/**
+  \fn STM8gal_SerialErrors_t serialcomm_GetLastError(void)
+   
+  return last error in the Serial Comms module
+*/
+STM8gal_SerialErrors_t SerialComm_GetLastError(void) {
+
+  return(g_serialCommsLastError);
+}
 
 // end of file
