@@ -13,7 +13,6 @@
 
 #include "bootloader.h"
 #include "console.h"
-#include "main.h"
 #include "hexfile.h"
 #include "timer.h"
 #include "serial_comm.h"
@@ -24,9 +23,10 @@
   #include "spi_Arduino_comm.h"
 #endif
 
+STM8gal_BootloaderErrors_t g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -36,11 +36,13 @@
 
   synchronize with microcontroller bootloader. For UART synchronize baudrate.
 */
-STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
 
   int   i, count;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // print message
   if (verbose >= SILENT)
@@ -51,8 +53,11 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-      return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(g_bootloaderLastError);
+  }
 
   // purge UART input buffer
   if (physInterface == UART)
@@ -68,8 +73,12 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
   do {
 
     // send command
-    if (physInterface == UART)
-      len   = send_port(ptrPort, 0, lenTx, Tx);
+    if (physInterface == UART) {
+      if (send_port(ptrPort, 0, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -80,18 +89,26 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface );
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-      return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
     }
 
     // receive response
     if (physInterface == UART) {
-      len = receive_port(ptrPort, 0, lenRx, Rx);
+      if (receive_port(ptrPort, 0, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
       if ((len==1) && (Rx[0]== Tx[0])) {              // check for 1-wire echo
-        len = receive_port(ptrPort, 0, lenRx, Rx);
+        if (receive_port(ptrPort, 0, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+          g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+          return(g_bootloaderLastError);
+        }
       }
     }
     #if defined(USE_SPI_ARDUINO)
@@ -104,7 +121,8 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface );
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
 
     // increase retry counter
@@ -130,28 +148,33 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
   }
   else if (count >= 50) {
     console_print(STDOUT, "too many sync retires");
-    return(STM8GAL_BOOTLOADER_TOO_MANY_SYNC_ATTEMPTS);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_TOO_MANY_SYNC_ATTEMPTS;
+    return(g_bootloaderLastError);
   }
   else if (len==lenRx) {
     console_print(STDOUT, "wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
-  else
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+  else {
+    console_print(STDOUT, "no response from BSL");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
+  }
 
   // purge PC input buffer
   flush_port(ptrPort);
   SLEEP(50);              // seems to be required for some reason
 
   // return success
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_sync
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[out] mode           UART mode (0=duplex, 1=1-wire, 2=2-wire reply)
@@ -162,11 +185,13 @@ STM8gal_Bootloader_errors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint
   auto-detect UART bootloader mode (see AppNote UM0560). This information is required
   to set the correct data parity and determine if local echo is required.
 */
-STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8_t verbose) {
 
   int   len, lenTx, lenRx;
   char  Tx[1000], Rx[1000];
   
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
+
   *mode = 255;
 
   // print message
@@ -181,8 +206,14 @@ STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8
   lenTx = 2; lenRx = 1;
   Tx[0] = 0x00; Tx[1] = (Tx[0] ^ 0xFF); Rx[0] = 0x00;
   do {
-    len = send_port(ptrPort, 0, lenTx, Tx);
-    len = receive_port(ptrPort, 0, lenRx, Rx);
+    if (send_port(ptrPort, 0, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+    if (receive_port(ptrPort, 0, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
     //console_print(STDOUT, "\nmode 1: %d  0x%02x\n", len, (uint8_t) (Rx[0]));
     SLEEP(10);
   } while (len==0);
@@ -202,7 +233,8 @@ STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8
   }
   else {
     Error("cannot determine UART mode");
-    return(STM8GAL_BOOTLOADER_CANNOT_DETERMINE_UART_MODE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_CANNOT_DETERMINE_UART_MODE;
+    return(g_bootloaderLastError);
   }
 
   // revert timeout
@@ -223,14 +255,14 @@ STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8
   }
 
   // return found mode
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_getUartMode
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -240,16 +272,18 @@ STM8gal_Bootloader_errors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8
   \param[out] family         STM8 family (STM8S=1, STM8L=2)
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (STM8gal_BootloaderErrors_t)
 
   query microcontroller type and BSL version info. This information is required
   to select correct version of flash write/erase routines
 */
-STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose) {
 
   int   i;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // print message
   if (verbose >= SILENT)
@@ -260,8 +294,11 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-    return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(g_bootloaderLastError);
+  }
 
 
   // purge input buffer
@@ -279,33 +316,51 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   }
 
   // check address of EEPROM. STM8L starts at 0x1000, STM8S starts at 0x4000
-  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x004000, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR) {     // STM8S
+  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x004000, SILENT) == true) {     // STM8S
     *family = STM8S;
     #ifdef DEBUG
       console_print(STDOUT, "family STM8S\n");
     #endif
   }
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR) { // STM8L
+  else if (g_bootloaderLastError != STM8GAL_BOOTLOADER_NO_ERROR)
+    return(g_bootloaderLastError);
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100, SILENT) == true) { // STM8L
+    if (g_bootloaderLastError != STM8GAL_BOOTLOADER_NO_ERROR)
+        return(g_bootloaderLastError);
     *family = STM8L;
     #ifdef DEBUG
       console_print(STDOUT, "family STM8L\n");
     #endif
   }
-  else
-    return(STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_FAMILY);
+  else {
+    console_print(STDERR, "cannot identify family");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_FAMILY;
+    return(g_bootloaderLastError);
+  }
 
 
   // check if adress in flash exists. Check highest flash address to determine size
-  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x047FFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)       // extreme density (256kB)
+  if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x047FFF, SILENT))       // extreme density (256kB)
     *flashsize = 256;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x027FFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)  // high density (128kB)
+  else if (g_bootloaderLastError != STM8GAL_BOOTLOADER_NO_ERROR)    // Check for error
+    return(g_bootloaderLastError);
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x027FFF, SILENT))  // high density (128kB)
     *flashsize = 128;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00FFFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)  // medium density (32kB)
+  else if (g_bootloaderLastError != STM8GAL_BOOTLOADER_NO_ERROR)    // Check for error
+    return(g_bootloaderLastError);
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00FFFF, SILENT))  // medium density (32kB)
     *flashsize = 32;
-  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x009FFF, SILENT) == STM8GAL_BOOTLOADER_NO_ERROR)  // low density (8kB)
+  else if (g_bootloaderLastError != STM8GAL_BOOTLOADER_NO_ERROR)    // Check for error
+    return(g_bootloaderLastError);
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x009FFF, SILENT))  // low density (8kB)
     *flashsize = 8;
-  else
-    return(STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_DEVICE);
+  else if (g_bootloaderLastError != STM8GAL_BOOTLOADER_NO_ERROR)    // Check for error
+    return(g_bootloaderLastError);
+  else {
+    console_print(STDERR, "cannot identify device");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_DEVICE;
+    return(g_bootloaderLastError);
+  }
   #ifdef DEBUG
     console_print(STDOUT, "flash size: %d\n", (int) (*flashsize));
   #endif
@@ -327,8 +382,12 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   lenRx = 9;
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -339,16 +398,22 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface );
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(g_bootloaderLastError);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -359,44 +424,53 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface );
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenRx) {
     console_print(STDOUT, "ACK timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
   }
 
   // check 2x ACKs
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "start ACK failure (expect 0x%02x, read 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
   if (Rx[8]!=ACK) {
     console_print(STDOUT, "end ACK failure (expect 0x%02x, read 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[8]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
 
 
   // check if command codes are correct (just to be sure)
   if (Rx[3] != GET) {
     console_print(STDOUT, "wrong GET code (expect 0x%02x, received 0x%02x)", (uint8_t) GET, (uint8_t) (Rx[3]));
-    return(STM8GAL_BOOTLOADER_INCORRECT_GET_CODE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_INCORRECT_GET_CODE;
+    return(g_bootloaderLastError);
   }
   if (Rx[4] != READ) {
     console_print(STDOUT, "wrong READ code (expect 0x%02x, received 0x%02x)", (uint8_t) READ, (uint8_t) (Rx[4]));
-    return(STM8GAL_BOOTLOADER_INCORRECT_READ_CODE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_INCORRECT_READ_CODE;
+    return(g_bootloaderLastError);
   }
   if (Rx[5] != GO) {
     console_print(STDOUT, "wrong GO code (expect 0x%02x, received 0x%02x)", (uint8_t) GO, (uint8_t) (Rx[5]));
-    return(STM8GAL_BOOTLOADER_INCORRECT_GO_CODE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_INCORRECT_GO_CODE;
+    return(g_bootloaderLastError);
   }
   if (Rx[6] != WRITE) {
     console_print(STDOUT, "wrong WRITE code (expect 0x%02x, received 0x%02x)", (uint8_t) WRITE, (uint8_t) (Rx[6]));
-    return(STM8GAL_BOOTLOADER_INCORRECT_WRITE_CODE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_INCORRECT_WRITE_CODE;
+    return(g_bootloaderLastError);
   }
   if (Rx[7] != ERASE) {
     console_print(STDOUT, "wrong ERASE code (expect 0x%02x, received 0x%02x)", (uint8_t) ERASE, (uint8_t) (Rx[7]));
-    return(STM8GAL_BOOTLOADER_INCORRECT_ERASE_CODE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_INCORRECT_ERASE_CODE;
+    return(g_bootloaderLastError);
   }
 
 // print BSL data
@@ -432,14 +506,14 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   }
 
   // avoid compiler warnings
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_getInfo
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -449,15 +523,17 @@ STM8gal_Bootloader_errors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, u
   \param[out] imageBuf       memory buffer containing read data (16-bit array. HB!=0 indicates content)
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (STM8gal_BootloaderErrors_t)
 
   read from microcontroller memory via READ command.
 */
-STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint64_t  addr, addrStep, numBytes, countBytes;
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // get number of bytes to read
   numBytes = addrStop - addrStart + 1;
@@ -485,15 +561,18 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
   // simple checks of scan window
   if (addrStart > addrStop) {
     console_print(STDOUT, "start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-    return(STM8GAL_BOOTLOADER_ADDRESS_START_GREATER_END);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_ADDRESS_START_GREATER_END;
+    return(g_bootloaderLastError);
   }
   if (addrStart > LENIMAGEBUF) {
     console_print(STDOUT, "start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-    return(STM8GAL_BOOTLOADER_ADDRESS_START_GREATER_BUFFER);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_ADDRESS_START_GREATER_BUFFER;
+    return(g_bootloaderLastError);
   }
   if (addrStop > LENIMAGEBUF) {
     console_print(STDOUT, "end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
-    return(STM8GAL_BOOTLOADER_ADDRESS_END_GREATER_BUFFER);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_ADDRESS_END_GREATER_BUFFER;
+    return(g_bootloaderLastError);
   }
 
 
@@ -502,8 +581,11 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-    return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(g_bootloaderLastError);
+  }
 
   // init data buffer
   for (i=addrStart; i<=addrStop; i++)
@@ -531,8 +613,12 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     lenRx = 1;
 
     // send command
-    if (physInterface == UART)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    if (physInterface == UART) {
+      if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
 	  else if (physInterface == SPI_ARDUINO)
         len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -543,16 +629,22 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-      return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
     }
 
     // receive response
-    if (physInterface == UART)
-      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    if (physInterface == UART) {
+      if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
 	  else if (physInterface == SPI_ARDUINO)
         len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -563,17 +655,21 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
+
     if (len != lenRx) {
       console_print(STDOUT, "ACK1 timeout");
-      return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+      return(g_bootloaderLastError);
     }
 
     // check acknowledge
     if (Rx[0]!=ACK) {
       console_print(STDOUT, "ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-      return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+      return(g_bootloaderLastError);
     }
 
 
@@ -591,8 +687,12 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     lenRx = 1;
 
     // send command
-    if (physInterface == UART)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    if (physInterface == UART) {
+      if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -603,16 +703,22 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-      return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
     }
 
     // receive response
-    if (physInterface == UART)
-      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    if (physInterface == UART) {
+      if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -623,17 +729,20 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenRx) {
       console_print(STDOUT, "ACK2 timeout (expect %d, received %d)", lenRx, len);
-      return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+      return(g_bootloaderLastError);
     }
 
     // check acknowledge
     if (Rx[0]!=ACK) {
       console_print(STDOUT, "ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-      return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+      return(g_bootloaderLastError);
     }
 
     /////
@@ -647,8 +756,12 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     lenRx = addrStep + 1;
 
     // send command
-    if (physInterface == UART)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    if (physInterface == UART) {
+      if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -659,16 +772,22 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-      return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
     }
 
     // receive response
-    if (physInterface == UART)
-      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    if (physInterface == UART) {
+      if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -681,17 +800,20 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenRx) {
       console_print(STDOUT, "data timeout (expect %d, received %d)", lenRx, len);
-      return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+      return(g_bootloaderLastError);
     }
 
     // check acknowledge
     if (Rx[0]!=ACK) {
       console_print(STDOUT, "ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-      return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+      return(g_bootloaderLastError);
     }
 
     // copy data to buffer. Set HB to indicate data read
@@ -742,14 +864,14 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
   }
 
   // avoid compiler warnings
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_memRead
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -757,24 +879,29 @@ STM8gal_Bootloader_errors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, u
   \param[in]  addr           address to check
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=Memory Exists, >0=fail)
+  \return true if the memory exists
 
   check if microcontrolles address exists. Specifically read 1B from microcontroller
   memory via READ command. If it fails, memory doesn't exist. Used to get STM8 type
 */
-STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
+bool bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
 
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // init receive buffer
   for (i=0; i<1000; i++)
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-    return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(false);
+  }
 
 
   /////
@@ -788,8 +915,12 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   lenRx = 1;
 
   // send command
-  if (physInterface == UART)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(false);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -800,16 +931,22 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(false);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(false);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(false);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -820,17 +957,20 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(false);
   }
   if (len != lenRx) {
     console_print(STDOUT, "ACK1 timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(false);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(false);
   }
 
   /////
@@ -847,8 +987,12 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   lenRx = 1;
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(false);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -859,16 +1003,22 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(false);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(false);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(false);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -879,16 +1029,18 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(false);
   }
   if (len != lenRx) {
     console_print(STDOUT, "ACK2 timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(false);
   }
 
   // check acknowledge -> on NACK memory cannot be read -> return 0
   if (Rx[0]!=ACK) {
-    return(STM8GAL_BOOTLOADER_ADDRESS_NOT_EXIST);
+    return(false);
   }
 
   /////
@@ -902,8 +1054,12 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   lenRx = 2;
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(false);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -914,16 +1070,22 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(false);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(false);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(false);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -934,28 +1096,31 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(false);
   }
   if (len != lenRx) {
     console_print(STDOUT, "data timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(false);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(false);
   }
 
   // memory read succeeded -> memory exists
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(true);
 
 } // bsl_memCheck
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -963,17 +1128,19 @@ STM8gal_Bootloader_errors_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, 
   \param[in]  addr           adress within 1kB sector to erase
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (STM8gal_BootloaderErrors_t)
 
   sector erase for microcontroller flash. Use with care!
 */
-STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
 
   int       i;
   int       lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint8_t   sector;
   uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // calculate sector code
   sector = (addr - PFLASH_START)/PFLASH_BLOCKSIZE;
@@ -1000,8 +1167,11 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-    return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(g_bootloaderLastError);
+  }
 
 
   /////
@@ -1015,8 +1185,12 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   lenRx = 1;
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1027,16 +1201,22 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(g_bootloaderLastError);
   }
   
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -1047,17 +1227,20 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenRx) {
     console_print(STDOUT, "ACK1 timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
 
   /////
@@ -1078,8 +1261,12 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   tStart = millis();
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1090,16 +1277,22 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(g_bootloaderLastError);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO) {
       SLEEP(40);                              // wait >30ms*(N=0+1) for sector erase before requesting response (see UM0560, SPI timing)
@@ -1114,17 +1307,20 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenRx) {
     console_print(STDOUT, "ACK2 timeout (expect %d, received %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
 
   // measure time for sector erase
@@ -1143,29 +1339,31 @@ STM8gal_Bootloader_errors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInt
   }
 
   // avoid compiler warnings
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_flashSectorErase
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
   \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (STM8gal_BootloaderErrors_t)
 
   mass erase microcontroller P-flash and D-flash/EEPROM. Use with care!
 */
-STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose) {
 
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // print message
   if (verbose == SILENT) {
@@ -1181,8 +1379,11 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-    return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(g_bootloaderLastError);
+  }
 
 
   /////
@@ -1196,8 +1397,12 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   lenRx = 1;
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1208,16 +1413,22 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(g_bootloaderLastError);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -1228,17 +1439,20 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenRx) {
     console_print(STDOUT, "in 'bsl_flashMassErase()': ACK1 timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "in 'bsl_flashMassErase()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
 
   /////
@@ -1258,8 +1472,12 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   tStart = millis();
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1270,16 +1488,22 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(g_bootloaderLastError);
   }
   
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO) {
       SLEEP(1100);                              // wait >30ms*(N=32+1) for sector erase before requesting response (see UM0560, SPI timing)
@@ -1294,17 +1518,20 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenRx) {
     console_print(STDOUT, "in 'bsl_flashMassErase()': ACK2 timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "in 'bsl_flashMassErase()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
 
   // measure time for mass erase
@@ -1323,14 +1550,14 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   }
 
   // avoid compiler warnings
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_flashMassErase
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -1340,11 +1567,11 @@ STM8gal_Bootloader_errors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInter
   \param[in]  addrStop       last address to write to
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (STM8gal_BootloaderErrors_t)
 
   upload data to microcontroller memory via WRITE command
 */
-STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
 
   uint64_t         numData, countBytes, countBlock;    // size of memory image
   const uint64_t   maxBlock = 128;                      // max. length of write block
@@ -1353,9 +1580,13 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
   uint8_t          chk;                                 // frame checksum
   int              i, j;
 
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // update min/max addresses and number of bytes to write (HB!=0x00) for printout
-  get_image_size(imageBuf, addrStart, addrStop, &addrStart, &addrStop, &numData);
+  if ( hexfile_getImageSize(imageBuf, addrStart, addrStop, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR ) {
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_HEXFILE_ERROR;
+    return(g_bootloaderLastError);
+  }
 
   // print message
   if (verbose == SILENT) {
@@ -1382,8 +1613,11 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-    return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(g_bootloaderLastError);
+  }
 
 
   // loop over specified address range
@@ -1420,8 +1654,12 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     lenRx = 1;
 
     // send command
-    if (physInterface == UART)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    if (physInterface == UART) {
+      if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1432,16 +1670,22 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-      return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
     }
 
     // receive response
-    if (physInterface == UART)
-      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    if (physInterface == UART) {
+      if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -1452,17 +1696,20 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenRx) {
       console_print(STDOUT, "ACK1 timeout (expect %d, received %d)", lenRx, len);
-      return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+      return(g_bootloaderLastError);
     }
 
     // check acknowledge
     if (Rx[0]!=ACK) {
       console_print(STDOUT, "ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-      return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+      return(g_bootloaderLastError);
     }
 
 
@@ -1480,8 +1727,12 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     lenRx = 1;
 
     // send command
-    if (physInterface == UART)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    if (physInterface == UART) {
+      if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1492,16 +1743,22 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-      return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
     }
 
     // receive response
-    if (physInterface == UART)
-      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    if (physInterface == UART) {
+      if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -1512,17 +1769,20 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenRx) {
       console_print(STDOUT, "ACK2 timeout (expect %d, received %d)", lenRx, len);
-      return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+      return(g_bootloaderLastError);
     }
 
     // check acknowledge
     if (Rx[0]!=ACK) {
       console_print(STDOUT, "ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-      return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+      return(g_bootloaderLastError);
     }
 
 
@@ -1545,8 +1805,12 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
 
 
     // send command
-    if (physInterface == UART)
-      len = send_port(ptrPort, uartMode, lenTx, Tx);
+    if (physInterface == UART) {
+      if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO)
         len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1557,17 +1821,23 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenTx) {
       console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-      return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
     }
 
 
     // receive response
-    if (physInterface == UART)
-      len = receive_port(ptrPort, uartMode, lenRx, Rx);
+    if (physInterface == UART) {
+      if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+        return(g_bootloaderLastError);
+      }
+    }
     #if defined(USE_SPI_ARDUINO)
       else if (physInterface == SPI_ARDUINO) {
         if ((addrBlock >= PFLASH_START) && (addrBlock % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
@@ -1588,17 +1858,20 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
     #endif
     else {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
     if (len != lenRx) {
       console_print(STDOUT, "ACK3 timeout (expect %d, received %d)", lenRx, len);
-      return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+      return(g_bootloaderLastError);
     }
 
     // check acknowledge
     if (Rx[0]!=ACK) {
       console_print(STDOUT, "ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-      return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+      return(g_bootloaderLastError);
     }
 
     // print progress
@@ -1644,14 +1917,14 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
   }
 
   // avoid compiler warnings
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_memWrite
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -1661,16 +1934,22 @@ STM8gal_Bootloader_errors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, 
   \param[in]  addrStop       last address to verify
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (STM8gal_BootloaderErrors_t)
 
   Read microntroller flash memory and compare to specified RAM image.
 */
-STM8gal_Bootloader_errors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
 
   // allocate and clear temporary RAM buffer (>1MByte requires dynamic allocation)
   uint16_t  *tmpImageBuf;            // RAM image buffer (high byte != 0 indicates value is set)
-  if (!(tmpImageBuf = malloc(LENIMAGEBUF * sizeof(*tmpImageBuf))))
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
+
+  if (!(tmpImageBuf = malloc(LENIMAGEBUF * sizeof(*tmpImageBuf)))) {
     console_print(STDOUT, "Cannot allocate image buffer, try reducing LENIMAGEBUF");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_CANNOT_ALLOCATE_BUFFER;
+    return(g_bootloaderLastError);
+  }
   memset(tmpImageBuf, 0, LENIMAGEBUF * sizeof(*tmpImageBuf));
 
 
@@ -1722,14 +2001,14 @@ STM8gal_Bootloader_errors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface,
   free(tmpImageBuf);
 
   // avoid compiler warnings
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_memVerify
 
 
 
 /**
-  \fn STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
+  \fn STM8gal_BootloaderErrors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
 
   \param[in]  ptrPort        handle to communication port
   \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
@@ -1737,15 +2016,17 @@ STM8gal_Bootloader_errors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface,
   \param[in]  addr           address to jump to
   \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
 
-  \return communication status (0=ok, 1=fail)
+  \return communication status (STM8gal_BootloaderErrors_t)
 
   jump to address and continue code execution. Generally RAM or flash starting address
 */
-STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
+STM8gal_BootloaderErrors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
 
   int       i;
   int       lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
+
+  g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   // print message
   if (verbose == INFORM)
@@ -1758,8 +2039,11 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
     Rx[i] = 0;
 
   // check if port is open
-  if (!ptrPort)
-    return(STM8GAL_BOOTLOADER_PORT_NOT_OPEN);
+  if (!ptrPort) {
+    Error("port not open");
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_PORT_NOT_OPEN;
+    return(g_bootloaderLastError);
+  }
 
 
   /////
@@ -1773,8 +2057,12 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
   lenRx = 1;
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1785,16 +2073,20 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(g_bootloaderLastError);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR)
+      return(STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED);
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -1806,17 +2098,20 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
   else
     {
       console_print(STDOUT, "unknown interface %d", (int) physInterface);
-      return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+      return(g_bootloaderLastError);
     }
   if (len != lenRx) {
     console_print(STDOUT, "ACK1 timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
 
   /////
@@ -1833,8 +2128,12 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
   lenRx = 1;
 
   // send command
-  if (physInterface == UART)
-    len = send_port(ptrPort, uartMode, lenTx, Tx);
+  if (physInterface == UART) {
+    if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = send_spi_Arduino(ptrPort, lenTx, Tx);
@@ -1845,16 +2144,22 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenTx) {
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
-    return(STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
+    return(g_bootloaderLastError);
   }
 
   // receive response
-  if (physInterface == UART)
-    len = receive_port(ptrPort, uartMode, lenRx, Rx);
+  if (physInterface == UART) {
+    if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
+      g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
+      return(g_bootloaderLastError);
+    }
+  }
   #if defined(USE_SPI_ARDUINO)
     else if (physInterface == SPI_ARDUINO)
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
@@ -1865,17 +2170,20 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
   #endif
   else {
     console_print(STDOUT, "unknown interface %d", (int) physInterface);
-    return(STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_UNKNOWN_INTERFACE;
+    return(g_bootloaderLastError);
   }
   if (len != lenRx) {
     console_print(STDOUT, "ACK2 timeout (expect %d, received %d)", lenRx, len);
-    return(STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
+    return(g_bootloaderLastError);
   }
 
   // check acknowledge
   if (Rx[0]!=ACK) {
     console_print(STDOUT, "ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
-    return(STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED);
+    g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
+    return(g_bootloaderLastError);
   }
 
   // print message
@@ -1883,9 +2191,18 @@ STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, ui
     console_print(STDOUT, "done\n");
 
   // avoid compiler warnings
-  return(STM8GAL_BOOTLOADER_NO_ERROR);
+  return(g_bootloaderLastError);
 
 } // bsl_jumpTo
 
+/**
+  \fn STM8gal_BootloaderErrors_t Bootloader_GetLastError(void)
+   
+  return last error in the Bootloader module
+*/
+STM8gal_BootloaderErrors_t Bootloader_GetLastError(void) {
+
+  return(g_bootloaderLastError);
+}
 
 // end of file

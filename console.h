@@ -21,6 +21,9 @@ extern "C"
 
 #include <stdbool.h>
 
+/// verbosity level in readable way, from no output to very chatty
+typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
+
 // color codes 
 #define PRM_COLOR_DEFAULT       0
 #define PRM_COLOR_BLACK         1
