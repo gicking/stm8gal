@@ -14,6 +14,11 @@
 #ifndef _BOOTLOADER_H_
 #define _BOOTLOADER_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 
 // include files
 #include "serial_comm.h"
@@ -92,6 +97,10 @@ STM8gal_Bootloader_errors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface,
 
 /// jump to flash or RAM
 STM8gal_Bootloader_errors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // _BOOTLOADER_H_
 

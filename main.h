@@ -16,6 +16,11 @@
 #ifndef _MAIN_H_
 #define _MAIN_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 
 /*******
   global includes
@@ -59,6 +64,10 @@ typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
   typedef enum {UART=0, SPI_SPIDEV=2} physInterface_t;
 #else
   typedef enum {UART=0} physInterface_t;
+#endif
+
+#ifdef __cplusplus
+} // extern "C"
 #endif
 
 #endif // _MAIN_H_
