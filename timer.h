@@ -14,6 +14,10 @@
 #ifndef _TIMER_H_
 #define _TIMER_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 // include files
 #include <stdint.h>
@@ -39,6 +43,10 @@ uint64_t millis(void);
 
 /// get microseconds since start of program (as Arduino)
 uint64_t micros(void);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // _TIMER_H_
 

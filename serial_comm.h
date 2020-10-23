@@ -16,6 +16,10 @@
 #ifndef _SERIAL_COMM_H_
 #define _SERIAL_COMM_H_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 // generic ANSI
 #include <stdio.h>
@@ -87,6 +91,10 @@ uint32_t    receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *R
 
 /// flush port buffers
 void        flush_port(HANDLE fpCom);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif // _SERIAL_COMM_H_
 

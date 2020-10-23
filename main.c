@@ -177,7 +177,7 @@ int main(int argc, char ** argv) {
   char      portname[STRLEN]="";  // name of communication port
   HANDLE    ptrPort = 0;          // handle to communication port
   int       baudrate;             // communication baudrate [Baud]
-  int       uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
+  uint8_t   uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
   int       resetSTM8;            // reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default: manual)
   uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
   bool      verifyUpload;         // verify memory after upload
@@ -508,9 +508,10 @@ int main(int argc, char ** argv) {
 
   // read back after writing doesn't work for SPI (don't know why)
   #if defined(USE_SPIDEV)
-    if ((physInterface == SPI_ARDUINO) || (physInterface == SPI_SPIDEV))
+    if (physInterface == SPI_SPIDEV)
       verifyUpload = false;
-  #elif defined(USE_SPI_ARDUINO)
+  #endif
+  #if defined(USE_SPI_ARDUINO)
     if (physInterface == SPI_ARDUINO)
       verifyUpload = false;
   #endif
@@ -1187,9 +1188,10 @@ int main(int argc, char ** argv) {
 
     // don't know why, but seems to be required for SPI
     #if defined(USE_SPIDEV)
-      if ((physInterface==SPI_SPIDEV) || (physInterface==SPI_ARDUINO))
+      if (physInterface==SPI_SPIDEV)
         SLEEP(500);
-    #elif defined(USE_SPI_ARDUINO)
+    #endif
+    #if defined(USE_SPI_ARDUINO)
       if (physInterface==SPI_ARDUINO)
         SLEEP(500);
     #endif

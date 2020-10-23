@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier 
-#define VERSION     ((1<<14) | (4<<6) | (0<<1) | 1)     // -> v1.4.0
+#define VERSION     ((1<<14) | (4<<6) | (1<<1) | 1)     // -> v1.4.1
 
 #endif // _SW_VERSION_H_
 
@@ -27,6 +27,12 @@
 /********************
 
 Revision History
+----------------
+
+v1.4.1 (2020-10-15)
+  - split output in seperate function for GUI support
+  - improvements by Mark Stokes to simplify re-use as library (https://github.com/gicking/stm8gal/pull/16)
+
 ----------------
 
 v1.4.0 (2020-04-09)
