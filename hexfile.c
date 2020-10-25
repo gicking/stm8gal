@@ -22,6 +22,7 @@
 #include "console.h"
 #include "main.h"
 
+STM8gal_HexFileErrors_t g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
 
 /**
    \fn char *get_line(char **buf, char *line)
@@ -61,19 +62,23 @@ char *get_line(char **buf, char *line) {
 
 
 /**
-   \fn void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_loadFile(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose)
 
    \param[in]  filename     name of file to read
    \param[out] fileBuf      memory buffer containing file content
    \param[out] lenFileBuf   size of data [B] read from file
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
-   read file from file to memory buffer. Don't interpret (is done in separate routine)
+   \return communication status (STM8gal_BootloaderErrors_t)
+
+  read file from file to memory buffer. Don't interpret (is done in separate routine)
 */
-void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_loadFile(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose) {
 
   FILE      *fp;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
@@ -90,8 +95,11 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
     console_print(STDOUT, "  load '%s' ... ", shortname);
 
   // open file to read
-  if (!(fp = fopen(filename, "rb")))
-    Error("Failed to open file %s", filename);
+  if (!(fp = fopen(filename, "rb"))) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FAILED_OPEN_FILE;
+    console_print(STDERR, "Failed to open file %s", filename);
+    return(g_hexFileErrors);
+  }
 
   // get filesize
   fseek(fp, 0, SEEK_END);
@@ -99,8 +107,11 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
   fseek(fp, 0, SEEK_SET);
 
   // check file size vs. buffer
-  if ((*lenFileBuf) > LENFILEBUF)
-    Error("File %s exceeded buffer size (%ld vs %ld)", (*lenFileBuf), LENFILEBUF);
+  if ((*lenFileBuf) > LENFILEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_BUFFER_SIZE_EXCEEDED;
+    console_print(STDERR, "File %s exceeded buffer size (%ld vs %ld)", (*lenFileBuf), LENFILEBUF);
+    return(g_hexFileErrors);
+  }
 
   // init memory image to zero
   memset(fileBuf, 0, LENFILEBUF * sizeof(*fileBuf));
@@ -126,22 +137,26 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
       console_print(STDOUT, "done, no data read\n");
   }
 
-} // load_file
+  return(g_hexFileErrors);
+
+} // hexfile_loadFile
 
 
 
 /**
-   \fn void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_convertS19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    convert memory buffer containing s19 hexfile to memory image. For description of
    Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
-void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_convertS19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
 
   char      line[1000], tmp[1000], *p;
   uint64_t  linecount, idx;
@@ -149,6 +164,8 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   uint64_t  addr, addrStart, addrStop, numData;
   int       val, i;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  convert S19 ... ");
@@ -175,8 +192,11 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     chkCalc = 0x00;
 
     // check 1st char (must be 'S')
-    if (line[0] != 'S')
-      Error("Line %u in Motorola S-record file: line does not start with 'S'", linecount);
+    if (line[0] != 'S') {
+      g_hexFileErrors = STM8GAL_HEXFILE_S_RECORD_INVALID_START;
+      console_print(STDERR, "Line %u in Motorola S-record file: line does not start with 'S'", linecount);
+      return(g_hexFileErrors);
+    }
 
     // record type
     type = line[1]-48;
@@ -205,8 +225,11 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     }
 
     // check for buffer overflow
-    if (addr > (uint64_t) (LENIMAGEBUF-1L))
-      Error("Line %u in Motorola S-record file: buffer address exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+    if (addr > (uint64_t) (LENIMAGEBUF-1L)) {
+      g_hexFileErrors = STM8GAL_HEXFILE_S_RECORD_ADDRESS_BUFFER_EXCEEDED;
+      console_print(STDERR, "Line %u in Motorola S-record file: buffer address exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+      return(g_hexFileErrors);
+    }
 
     // read record data
     idx=6+(type*2);                     // start at position 8, 10, or 12, depending on record type
@@ -233,8 +256,11 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
     // assert checksum (0xFF xor (sum over all except record type)
     chkCalc ^= 0xFF;                 // invert checksum
-    if (chkCalc != chkRead)
-      Error("Line %u in Motorola S-record file: checksum error (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
+    if (chkCalc != chkRead) {
+      g_hexFileErrors = STM8GAL_HEXFILE_S_RECORD_CHKSUM_ERROR;
+      console_print(STDERR, "Line %u in Motorola S-record file: checksum error (0x%02x vs. 0x%02x)", linecount, chkRead, chkCalc);
+      return(g_hexFileErrors);
+    }
 
   } // while !EOF
 
@@ -253,22 +279,26 @@ void convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       console_print(STDOUT, "done, no data\n");
   }
 
-} // convert_s19
+  return(g_hexFileErrors);
+
+} // hexfile_convertS19
 
 
 
 /**
-   \fn void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_convertIHex(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    convert memory buffer containing intel hexfile to memory buffer. For description of
    Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
-void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_convertIHex(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
 
   char      line[1000], tmp[1000], *p;
   uint64_t  linecount, idx;
@@ -277,6 +307,8 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   uint64_t  addrOffset, addrJumpStart;
   int       val, i;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
   (void) (addrJumpStart);
 
@@ -307,8 +339,11 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     chkCalc = 0x00;
 
     // check 1st char (must be ':')
-    if (line[0] != ':')
-      Error("Line %u in Intel hex file: line does not start with ':'", linecount);
+    if (line[0] != ':') {
+      g_hexFileErrors = STM8GAL_HEXFILE_HEX_FILE_INVALID_START;
+      console_print(STDERR, "Line %u in Intel hex file: line does not start with ':'", linecount);
+      return(g_hexFileErrors);
+    }
 
     // record length (address + data + checksum)
     sprintf(tmp,"0x00");
@@ -337,8 +372,11 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     if (type==0) {
 
       // check for buffer overflow
-      if (addr > (uint64_t) (LENIMAGEBUF-1L))
-        Error("Line %u in Intel hex file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+      if (addr > (uint64_t) (LENIMAGEBUF-1L)) {
+        g_hexFileErrors = STM8GAL_HEXFILE_HEX_FILE_ADDRESS_BUFFER_EXCEEDED;
+        console_print(STDERR, "Line %u in Intel hex file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+        return(g_hexFileErrors);
+      }
 
       // for printout store min/max address in file
       if (addr < addrStart)  addrStart = addr;
@@ -363,8 +401,11 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       continue;
 
     // extended segment addresses not yet supported
-    else if (type==2)
-      Error("Line %u in Intel hex file: extended segment address type 2 not supported", linecount);
+    else if (type==2) {
+      g_hexFileErrors = STM8GAL_HEXFILE_HEX_FILE_ADDRESS_EXCEEDED_SEGMENT;
+      console_print(STDERR, "Line %u in Intel hex file: extended segment address type 2 not supported", linecount);
+      return(g_hexFileErrors);
+    }
 
     // start segment address (only relevant for 80x86 processor, ignore here)
     else if (type==3)
@@ -386,8 +427,11 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       continue;
 
     // unsupported record type -> error
-    else
-      Error("Line %u in Intel hex file: unsupported type %d", linecount, type);
+    else {
+      g_hexFileErrors = STM8GAL_HEXFILE_HEX_FILE_UNSUPPORTED_RECORD_TYPE;
+      console_print(STDERR, "Line %u in Intel hex file: unsupported type %d", linecount, type);
+      return(g_hexFileErrors);
+    }
 
 
     // checksum
@@ -398,8 +442,11 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
     // assert checksum (0xFF xor (sum over all except record type))
     chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
-    if (chkCalc != chkRead)
-      Error("Line %u in Intel hex file: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
+    if (chkCalc != chkRead) {
+      g_hexFileErrors = STM8GAL_HEXFILE_HEX_FILE_CHKSUM_ERROR;
+      console_print(STDERR, "Line %u in Intel hex file: checksum error (read 0x%02x, calc 0x%02x)", linecount, chkRead, chkCalc);
+      return(g_hexFileErrors);
+    }
 
   } // while !EOF
 
@@ -418,23 +465,25 @@ void convert_ihx(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       console_print(STDOUT, "done, no data\n");
   }
 
-} // convert_ihx
+} // hexfile_convertIHex
 
 
 
 /**
-   \fn void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_convertTxt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    convert memory buffer containing plain table (address / value) to memory buffer.
    Address and value may be decimal (plain numberst) or hexadecimal (starting with '0x').
    Lines starting with '#' are ignored. No syntax check is performed.
 */
-void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_convertTxt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose) {
 
   char      line[1000], *p;
   uint64_t  linecount;
@@ -442,6 +491,8 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
   uint64_t  addr, addrStart, addrStop, numData;
   int       val, i;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  convert table ... ");
@@ -483,8 +534,11 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
       // check for valid characters 0-9, A-F
       for (i=2; i<strlen(sAddr); i++) {
-        if (!isxdigit(sAddr[i]))
-          Error("Line %u in table file: hex address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
+        if (!isxdigit(sAddr[i])) {
+          g_hexFileErrors = STM8GAL_HEXFILE_INVALID_CHAR;
+          console_print(STDERR, "Line %u in table file: hex address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
+          return(g_hexFileErrors);
+        }
       }
 
       // get address
@@ -497,8 +551,11 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
       // check for valid characters 0-9
       for (i=0; i<strlen(sAddr); i++) {
-        if (!isdigit(sAddr[i]))
-          Error("Line %u in table file: dec address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
+        if (!isdigit(sAddr[i])) {
+          g_hexFileErrors = STM8GAL_HEXFILE_INVALID_CHAR;
+          console_print(STDERR, "Line %u in table file: dec address '%s' contains invalid character ('%c')", linecount, sAddr, sAddr[i]);
+          return(g_hexFileErrors);
+        }
       }
 
       // get address
@@ -517,8 +574,11 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
       // check for valid characters 0-9, A-F
       for (i=2; i<strlen(sValue); i++) {
-        if (!isxdigit(sValue[i]))
-          Error("Line %u in table file: hex value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
+        if (!isxdigit(sValue[i])) {
+          g_hexFileErrors = STM8GAL_HEXFILE_INVALID_CHAR;
+          console_print(STDERR, "Line %u in table file: hex value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
+          return(g_hexFileErrors);
+        }
       }
 
       // get address
@@ -531,8 +591,11 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
 
       // check for valid characters 0-9
       for (i=0; i<strlen(sValue); i++) {
-        if (!isdigit(sValue[i]))
-          Error("Line %u in table file: dec value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
+        if (!isdigit(sValue[i])) {
+          g_hexFileErrors = STM8GAL_HEXFILE_INVALID_CHAR;
+          console_print(STDERR, "Line %u in table file: dec value '%s' contains invalid character ('%c')", linecount, sValue, sValue[i]);
+          return(g_hexFileErrors);
+        }
       }
 
       // get address
@@ -541,8 +604,11 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
     } // extract value
 
     // check for buffer overflow
-    if (addr > (uint64_t) (LENIMAGEBUF-1L))
-      Error("Line %u in table file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+    if (addr > (uint64_t) (LENIMAGEBUF-1L)) {
+      g_hexFileErrors = STM8GAL_HEXFILE_INVALID_CHAR;
+      console_print(STDERR, "Line %u in table file: buffer size exceeded (%dMB vs %dMB)", linecount, (int) (addr/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+      return(g_hexFileErrors);
+    }
 
     // for printout store min/max address in file
     if (addr < addrStart)  addrStart = addr;
@@ -569,12 +635,14 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
       console_print(STDOUT, "done, no data\n");
   }
 
-} // convert_txt
+      return(g_hexFileErrors);
+
+} // hexfile_convertTxt
 
 
 
 /**
-   \fn void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_convertBin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  fileBuf      memory buffer to read from
    \param[in]  lenFileBuf   length of memory buffer
@@ -582,14 +650,18 @@ void convert_txt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t
    \param[out] imageBuf     RAM image of file. HB!=0 indicates content
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    convert memory buffer containing binary data to memory image. Binary data contains no absolute addresses,
    just data. Therefor a starting address must also be provided.
 */
-void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_convertBin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_t *imageBuf, uint8_t verbose) {
 
   uint64_t  addrStop, numData;
   uint64_t  i;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  convert binary ... ");
@@ -601,8 +673,11 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
   addrStop = addrStart + numData;
 
   // check for buffer overflow
-  if (addrStop > (uint64_t) (LENIMAGEBUF-1L))
-    Error("Binary file conversion: buffer size exceeded (%dMB vs %dMB)", (int) (addrStop/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+  if (addrStop > (uint64_t) (LENIMAGEBUF-1L)) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_BUFFER_SIZE_EXCEEDED;
+    console_print(STDERR, "Binary file conversion: buffer size exceeded (%dMB vs %dMB)", (int) (addrStop/1024L/1024L), (int) (LENIMAGEBUF/1024L/1024L));
+    return(g_hexFileErrors);
+  }
 
   // copy data and mark as set (HB=0xFF)
   for (i=0; i<numData; i++) {
@@ -624,12 +699,14 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
       console_print(STDOUT, "done, no data\n");
   }
 
-} // convert_bin
+  return(g_hexFileErrors);
+
+} // hexfile_convertBin
 
 
 
 /**
-   \fn void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData)
+   \fn STM8gal_HexFileErrors_t hexfile_getImageSize(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData)
 
    \param[in]  imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  scanStart    start address for scan
@@ -638,19 +715,32 @@ void convert_bin(char *fileBuf, uint64_t lenFileBuf, uint64_t addrStart, uint16_
    \param[out] addrStop     last address containing data (HB!=0x00)
    \param[out] numData      number of data bytes in image (HB!=0x00)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    Get fist and last address and number of bytes in memory image. Defined data is indicated by HB!=0x00
 */
-void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData) {
+STM8gal_HexFileErrors_t hexfile_getImageSize(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData) {
 
   uint64_t   addr;
   
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // simple checks of scan window
-  if (scanStart > scanStop)
-    Error("scan start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, scanStart, scanStop);
-  if (scanStart > LENIMAGEBUF)
-    Error("scan start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStart, LENIMAGEBUF);
-  if (scanStop > LENIMAGEBUF)
-    Error("scan end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStop, LENIMAGEBUF);
+  if (scanStart > scanStop) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_INVALID;
+    console_print(STDERR, "scan start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, scanStart, scanStop);
+    return(g_hexFileErrors);
+  }
+  if (scanStart > LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "scan start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (scanStop > LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "scan end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, scanStop, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
 
   // loop though image and check for defined data (HB!=0x00)
   *addrStart = 0xFFFFFFFFFFFFFFFF;
@@ -667,12 +757,14 @@ void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, u
 
   } // loop over image
 
-} // get_image_size
+  return(g_hexFileErrors);
+
+} // hexfile_getImageSize
 
 
 
 /**
-   \fn void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_fillImage(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose)
 
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  addrStart    starting address of filling window
@@ -680,12 +772,16 @@ void get_image_size(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, u
    \param[in]  value        value to write
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    Fill memory image in specified window with specified value and set status to "defined" (HB=0xFF)
 */
-void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_fillImage(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t value, uint8_t verbose) {
 
   uint64_t  addr, numFilled;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  fill image ... ");
@@ -693,12 +789,21 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
     console_print(STDOUT, "  fill memory image ... ");
 
   // simple checks of scan window
-  if (addrStart > addrStop)
-    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-  if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-  if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
+  if (addrStart > addrStop) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_INVALID;
+    console_print(STDERR, "start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+    return(g_hexFileErrors);
+  }
+  if (addrStart > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (addrStop > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
 
   // loop over memory image and clear all data outside specified clipping window
   numFilled = 0;
@@ -722,24 +827,30 @@ void fill_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
       console_print(STDOUT, "done, no data filled\n");
   }
 
-} // fill_image
+  return(g_hexFileErrors);
+
+} // hexfile_fillImage
 
 
 
 /**
-   \fn void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_clipImage(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
 
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  addrStart    starting address of clipping window
    \param[in]  addrStop     topmost address of clipping window
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    Clip memory image to specified window, i.e. reset all data outside specified window to "undefined" (HB=0x00)
 */
-void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_clipImage(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
 
   uint64_t  addr, numCleared;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  clip image ... ");
@@ -747,12 +858,21 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
     console_print(STDOUT, "  clip memory image ... ");
 
   // simple checks of scan window
-  if (addrStart > addrStop)
-    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-  if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-  if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
+  if (addrStart > addrStop) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+    return(g_hexFileErrors);
+  }
+  if (addrStart > (uint64_t) LENIMAGEBUF)  {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (addrStop > (uint64_t) LENIMAGEBUF)  {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
 
   // loop over memory image and clear all data outside specified clipping window
   numCleared = 0;
@@ -779,24 +899,30 @@ void clip_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8
       console_print(STDOUT, "done, no data cleared\n");
   }
 
-} // clip_image
+  return(g_hexFileErrors);
+
+} // hexfile_clipImage
 
 
 
 /**
-   \fn void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_cutImage(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
 
    \param      imageBuf     memory image containing data. HB!=0 indicates content
    \param[in]  addrStart    starting address of section to clear
    \param[in]  addrStop     topmost address of section to clear
    \param[in]  verbose      verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return communication status (STM8gal_BootloaderErrors_t)
+
    Cut data range from memory image, i.e. reset all data inside specified window to "undefined" (HB=0x00)
 */
-void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_cutImage(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
 
   uint64_t  addr, numCleared;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  clear image ... ");
@@ -804,12 +930,21 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
     console_print(STDOUT, "  clear memory image ... ");
 
   // simple checks of scan window
-  if (addrStart > addrStop)
-    Error("start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
-  if (addrStart > (uint64_t) LENIMAGEBUF)
-    Error("start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
-  if (addrStop > (uint64_t) LENIMAGEBUF)
-    Error("end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, addrStop, LENIMAGEBUF);
+  if (addrStart > addrStop) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, addrStart, addrStop);
+    return(g_hexFileErrors);
+  }
+  if (addrStart > (uint64_t) LENIMAGEBUF)  {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (addrStop > (uint64_t) LENIMAGEBUF)  {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, addrStop, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
 
   // loop over memory image and clear all data inside specified window
   numCleared = 0;
@@ -836,12 +971,14 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
       console_print(STDOUT, "done, no data cut\n");
   }
 
-} // cut_image
+  return(g_hexFileErrors);
+
+} // hexfile_cutImage
 
 
 
 /**
-   \fn void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_copyImage(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose)
 
    \param      imageBuf          memory image containing data. HB!=0 indicates content
    \param[in]  sourceStart       starting address to copy from
@@ -849,12 +986,16 @@ void cut_image(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_
    \param[in]  destinationStart  starting address to copy to
    \param[in]  verbose           verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return operation status (STM8gal_BootloaderErrors_t)
+
    Copy data section within image to new address. Data at old address is maintained (if sections don't overlap).
 */
-void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_copyImage(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
 
   uint64_t  numCopied, i;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  copy data ... ");
@@ -862,16 +1003,31 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
     console_print(STDOUT, "  copy image data ... ");
 
   // simple checks of scan window
-  if (sourceStart > sourceStop)
-    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
-  if (sourceStart > (uint64_t) LENIMAGEBUF)
-    Error("source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
-  if (sourceStop > (uint64_t) LENIMAGEBUF)
-    Error("source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStop, LENIMAGEBUF);
-  if (destinationStart > (uint64_t) LENIMAGEBUF)
-    Error("destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
-  if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF)
-    Error("destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+  if (sourceStart > sourceStop) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_INVALID;
+    console_print(STDERR, "source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
+    return(g_hexFileErrors);
+  }
+  if (sourceStart > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (sourceStop > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (destinationStart > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
 
   // get number of data to copy (HB!=0x00)
   numCopied = 0;
@@ -899,12 +1055,15 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
       console_print(STDOUT, "done, no data copied\n");
   }
 
-} // copy_image
+  return(g_hexFileErrors);
+
+
+} // hexfile_copyImage
 
 
 
 /**
-   \fn void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_moveImage(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose)
 
    \param      imageBuf          memory image containing data. HB!=0 indicates content
    \param[in]  sourceStart       starting address to move from
@@ -912,13 +1071,17 @@ void copy_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
    \param[in]  destinationStart  starting address to move to
    \param[in]  verbose           verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return operation status (STM8gal_BootloaderErrors_t)
+
    Move data section within image to new address. Data at old address is cleared.
 */
-void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_moveImage(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, uint64_t destinationStart, uint8_t verbose) {
 
   uint64_t  numMoved, i;
   uint16_t  *tmpImageBuf;   // temporary buffer
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  move data ... ");
@@ -926,16 +1089,32 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
     console_print(STDOUT, "  move image data ... ");
 
   // simple checks of scan window
-  if (sourceStart > sourceStop)
-    Error("source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
-  if (sourceStart > (uint64_t) LENIMAGEBUF)
-    Error("source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
-  if (sourceStop > (uint64_t) LENIMAGEBUF)
-    Error("source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStop, LENIMAGEBUF);
-  if (destinationStart > (uint64_t) LENIMAGEBUF)
-    Error("destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
-  if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF)
-    Error("destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+  if (sourceStart > sourceStop) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_INVALID;
+    console_print(STDERR, "source start address 0x%" PRIx64 " higher than end address 0x%" PRIx64, sourceStart, sourceStop);
+    return(g_hexFileErrors);
+  }
+  if (sourceStart > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "source start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (sourceStop > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "source end address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, sourceStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (destinationStart > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "destination start address 0x%" PRIx64 " exceeds buffer size 0x%" PRIx64, destinationStart, LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+  if (destinationStart+(sourceStop-sourceStart+1) > (uint64_t) LENIMAGEBUF) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER;
+    console_print(STDERR, "destination end address 0x%" PRIx64 " exceeds buffer size 0x" PRIx64, destinationStart+(sourceStop-sourceStart+1), LENIMAGEBUF);
+    return(g_hexFileErrors);
+  }
+
 
   // get number of data to move (HB!=0x00)
   numMoved = 0;
@@ -952,8 +1131,9 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
   memcpy((void*) &(tmpImageBuf[sourceStart]), (void*) &(imageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
 
   // remove old data from image
-  cut_image(imageBuf, sourceStart, sourceStop, MUTE);
-
+  if (hexfile_cutImage(imageBuf, sourceStart, sourceStop, MUTE) != STM8GAL_HEXFILE_NO_ERROR)
+    return(g_hexFileErrors);
+  
   // copy data from temporary buffer to image
   memcpy((void*) &(imageBuf[destinationStart]), (void*) &(tmpImageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
 
@@ -975,21 +1155,26 @@ void move_image(uint16_t *imageBuf, uint64_t sourceStart, uint64_t sourceStop, u
       console_print(STDOUT, "done, no data moved\n");
   }
 
-} // move_image
+  return(g_hexFileErrors);
+
+
+} // hexfile_moveImage
 
 
 
 /**
-   \fn void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_exportS19(char *filename, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  filename    name of output file
    \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return operation status (STM8gal_BootloaderErrors_t)
+
    export RAM image to file in s19 hexfile format. For description of
    Motorola S19 file format see http://en.wikipedia.org/wiki/SREC_(file_format)
 */
-void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_exportS19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   FILE      *fp;               // file pointer
   const int maxLine = 32;      // max. length of data line
@@ -999,6 +1184,8 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   char      *shortname;        // filename w/o path
   int       j;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
@@ -1020,14 +1207,18 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // open output file
   fp=fopen(filename,"wb");
-  if (!fp)
-    Error("Failed to create file %s", filename);
+  if (!fp) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FAILED_CREATE_FILE;
+    console_print(STDERR, "Failed to create file %s", filename);
+    return(g_hexFileErrors);
+  }
 
   // start with dummy header line to avoid 'srecord' warning
   fprintf(fp, "S00F000068656C6C6F202020202000003C\n");
 
   // get min/max addresses and number of bytes (HB!=0x00) in image
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+  if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR)
+    return(g_hexFileErrors);
 
   // store in lines of 32B
   addr = addrStart;
@@ -1107,22 +1298,26 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       console_print(STDOUT, "done, no data\n");
   }
 
-} // export_s19
+  return(g_hexFileErrors);
+
+} // hexfile_exportS19
 
 
 
 /**
-   \fn void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_exportIHex(char *filename, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  filename    name of output file
    \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return operation status (STM8gal_BootloaderErrors_t)
+
    export RAM image to file in Intel hexfile format. For description of
    Intel hex file format see http://en.wikipedia.org/wiki/Intel_HEX
 */
 
-void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_exportIHex(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 	
   FILE      *fp;               // file pointer
   const int maxLine = 32;      // max. length of data line
@@ -1135,6 +1330,8 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   uint8_t   j;
   
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
@@ -1156,11 +1353,15 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // open output file
   fp=fopen(filename,"wb");
-  if (!fp)
-    Error("Failed to create file %s", filename);
+  if (!fp) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FAILED_CREATE_FILE;
+    console_print(STDERR, "Failed to create file %s", filename);
+    return(g_hexFileErrors);
+  }
 
   // get min/max addresses and number of bytes (HB!=0x00) in image
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+  if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR)
+    return(g_hexFileErrors);
 
   // use ELA records if address range is greater than 16 bits
   if(addrStop > 0xFFFF) {
@@ -1227,26 +1428,32 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       console_print(STDOUT, "done, no data\n");
   }
 
-} // export_ihx
+  return(g_hexFileErrors);
+
+} // hexfile_exportIHex
 
 
 
 /**
-   \fn void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_exportTxt(char *filename, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  filename    name of output file or stdout ('console')
    \param[in]  imageBuf    memory image. HB!=0 indicates content. Index 0 corresponds to addrStart
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return operation status (STM8gal_BootloaderErrors_t)
+
    export RAM image to file with plain text table (hex addr / hex data)
 */
-void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_exportTxt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   FILE      *fp;               // file pointer
   uint64_t  addrStart, addrStop, numData;  // image data range
   char      *shortname;        // filename w/o path
   bool      flagFile = true;   // output to file or console?
   uint64_t  i;
+  
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
   
   // output to stdout
   if (!strcmp(filename, "console")) {
@@ -1281,8 +1488,11 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
     // open output file
     fp=fopen(filename,"wb");
-    if (!fp)
-      Error("Failed to create file %s", filename);
+    if (!fp) {
+      g_hexFileErrors = STM8GAL_HEXFILE_FAILED_CREATE_FILE;
+      console_print(STDERR, "Failed to create file %s", filename);
+      return(g_hexFileErrors);
+    }
 
   } // output to file
 
@@ -1293,7 +1503,8 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     fprintf(fp, "    address	value\n");
 
   // get min/max addresses and number of bytes (HB!=0x00) in image
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+  if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR)
+    return(g_hexFileErrors);
 
   // output each defined value (HB!=0x00) in a separate line (addr \t value)
   for (i=addrStart; i<=addrStop; i++) {
@@ -1327,27 +1538,33 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       console_print(STDOUT, "done, no data\n");
   }
 
-} // export_txt
+  return(g_hexFileErrors);
+
+} // hexfile_exportTxt
 
 
 
 /**
-   \fn void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose)
+   \fn STM8gal_HexFileErrors_t hexfile_exportBin(char *filename, uint16_t *imageBuf, uint8_t verbose)
 
    \param[in]  filename    name of output file
    \param[in]  imageBuf    memory image. HB!=0 indicates content
    \param[in]  verbose     verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
 
+   \return operation status (STM8gal_BootloaderErrors_t)
+
    export RAM image to binary file. Note that start address is not stored, and that
    binary format does not allow for "holes" in the file, i.e. undefined data is stored as 0x00.
 */
-void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
+STM8gal_HexFileErrors_t hexfile_exportBin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   FILE      *fp;               // file pointer
   uint64_t  addr, addrStart, addrStop, numData;  // address range to consider
   uint64_t  countByte;         // number of actually exported bytes
   uint8_t   val;
 
+  g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+  
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
@@ -1369,11 +1586,15 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
 
   // open output file
   fp=fopen(filename,"wb");
-  if (!fp)
-    Error("Failed to create file %s", filename);
+  if (!fp) {
+    g_hexFileErrors = STM8GAL_HEXFILE_FAILED_CREATE_FILE;
+    console_print(STDERR, "Failed to create file %s", filename);
+    return(g_hexFileErrors);
+  }
 
   // get address range containing data (HB!=0x00)
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+  if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR)
+    return(g_hexFileErrors);
 
   // store every value in address range. Undefined values are set to 0x00
   countByte = 0;
@@ -1406,6 +1627,8 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
       console_print(STDOUT, "done, no data\n");
   }
 
-} // export_bin
+  return(g_hexFileErrors);
+
+} // hexfile_exportBin
 
 // end of file

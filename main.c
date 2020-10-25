@@ -592,7 +592,8 @@ int main(int argc, char ** argv) {
     if (verbose != MUTE)
       printf("  reset via DTR ... ");
     fflush(stdout);
-    ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
+    if (init_port(&ptrPort, portname, 115200, 100, 8, 0, 1, 0, 0) != STM8GAL_SERIALCOMMS_NO_ERROR)
+      Error("Fatal Error.");
     pulse_DTR(ptrPort, 10);
     close_port(&ptrPort);
     if (verbose != MUTE)
@@ -607,9 +608,13 @@ int main(int argc, char ** argv) {
     if (verbose != MUTE)
       printf("  reset via UART command ... ");
     fflush(stdout);
-    ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
+    if (init_port(&ptrPort, portname, 115200, 100, 8, 0, 1, 0, 0) != STM8GAL_SERIALCOMMS_NO_ERROR)
+      Error("Fatal Error");
     for (i=0; i<6; i++) {
-      send_port(ptrPort, 0, 1, buf+i);   // send reset command bytewise to account for possible slow handling on STM8 side
+      uint32_t tmp32;
+      // send reset command bytewise to account for possible slow handling on STM8 side
+      if (send_port(ptrPort, 0, 1, buf+i, &tmp32) != STM8GAL_SERIALCOMMS_NO_ERROR)
+        Error("Fatal Error");
       SLEEP(10);
     }
     close_port(&ptrPort);
@@ -646,7 +651,8 @@ int main(int argc, char ** argv) {
         if(verbose != MUTE)
             printf("  reset via RTS ... ");
         fflush(stdout);
-        ptrPort = init_port(portname, 115200, 100, 8, 0, 1, 0, 0);
+        if(init_port(&ptrPort, portname, 115200, 100, 8, 0, 1, 0, 0) != STM8GAL_SERIALCOMMS_NO_ERROR)
+          Error("Fatal Error.");
         pulse_RTS(ptrPort, 10);
         close_port(&ptrPort);
         if(verbose != MUTE)
@@ -677,7 +683,9 @@ int main(int argc, char ** argv) {
     else if (verbose == CHATTY)
       printf("  open serial port '%s' with %gkBaud ... ", portname, (float) baudrate / 1000.0);
     fflush(stdout);
-    ptrPort = init_port(portname, baudrate, TIMEOUT, 8, 0, 1, 0, 0);   // start without parity, may be changed in bsl_sync()
+    // start without parity, may be changed in bsl_sync()
+    if (init_port(&ptrPort, portname, baudrate, TIMEOUT, 8, 0, 1, 0, 0) != STM8GAL_SERIALCOMMS_NO_ERROR)
+      Error("Fatal Error");
     if ((verbose == INFORM) || (verbose == CHATTY))
       printf("done\n");
     fflush(stdout);
@@ -694,7 +702,8 @@ int main(int argc, char ** argv) {
       else if (verbose == CHATTY)
         printf("  open Arduino port '%s' with %gkBaud SPI ... ", portname, (float) ARDUINO_BAUDRATE / 1000.0);
       fflush(stdout);
-      ptrPort = init_port(portname, ARDUINO_BAUDRATE, 100, 8, 0, 1, 0, 0);
+      if (init_port(&ptrPort, portname, ARDUINO_BAUDRATE, 100, 8, 0, 1, 0, 0) != STM8GAL_SERIALCOMMS_NO_ERROR)
+          Error("Fatal Error");
       if ((verbose == INFORM) || (verbose == CHATTY))
         printf("ok\n");
       fflush(stdout);
@@ -814,8 +823,10 @@ int main(int argc, char ** argv) {
     }
     else if (uartMode == 2) {
       char c = ACK;      // need to reply ACK first to revert bootloader
+      uint8_t tmp32;
       set_parity(ptrPort, 0);
-      send_port(ptrPort, 0, 1, &c);
+      if (send_port(ptrPort, 0, 1, &c, &tmp32) != STM8GAL_SERIALCOMMS_NO_ERROR)
+        Error("Fatal Error");
       if (verbose != MUTE)
         printf("  set UART mode: 2-wire reply\n");
     }
@@ -924,11 +935,13 @@ int main(int argc, char ** argv) {
     memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
     // convert correct array containing s19 file to RAM image
-    convert_s19(ptrRAM, lenRAM, imageBuf, MUTE);
+    if ( hexfile_convertS19(ptrRAM, lenRAM, imageBuf, MUTE) != STM8GAL_HEXFILE_NO_ERROR )
+      Error("Fatal Error");
 
     // get image size
-    get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-
+    if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR )
+      Error("Fatal Error");
+ 
     // upload RAM routines to STM8
     if (verbose == CHATTY)
       printf("  upload RAM routines ... ");
@@ -1043,25 +1056,35 @@ int main(int argc, char ** argv) {
       }
 
       // import file into string buffer (no interpretation, yet)
-      load_file(infile, fileBuf, &lenFile, verbose);
+      if (hexfile_loadFile(infile, fileBuf, &lenFile, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
 
       // clear image buffer
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
       // convert to memory image, depending on file type
-      if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
-        convert_s19(fileBuf, lenFile, imageBuf, verbose);
-      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel HEX-format
-        convert_ihx(fileBuf, lenFile, imageBuf, verbose);
-      else if (strstr(infile, ".txt") != NULL)   // text table (Addr / Data)
-        convert_txt(fileBuf, lenFile, imageBuf, verbose);
-      else if (strstr(infile, ".bin") != NULL)   // binary file
-        convert_bin(fileBuf, lenFile, addrStart, imageBuf, verbose);
+      if (strstr(infile, ".s19") != NULL) { // Motorola S-record format
+        if (hexfile_convertS19(fileBuf, lenFile, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
+      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL)) { // Intel HEX-format
+        if (hexfile_convertIHex(fileBuf, lenFile, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
+      else if (strstr(infile, ".txt") != NULL) { // text table (Addr / Data)
+        if (hexfile_convertTxt(fileBuf, lenFile, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
+      else if (strstr(infile, ".bin") != NULL) { // binary file
+        if (hexfile_convertBin(fileBuf, lenFile, addrStart, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
       else
         Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
 
       // get image size
-      get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+      if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR )
+        Error("Fatal Error");
 
       // upload memory image to STM8
       if (bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
@@ -1094,7 +1117,8 @@ int main(int argc, char ** argv) {
       imageBuf[addr] = (uint16_t) (val | 0xFF00);
 
       // get image size
-      get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+      if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR )
+        Error("Fatal Error");
 
       // upload memory image to STM8
       if (bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose) != STM8GAL_BOOTLOADER_NO_ERROR)
@@ -1131,16 +1155,26 @@ int main(int argc, char ** argv) {
         Error("Fatal Error");
 
       // export in format depending on file extension
-      if (strstr(outfile, ".s19") != NULL)   // Motorola S-record format
-        export_s19(outfile, imageBuf, verbose);
-      else if ((strstr(outfile, ".hex") != NULL) || (strstr(outfile, ".ihx") != NULL))   // Intel HEX-format
-        export_ihx(outfile, imageBuf, verbose);
-      else if (strstr(outfile, ".txt") != NULL)   // text table (hexAddr / hexData)
-        export_txt(outfile, imageBuf, verbose);
-      else if (strstr(outfile, ".bin") != NULL)   // binary format
-        export_bin(outfile, imageBuf, verbose);
-      else                                        // print
-        export_txt("console", imageBuf, verbose);
+      if (strstr(outfile, ".s19") != NULL) {   // Motorola S-record format
+        if (hexfile_exportS19(outfile, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
+      else if ((strstr(outfile, ".hex") != NULL) || (strstr(outfile, ".ihx") != NULL)) { // Intel HEX-format
+        if (hexfile_exportIHex(outfile, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
+      else if (strstr(outfile, ".txt") != NULL) { // text table (hexAddr / hexData)
+        if (hexfile_exportTxt(outfile, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
+      else if (strstr(outfile, ".bin") != NULL) { // binary format
+        if (hexfile_exportBin(outfile, imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
+      else {                                      // print
+        if (hexfile_exportTxt("console", imageBuf, verbose) != STM8GAL_HEXFILE_NO_ERROR)
+          Error("Fatal Error");
+      }
 
       // clear image buffer
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
