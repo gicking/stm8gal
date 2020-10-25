@@ -68,11 +68,11 @@ void configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_
   Tx[8] = checksum_Arduino(Tx);           // frame checksum
   
   // send command to Arduino
-  send_port(fp, 0, Tx[0], (char*) Tx);
+  send_port(fp, 0, Tx[0], (char*) Tx, &num);
   
   // get response from Arduino
   lenRx = 3;
-  num = receive_port(fp, 0, lenRx, (char*) Rx);
+  receive_port(fp, 0, lenRx, (char*) Rx, &num);
   
   // check for timeout
   if (num != lenRx)
@@ -117,11 +117,11 @@ void setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state) {
   Tx[4] = checksum_Arduino(Tx); // frame checksum
   
   // send command to Arduino
-  send_port(fp, 0, Tx[0], (char*) Tx);
+  send_port(fp, 0, Tx[0], (char*) Tx, &num);
   
   // get response from Arduino
   lenRx = 3;
-  num = receive_port(fp, 0, lenRx, (char*) Rx);
+  receive_port(fp, 0, lenRx, (char*) Rx, &num);
   
   // check for timeout
   if (num != lenRx)
@@ -176,11 +176,11 @@ uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char 
   Tx[Tx[0]-1] = checksum_Arduino(Tx); // frame checksum
   
   // send command to Arduino
-  send_port(fp, 0, Tx[0], (char*) Tx);
+  send_port(fp, 0, Tx[0], (char*) Tx, &num);
   
   // get response from Arduino
   lenRx = 3+lenFrame;
-  num = receive_port(fp, 0, lenRx, (char*) Rx);
+  receive_port(fp, 0, lenRx, (char*) Rx, &num);
   
   // check for timeout
   if (num != lenRx)

@@ -27,6 +27,20 @@ extern "C"
 #include <stdint.h>
 #include <inttypes.h>
 
+/// physical bootloader interface 
+#if defined(USE_SPIDEV) && defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1, SPI_SPIDEV=2} physInterface_t;
+#elif defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1} physInterface_t;
+#elif defined(USE_SPIDEV)
+  typedef enum {UART=0, SPI_SPIDEV=2} physInterface_t;
+#else
+  typedef enum {UART=0} physInterface_t;
+#endif
+
+/// UART communication timeout
+#define  TIMEOUT  1000
+
 // OS specific: Windows
 #if defined(WIN32) || defined(WIN64)
   #include <windows.h>
@@ -49,48 +63,66 @@ extern "C"
   #error OS not supported
 #endif
 
+typedef enum STM8gal_SerialErrors
+{
+    STM8GAL_SERIALCOMMS_NO_ERROR = 0,
+    STM8GAL_SERIALCOMMS_CANNOT_LIST_PORTS,
+    STM8GAL_SERIALCOMMS_CANNOT_OPEN_PORT,
+    STM8GAL_SERIALCOMMS_CANNOT_CLOSE_PORT,
+    STM8GAL_SERIALCOMMS_CANNOT_SET_IO,
+    STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG,
+    STM8GAL_SERIALCOMMS_CANNOT_SET_PORT_CONFIG,
+    STM8GAL_SERIALCOMMS_UNSUPPORTED_BAUD_RATE,
+    STM8GAL_SERIALCOMMS_UNKNOWN_NUMBER_DATA_BITS,
+    STM8GAL_SERIALCOMMS_UNKNOWN_PARITY,
+    STM8GAL_SERIALCOMMS_FAILED_ONE_WIRE_ECHO,
+    STM8GAL_SERIALCOMMS_SEND_ERROR,
+} STM8gal_SerialErrors_t;
 
 /// list all available comm ports
-void        list_ports(void);
+STM8gal_SerialErrors_t        list_ports(void);
 
 /// init comm port
-HANDLE      init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR);
+STM8gal_SerialErrors_t        init_port(HANDLE *fpCom, const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR);
 
 /// close comm port
-void        close_port(HANDLE *fpCom);
+STM8gal_SerialErrors_t        close_port(HANDLE *fpCom);
 
 /// generate low pulse on DTR in [ms] to reset STM8
-void        pulse_DTR(HANDLE fpCom, uint32_t duration);
+STM8gal_SerialErrors_t        pulse_DTR(HANDLE fpCom, uint32_t duration);
 
 /// generate low pulse on RTS in [ms] to reset STM8
-void        pulse_RTS(HANDLE fpCom, uint32_t duration);
+STM8gal_SerialErrors_t        pulse_RTS(HANDLE fpCom, uint32_t duration);
 
 /// generate low pulse on Raspberry pin in [ms] to reset STM8
-void        pulse_GPIO(int pin, uint32_t duration);
+void                          pulse_GPIO(int pin, uint32_t duration);
 
 /// get comm port settings
-void        get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR);
+STM8gal_SerialErrors_t        get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR);
 
 /// modify comm port settings
-void        set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR);
+STM8gal_SerialErrors_t        set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR);
 
 /// modify comm port baudrate
-void        set_baudrate(HANDLE fpCom, uint32_t Baudrate);
+STM8gal_SerialErrors_t        set_baudrate(HANDLE fpCom, uint32_t Baudrate);
 
 /// modify comm port timeout
-void        set_timeout(HANDLE fpCom, uint32_t Timeout);
+STM8gal_SerialErrors_t        set_timeout(HANDLE fpCom, uint32_t Timeout);
 
 /// modify comm port parity
-void        set_parity(HANDLE fpCom, uint8_t Parity);
+STM8gal_SerialErrors_t        set_parity(HANDLE fpCom, uint8_t Parity);
 
 /// send data
-uint32_t    send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx);
+STM8gal_SerialErrors_t        send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx, uint32_t *numChars);
 
 /// receive data
-uint32_t    receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx);
+STM8gal_SerialErrors_t        receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx, uint32_t *numChars);
 
 /// flush port buffers
-void        flush_port(HANDLE fpCom);
+STM8gal_SerialErrors_t        flush_port(HANDLE fpCom);
+
+/// return last error in the Serial Comms module
+STM8gal_SerialErrors_t        SerialComm_GetLastError(void);
 
 #ifdef __cplusplus
 } // extern "C"
