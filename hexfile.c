@@ -22,7 +22,11 @@
 #include "console.h"
 #include "main.h"
 
+
+/// last error in module hexfile
 STM8gal_HexFileErrors_t g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
+
+
 
 /**
    \fn char *get_line(char **buf, char *line)
@@ -77,8 +81,9 @@ STM8gal_HexFileErrors_t hexfile_loadFile(const char *filename, char *fileBuf, ui
 
   FILE      *fp;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
@@ -137,6 +142,7 @@ STM8gal_HexFileErrors_t hexfile_loadFile(const char *filename, char *fileBuf, ui
       console_print(STDOUT, "done, no data read\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_loadFile
@@ -165,7 +171,7 @@ STM8gal_HexFileErrors_t hexfile_convertS19(char *fileBuf, uint64_t lenFileBuf, u
   int       val, i;
 
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  convert S19 ... ");
@@ -279,6 +285,7 @@ STM8gal_HexFileErrors_t hexfile_convertS19(char *fileBuf, uint64_t lenFileBuf, u
       console_print(STDOUT, "done, no data\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_convertS19
@@ -307,8 +314,9 @@ STM8gal_HexFileErrors_t hexfile_convertIHex(char *fileBuf, uint64_t lenFileBuf, 
   uint64_t  addrOffset, addrJumpStart;
   int       val, i;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
   (void) (addrJumpStart);
 
@@ -465,6 +473,9 @@ STM8gal_HexFileErrors_t hexfile_convertIHex(char *fileBuf, uint64_t lenFileBuf, 
       console_print(STDOUT, "done, no data\n");
   }
 
+  // return status
+  return(g_hexFileErrors);
+
 } // hexfile_convertIHex
 
 
@@ -491,8 +502,9 @@ STM8gal_HexFileErrors_t hexfile_convertTxt(char *fileBuf, uint64_t lenFileBuf, u
   uint64_t  addr, addrStart, addrStop, numData;
   int       val, i;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  convert table ... ");
@@ -635,7 +647,8 @@ STM8gal_HexFileErrors_t hexfile_convertTxt(char *fileBuf, uint64_t lenFileBuf, u
       console_print(STDOUT, "done, no data\n");
   }
 
-      return(g_hexFileErrors);
+  // return status
+  return(g_hexFileErrors);
 
 } // hexfile_convertTxt
 
@@ -660,8 +673,9 @@ STM8gal_HexFileErrors_t hexfile_convertBin(char *fileBuf, uint64_t lenFileBuf, u
   uint64_t  addrStop, numData;
   uint64_t  i;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  convert binary ... ");
@@ -699,6 +713,7 @@ STM8gal_HexFileErrors_t hexfile_convertBin(char *fileBuf, uint64_t lenFileBuf, u
       console_print(STDOUT, "done, no data\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_convertBin
@@ -722,9 +737,10 @@ STM8gal_HexFileErrors_t hexfile_convertBin(char *fileBuf, uint64_t lenFileBuf, u
 STM8gal_HexFileErrors_t hexfile_getImageSize(uint16_t *imageBuf, uint64_t scanStart, uint64_t scanStop, uint64_t *addrStart, uint64_t *addrStop, uint64_t *numData) {
 
   uint64_t   addr;
-  
+
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // simple checks of scan window
   if (scanStart > scanStop) {
     g_hexFileErrors = STM8GAL_HEXFILE_FILE_ADDRESS_INVALID;
@@ -757,6 +773,7 @@ STM8gal_HexFileErrors_t hexfile_getImageSize(uint16_t *imageBuf, uint64_t scanSt
 
   } // loop over image
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_getImageSize
@@ -780,8 +797,9 @@ STM8gal_HexFileErrors_t hexfile_fillImage(uint16_t *imageBuf, uint64_t addrStart
 
   uint64_t  addr, numFilled;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  fill image ... ");
@@ -827,6 +845,7 @@ STM8gal_HexFileErrors_t hexfile_fillImage(uint16_t *imageBuf, uint64_t addrStart
       console_print(STDOUT, "done, no data filled\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_fillImage
@@ -849,8 +868,9 @@ STM8gal_HexFileErrors_t hexfile_clipImage(uint16_t *imageBuf, uint64_t addrStart
 
   uint64_t  addr, numCleared;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  clip image ... ");
@@ -899,6 +919,7 @@ STM8gal_HexFileErrors_t hexfile_clipImage(uint16_t *imageBuf, uint64_t addrStart
       console_print(STDOUT, "done, no data cleared\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_clipImage
@@ -921,8 +942,9 @@ STM8gal_HexFileErrors_t hexfile_cutImage(uint16_t *imageBuf, uint64_t addrStart,
 
   uint64_t  addr, numCleared;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  clear image ... ");
@@ -971,6 +993,7 @@ STM8gal_HexFileErrors_t hexfile_cutImage(uint16_t *imageBuf, uint64_t addrStart,
       console_print(STDOUT, "done, no data cut\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_cutImage
@@ -994,8 +1017,9 @@ STM8gal_HexFileErrors_t hexfile_copyImage(uint16_t *imageBuf, uint64_t sourceSta
 
   uint64_t  numCopied, i;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  copy data ... ");
@@ -1055,8 +1079,8 @@ STM8gal_HexFileErrors_t hexfile_copyImage(uint16_t *imageBuf, uint64_t sourceSta
       console_print(STDOUT, "done, no data copied\n");
   }
 
+  // return status
   return(g_hexFileErrors);
-
 
 } // hexfile_copyImage
 
@@ -1080,8 +1104,9 @@ STM8gal_HexFileErrors_t hexfile_moveImage(uint16_t *imageBuf, uint64_t sourceSta
   uint64_t  numMoved, i;
   uint16_t  *tmpImageBuf;   // temporary buffer
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // print message
   if (verbose == INFORM)
     console_print(STDOUT, "  move data ... ");
@@ -1133,7 +1158,7 @@ STM8gal_HexFileErrors_t hexfile_moveImage(uint16_t *imageBuf, uint64_t sourceSta
   // remove old data from image
   if (hexfile_cutImage(imageBuf, sourceStart, sourceStop, MUTE) != STM8GAL_HEXFILE_NO_ERROR)
     return(g_hexFileErrors);
-  
+
   // copy data from temporary buffer to image
   memcpy((void*) &(imageBuf[destinationStart]), (void*) &(tmpImageBuf[sourceStart]), (sourceStop-sourceStart+1)*sizeof(*imageBuf));
 
@@ -1155,8 +1180,8 @@ STM8gal_HexFileErrors_t hexfile_moveImage(uint16_t *imageBuf, uint64_t sourceSta
       console_print(STDOUT, "done, no data moved\n");
   }
 
+  // return status
   return(g_hexFileErrors);
-
 
 } // hexfile_moveImage
 
@@ -1184,8 +1209,9 @@ STM8gal_HexFileErrors_t hexfile_exportS19(char *filename, uint16_t *imageBuf, ui
   char      *shortname;        // filename w/o path
   int       j;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
@@ -1298,6 +1324,7 @@ STM8gal_HexFileErrors_t hexfile_exportS19(char *filename, uint16_t *imageBuf, ui
       console_print(STDOUT, "done, no data\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_exportS19
@@ -1318,7 +1345,7 @@ STM8gal_HexFileErrors_t hexfile_exportS19(char *filename, uint16_t *imageBuf, ui
 */
 
 STM8gal_HexFileErrors_t hexfile_exportIHex(char *filename, uint16_t *imageBuf, uint8_t verbose) {
-	
+
   FILE      *fp;               // file pointer
   const int maxLine = 32;      // max. length of data line
   uint8_t   data;              // value to store
@@ -1328,10 +1355,10 @@ STM8gal_HexFileErrors_t hexfile_exportIHex(char *filename, uint16_t *imageBuf, u
   uint8_t   useEla = 0;        // whether ELA records needed
   int64_t   addrEla;           // ELA record address
   uint8_t   j;
-  
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
@@ -1428,6 +1455,7 @@ STM8gal_HexFileErrors_t hexfile_exportIHex(char *filename, uint16_t *imageBuf, u
       console_print(STDOUT, "done, no data\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_exportIHex
@@ -1452,9 +1480,10 @@ STM8gal_HexFileErrors_t hexfile_exportTxt(char *filename, uint16_t *imageBuf, ui
   char      *shortname;        // filename w/o path
   bool      flagFile = true;   // output to file or console?
   uint64_t  i;
-  
+
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // output to stdout
   if (!strcmp(filename, "console")) {
     flagFile = false;
@@ -1538,6 +1567,7 @@ STM8gal_HexFileErrors_t hexfile_exportTxt(char *filename, uint16_t *imageBuf, ui
       console_print(STDOUT, "done, no data\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_exportTxt
@@ -1563,8 +1593,9 @@ STM8gal_HexFileErrors_t hexfile_exportBin(char *filename, uint16_t *imageBuf, ui
   uint64_t  countByte;         // number of actually exported bytes
   uint8_t   val;
 
+  // set default
   g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
-  
+
   // strip path from filename for readability
   #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
@@ -1627,8 +1658,22 @@ STM8gal_HexFileErrors_t hexfile_exportBin(char *filename, uint16_t *imageBuf, ui
       console_print(STDOUT, "done, no data\n");
   }
 
+  // return status
   return(g_hexFileErrors);
 
 } // hexfile_exportBin
+
+
+
+/**
+  \fn STM8gal_HexFileErrors_t Hexfile_GetLastError(void)
+
+  return last error in the Hexfile module
+*/
+STM8gal_HexFileErrors_t Hexfile_GetLastError(void) {
+
+  return(g_hexFileErrors);
+
+}
 
 // end of file

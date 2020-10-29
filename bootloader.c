@@ -38,9 +38,9 @@ STM8gal_BootloaderErrors_t g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 */
 STM8gal_BootloaderErrors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
 
-  int   i, count;
-  int   lenTx, lenRx, len;
-  char  Tx[1000], Rx[1000];
+  int        i, count;
+  uint32_t   lenTx, lenRx, len;
+  char       Tx[1000], Rx[1000];
 
   g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
@@ -187,9 +187,9 @@ STM8gal_BootloaderErrors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8
 */
 STM8gal_BootloaderErrors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8_t verbose) {
 
-  int   len, lenTx, lenRx;
-  char  Tx[1000], Rx[1000];
-  
+  uint32_t   len, lenTx, lenRx;
+  char       Tx[1000], Rx[1000];
+
   g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
   *mode = 255;
@@ -279,9 +279,9 @@ STM8gal_BootloaderErrors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8_
 */
 STM8gal_BootloaderErrors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose) {
 
-  int   i;
-  int   lenTx, lenRx, len;
-  char  Tx[1000], Rx[1000];
+  int        i;
+  uint32_t   lenTx, lenRx, len;
+  char       Tx[1000], Rx[1000];
 
   g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
@@ -529,7 +529,8 @@ STM8gal_BootloaderErrors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, ui
 */
 STM8gal_BootloaderErrors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose) {
 
-  int       i, lenTx, lenRx, len;
+  int       i;
+  uint32_t  lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint64_t  addr, addrStep, numBytes, countBytes;
 
@@ -886,7 +887,8 @@ STM8gal_BootloaderErrors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, ui
 */
 bool bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
 
-  int       i, lenTx, lenRx, len;
+  int       i;
+  uint32_t  lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
 
 
@@ -1135,7 +1137,7 @@ bool bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint6
 STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
 
   int       i;
-  int       lenTx, lenRx, len;
+  uint32_t  lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint8_t   sector;
   uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
@@ -1209,7 +1211,7 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
     g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
     return(g_bootloaderLastError);
   }
-  
+
   // receive response
   if (physInterface == UART) {
     if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
@@ -1359,7 +1361,8 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
 */
 STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose) {
 
-  int       i, lenTx, lenRx, len;
+  int       i;
+  uint32_t  lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
 
@@ -1496,7 +1499,7 @@ STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterf
     g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
     return(g_bootloaderLastError);
   }
-  
+
   // receive response
   if (physInterface == UART) {
     if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
@@ -1576,7 +1579,7 @@ STM8gal_BootloaderErrors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, u
   uint64_t         numData, countBytes, countBlock;    // size of memory image
   const uint64_t   maxBlock = 128;                      // max. length of write block
   char             Tx[1000], Rx[1000];                  // communication buffers
-  int              lenTx, lenRx, len;                   // frame lengths
+  uint32_t         lenTx, lenRx, len;                   // frame lengths
   uint8_t          chk;                                 // frame checksum
   int              i, j;
 
@@ -2023,7 +2026,7 @@ STM8gal_BootloaderErrors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, 
 STM8gal_BootloaderErrors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
 
   int       i;
-  int       lenTx, lenRx, len;
+  uint32_t  lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
 
   g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
@@ -2197,7 +2200,7 @@ STM8gal_BootloaderErrors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uin
 
 /**
   \fn STM8gal_BootloaderErrors_t Bootloader_GetLastError(void)
-   
+
   return last error in the Bootloader module
 */
 STM8gal_BootloaderErrors_t Bootloader_GetLastError(void) {
