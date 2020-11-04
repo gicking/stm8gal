@@ -282,6 +282,7 @@ int console_print(output_t dest, char *fmt, ...) {
 
 
 
+#ifndef NO_EXIT_ON_ERROR
 /**
   \fn int Error(const char *format, ...)
    
@@ -353,5 +354,7 @@ void Exit(uint8_t code, uint8_t pause) {
   exit(code);
 
 } // Exit
+
+#endif  /* NO_EXIT_ON_ERROR */
 
 // end of file

@@ -124,6 +124,9 @@ STM8gal_SerialErrors_t        flush_port(HANDLE fpCom);
 /// return last error in the Serial Comms module
 STM8gal_SerialErrors_t        SerialComm_GetLastError(void);
 
+/// return last error string in the Serial Comm module
+const char *                  SerialComm_GetLastErrorString(void);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

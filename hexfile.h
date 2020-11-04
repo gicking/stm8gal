@@ -101,7 +101,10 @@ STM8gal_HexFileErrors_t  hexfile_exportTxt(char *filename, uint16_t *imageBuf, u
 STM8gal_HexFileErrors_t  hexfile_exportBin(char *filename, uint16_t *imageBuf, uint8_t verbose);
 
 /// return last error in the Hexfile module
-STM8gal_HexFileErrors_t Hexfile_GetLastError(void);
+STM8gal_HexFileErrors_t  hexfile_GetLastError(void);
+
+/// The return of the last operation status string
+const char *  hexfile_GetLastErrorString(void);
 
 #ifdef __cplusplus
 } // extern "C"
