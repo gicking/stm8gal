@@ -101,11 +101,15 @@ void setConsoleColor(uint8_t color);
 /// message output function. Is separate to facilitate output to GUI window
 int console_print(output_t dest, char *fmt, ...);
 
+#ifdef NO_EXIT_ON_ERROR
+#define Error       printf
+#else   /* NO_EXIT_ON_ERROR */
 /// display error message and terminate
 int Error(char *format, ...);
 
 /// terminate program after cleaning up
 void Exit(uint8_t code, uint8_t pause);
+#endif   /* NO_EXIT_ON_ERROR */
 
 #ifdef __cplusplus
 } // extern "C"

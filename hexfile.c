@@ -26,7 +26,24 @@
 /// last error in module hexfile
 STM8gal_HexFileErrors_t g_hexFileErrors = STM8GAL_HEXFILE_NO_ERROR;
 
-
+char * g_hexFileErrorStrings[STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER+1] = 
+{ 
+    "No Error",                             // STM8GAL_HEXFILE_NO_ERROR = 0,
+    "Failed to open file",                  // STM8GAL_HEXFILE_FAILED_OPEN_FILE,
+    "Failed to create file",                // STM8GAL_HEXFILE_FAILED_CREATE_FILE,
+    "File buffer size exceeded",            // STM8GAL_HEXFILE_FILE_BUFFER_SIZE_EXCEEDED,
+    "S record invalid start",               // STM8GAL_HEXFILE_S_RECORD_INVALID_START,
+    "S record address buffer exceeded",     // STM8GAL_HEXFILE_S_RECORD_ADDRESS_BUFFER_EXCEEDED,
+    "S record checksum error",              // STM8GAL_HEXFILE_S_RECORD_CHKSUM_ERROR,
+    "Hex file invalid start",               // STM8GAL_HEXFILE_HEX_FILE_INVALID_START,
+    "Hex file address buffer exceeded",     // STM8GAL_HEXFILE_HEX_FILE_ADDRESS_BUFFER_EXCEEDED,
+    "Hex file address exceeded segment",    // STM8GAL_HEXFILE_HEX_FILE_ADDRESS_EXCEEDED_SEGMENT,
+    "Hex file unsupported record type",     // STM8GAL_HEXFILE_HEX_FILE_UNSUPPORTED_RECORD_TYPE,
+    "Hex file Checksum error",              // STM8GAL_HEXFILE_HEX_FILE_CHKSUM_ERROR,
+    "Invalid character",                    // STM8GAL_HEXFILE_INVALID_CHAR,
+    "File address invalid",                 // STM8GAL_HEXFILE_FILE_ADDRESS_INVALID,
+    "File address exceeds buffer",          // STM8GAL_HEXFILE_FILE_ADDRESS_EXCEEDS_BUFFER,
+};
 
 /**
    \fn char *get_line(char **buf, char *line)
@@ -1663,17 +1680,27 @@ STM8gal_HexFileErrors_t hexfile_exportBin(char *filename, uint16_t *imageBuf, ui
 
 } // hexfile_exportBin
 
+/**
+   \fn STM8gal_HexFileErrors_t hexfile_GetLastError(void)
 
+   \return last error in the Hexfile module
+
+
+   The return of the last operation status
+*/
+STM8gal_HexFileErrors_t hexfile_GetLastError(void)
+{
+  return(g_hexFileErrors);
+}
 
 /**
-  \fn STM8gal_HexFileErrors_t Hexfile_GetLastError(void)
-
-  return last error in the Hexfile module
+  \fn const char * hexfile_GetLastErrorString(void)
+   
+  \return last error string in the hexfile module
 */
-STM8gal_HexFileErrors_t Hexfile_GetLastError(void) {
-
-  return(g_hexFileErrors);
-
+const char * hexfile_GetLastErrorString(void)
+{
+    return(g_hexFileErrorStrings[hexfile_GetLastError()]);
 }
 
 // end of file
