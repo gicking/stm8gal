@@ -89,7 +89,7 @@ static bool           g_pauseOnExit;
 
 /**
   \fn void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status)
-   
+
   \param[in]  vers      16b revision number in format xx.xxxxxxxx.xxxxx.x
   \param[out] major     major revision number [15:14] -> 0..3
   \param[out] minor     minor revision number [13:6] -> 0..255
@@ -103,23 +103,23 @@ void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, 
 
   // major version ([15:14] -> 0..7)
   *major = (uint8_t) ((vers & 0xC000) >> 14);
-  
+
   // minor version ([13:6] -> 0..255)
   *minor = (uint8_t) ((vers & 0x3FC0) >> 6);
-  
+
   // build number ([5:1] -> 0..31)
   *build = (uint8_t) ((vers&0x003E) >> 1);
-  
+
   // release status ([0] -> 0=beta; 1=released)
   *status = (uint8_t) (vers&0x0001);
-  
+
 } // get_version
 
 
 
 /**
   \fn void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr)
-   
+
   \param[in]  appFull   name of application incl. path
   \param[in]  versID    16b version identifier
   \param[out] appName   name of application w/o path
@@ -146,7 +146,7 @@ void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr) 
 
   // extract major / minor / build revision number
   get_version(versID, &major, &minor, &build, &status);
-  
+
   // copy version data to string
   if (status==0)
     sprintf(versStr, "v%d.%d.%d beta", major, minor, build);
@@ -744,7 +744,7 @@ int main(int argc, char ** argv) {
         fflush(stdout);
         SLEEP(20);                      // allow BSL to initialize
       }
-  
+
     } // SPI via Arduino
   #endif // USE_SPI_ARDUINO
 
@@ -823,7 +823,7 @@ int main(int argc, char ** argv) {
     }
     else if (uartMode == 2) {
       char c = ACK;      // need to reply ACK first to revert bootloader
-      uint8_t tmp32;
+      uint32_t tmp32;
       set_parity(ptrPort, 0);
       if (send_port(ptrPort, 0, 1, &c, &tmp32) != STM8GAL_SERIALCOMMS_NO_ERROR)
         Error("Fatal Error");
@@ -941,7 +941,7 @@ int main(int argc, char ** argv) {
     // get image size
     if ( hexfile_getImageSize(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData) != STM8GAL_HEXFILE_NO_ERROR )
       Error("Fatal Error");
- 
+
     // upload RAM routines to STM8
     if (verbose == CHATTY)
       printf("  upload RAM routines ... ");

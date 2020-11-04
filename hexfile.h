@@ -1,16 +1,16 @@
 /**
    \file hexfile.h
-   
+
    \author G. Icking-Konert
    \date 2018-12-14
    \version 0.2
-   
+
    \brief declaration of routines for HEX, S19 and table files
-   
-   declaration of routines for importing and exporting Motorola S19 and Intel HEX files, 
-   as well as plain ASCII tables.  
+
+   declaration of routines for importing and exporting Motorola S19 and Intel HEX files,
+   as well as plain ASCII tables.
    (format descriptions under http://en.wikipedia.org/wiki/SREC_(file_format) or
-   http://www.keil.com/support/docs/1584.htm). 
+   http://www.keil.com/support/docs/1584.htm).
 */
 
 // for including file only once
@@ -61,7 +61,7 @@ STM8gal_HexFileErrors_t  hexfile_loadFile(const char *filename, char *fileBuf, u
 STM8gal_HexFileErrors_t  hexfile_convertS19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose);
 
 /// convert Intel hex format in memory buffer to memory image
-STM8gal_HexFileErrors_t  hexfile_convertIHEX(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose);
+STM8gal_HexFileErrors_t  hexfile_convertIHex(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose);
 
 /// convert plain text table (hex addr / data) in memory buffer to memory image
 STM8gal_HexFileErrors_t  hexfile_convertTxt(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose);
@@ -92,13 +92,16 @@ STM8gal_HexFileErrors_t  hexfile_moveImage(uint16_t *imageBuf, uint64_t sourceSt
 STM8gal_HexFileErrors_t  hexfile_exportS19(char *filename, uint16_t *imageBuf, uint8_t verbose);
 
 /// export RAM image to file in Intex hex format
-STM8gal_HexFileErrors_t  hexfile_exportIHEX(char *filename, uint16_t *imageBuf, uint8_t verbose);
+STM8gal_HexFileErrors_t  hexfile_exportIHex(char *filename, uint16_t *imageBuf, uint8_t verbose);
 
 /// export RAM image to plain text file or print to console
 STM8gal_HexFileErrors_t  hexfile_exportTxt(char *filename, uint16_t *imageBuf, uint8_t verbose);
 
 /// export RAM image to binary file (w/o address)
 STM8gal_HexFileErrors_t  hexfile_exportBin(char *filename, uint16_t *imageBuf, uint8_t verbose);
+
+/// return last error in the Hexfile module
+STM8gal_HexFileErrors_t Hexfile_GetLastError(void);
 
 #ifdef __cplusplus
 } // extern "C"
