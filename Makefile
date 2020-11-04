@@ -19,11 +19,11 @@ RM            = rm -fr
 #INCLUDES += spi_spidev_comm.h
 
 # add optional SPI support via Arduino USB<->SPI bridge (see )
-CFLAGS   += -DUSE_SPI_ARDUINO
-SOURCES  += spi_Arduino_comm.c
-INCLUDES += spi_Arduino_comm.h
+#CFLAGS   += -DUSE_SPI_ARDUINO
+#SOURCES  += spi_Arduino_comm.c
+#INCLUDES += spi_Arduino_comm.h
 
-# add optional GPIO reset via wiringPi library (Raspberry only) 
+# add optional GPIO reset via wiringPi library (Raspberry only)
 #CFLAGS   += -DUSE_WIRING
 #LDFLAGS  += -lwiringPi
 
@@ -35,16 +35,16 @@ INCLUDES += spi_Arduino_comm.h
 default: $(BIN) $(OBJDIR)
 
 all: $(STM8INCLUDES) $(SOURCES) $(BIN)
-	
+
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
 
 clean:
-	${RM} $(OBJECTS) $(OBJDIR) $(BIN) $(BIN).exe *~ .DS_Store 
-	
+	${RM} $(OBJECTS) $(OBJDIR) $(BIN) $(BIN).exe *~ .DS_Store
+
 %.h: %.s19 $(STM8FLASH)
 	xxd -i $< > $@
-	  
+
 # link application
 $(BIN): $(OBJECTS) $(OBJDIR)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
