@@ -106,6 +106,9 @@ STM8gal_BootloaderErrors_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uin
 /// return last error in the Bootloader module
 STM8gal_BootloaderErrors_t Bootloader_GetLastError(void);
 
+/// return last error string in the Bootloader module
+const char * Bootloader_GetLastErrorString(void);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
