@@ -22,6 +22,22 @@
 
 STM8gal_SerialErrors_t g_serialCommsLastError = STM8GAL_SERIALCOMMS_NO_ERROR;
 
+char * g_serialCommsErrorStrings[STM8GAL_SERIALCOMMS_SEND_ERROR+1] = 
+{ 
+    "No Error",                             //  STM8GAL_SERIALCOMMS_NO_ERROR = 0,
+    "Cannot list ports",                    //  STM8GAL_SERIALCOMMS_CANNOT_LIST_PORTS,
+    "Cannot open port",                     //  STM8GAL_SERIALCOMMS_CANNOT_OPEN_PORT,
+    "Cannot close port",                    //  STM8GAL_SERIALCOMMS_CANNOT_CLOSE_PORT,
+    "Cannot Set IO",                        //  STM8GAL_SERIALCOMMS_CANNOT_SET_IO,
+    "Cannot get port config",               //  STM8GAL_SERIALCOMMS_CANNOT_GET_PORT_CONFIG,
+    "Cannot set port config",               //  STM8GAL_SERIALCOMMS_CANNOT_SET_PORT_CONFIG,
+    "Unsupported BAUD rate",                //  STM8GAL_SERIALCOMMS_UNSUPPORTED_BAUD_RATE,
+    "Unknown number of data bits",          //  STM8GAL_SERIALCOMMS_UNKNOWN_NUMBER_DATA_BITS,
+    "Unknown parity",                       //  STM8GAL_SERIALCOMMS_UNKNOWN_PARITY,
+    "Cailed one-wire echo",                 //  STM8GAL_SERIALCOMMS_FAILED_ONE_WIRE_ECHO,
+    "Sending error",                        //  STM8GAL_SERIALCOMMS_SEND_ERROR,
+};
+
 /**
   \fn void list_ports(void)
 
@@ -1149,6 +1165,17 @@ STM8gal_SerialErrors_t SerialComm_GetLastError(void) {
 
   return(g_serialCommsLastError);
 
+}
+
+
+/**
+  \fn const char * SerialComm_GetLastErrorString(void)
+   
+  return last error string in the Serial Comm module
+*/
+const char * SerialComm_GetLastErrorString(void)
+{
+    return(g_serialCommsErrorStrings[SerialComm_GetLastError()]);
 }
 
 // end of file
