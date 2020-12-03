@@ -484,7 +484,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
     if (len != lenTx)
-      Error("in 'bsl_memRead()': sending command failed (expect %d, sent %d)", lenTx, len);
+      Error("in 'bsl_memRead()': at 0x%02x sending command failed (expect %d, sent %d)", addr, lenTx, len);
 
     // receive response
     if (physInterface == UART)
@@ -496,11 +496,11 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
     if (len != lenRx)
-      Error("in 'bsl_memRead()': ACK1 timeout");
+      Error("in 'bsl_memRead()': at 0x%02x ACK1 timeout", addr);
 
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memRead()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+      Error("in 'bsl_memRead()': at 0x%02x ACK1 failure (expect 0x%02x, received 0x%02x)", addr,(uint8_t) ACK, (uint8_t) (Rx[0]));
 
 
     /////
@@ -526,7 +526,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
     if (len != lenTx)
-      Error("in 'bsl_memRead()': sending address failed (expect %d, sent %d)", lenTx, len);
+      Error("in 'bsl_memRead()': at 0x%02x sending address failed (expect %d, sent %d)", addr, lenTx, len);
 
     // receive response
     if (physInterface == UART)
@@ -538,11 +538,11 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
     if (len != lenRx)
-      Error("in 'bsl_memRead()': ACK2 timeout (expect %d, received %d)", lenRx, len);
+      Error("in 'bsl_memRead()': at 0x%02x ACK2 timeout (expect %d, received %d)", addr, lenRx, len);
 
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memRead()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+      Error("in 'bsl_memRead()': at 0x%02x ACK2 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
 
     /////
@@ -565,7 +565,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
     if (len != lenTx)
-      Error("in 'bsl_memRead()': sending range failed (expect %d, sent %d)", lenTx, len);
+      Error("in 'bsl_memRead()': at 0x%02x sending range failed (expect %d, sent %d)", addr, lenTx, len);
 
 
     // receive response
@@ -580,11 +580,11 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
       }
     #endif
     if (len != lenRx)
-      Error("in 'bsl_memRead()': data timeout (expect %d, received %d)", lenRx, len);
+      Error("in 'bsl_memRead()': at 0x%02x data timeout (expect %d, received %d)", addr, lenRx, len);
 
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memRead()': ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+      Error("in 'bsl_memRead()': at 0x%02x ACK3 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
     // copy data to buffer. Set HB to indicate data read
     for (i=1; i<lenRx; i++) {
@@ -691,7 +691,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
   if (len != lenTx)
-    Error("in 'bsl_memCheck()': sending command failed (expect %d, sent %d)", lenTx, len);
+    Error("in 'bsl_memCheck()': at 0x%02x sending command failed (expect %d, sent %d)", addr, lenTx, len);
 
   // receive response
   if (physInterface == UART)
@@ -703,11 +703,11 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
   if (len != lenRx)
-    Error("in 'bsl_memCheck()': ACK1 timeout (expect %d, received %d)", lenRx, len);
+    Error("in 'bsl_memCheck()': at 0x%02x ACK1 timeout (expect %d, received %d)", addr, lenRx, len);
 
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_memCheck()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+    Error("in 'bsl_memCheck()': at 0x%02x ACK1 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
 
   /////
@@ -733,7 +733,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
   if (len != lenTx)
-    Error("in 'bsl_memCheck()': sending address failed (expect %d, sent %d)", lenTx, len);
+    Error("in 'bsl_memCheck()': at 0x%02x sending address failed (expect %d, sent %d)", addr, lenTx, len);
 
   // receive response
   if (physInterface == UART)
@@ -745,7 +745,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
   if (len != lenRx)
-    Error("in 'bsl_memCheck()': ACK2 timeout (expect %d, received %d)", lenRx, len);
+    Error("in 'bsl_memCheck()': at 0x%02x ACK2 timeout (expect %d, received %d)", addr, lenRx, len);
 
   // check acknowledge -> on NACK memory cannot be read -> return 0
   if (Rx[0]!=ACK) {
@@ -773,7 +773,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       len = send_spi_spidev(ptrPort, lenTx, Tx);
   #endif
   if (len != lenTx)
-    Error("in 'bsl_memCheck()': sending range failed (expect %d, sent %d)", lenTx, len);
+    Error("in 'bsl_memCheck()': at 0x%02x sending range failed (expect %d, sent %d)", addr, lenTx, len);
 
   // receive response
   if (physInterface == UART)
@@ -785,11 +785,11 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
   #endif
   if (len != lenRx)
-    Error("in 'bsl_memCheck()': data timeout (expect %d, received %d)", lenRx, len);
+    Error("in 'bsl_memCheck()': at 0x%02x data timeout (expect %d, received %d)", addr, lenRx, len);
 
   // check acknowledge
   if (Rx[0]!=ACK)
-    Error("in 'bsl_memCheck()': ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+    Error("in 'bsl_memCheck()': at 0x%02x ACK3 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
   // memory read succeeded -> memory exists
   return(1);
@@ -1215,7 +1215,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
     if (len != lenTx)
-      Error("in 'bsl_memWrite()': sending command failed (expect %d, sent %d)", lenTx, len);
+      Error("in 'bsl_memWrite()': at 0x%02x sending command failed (expect %d, sent %d)", addr, lenTx, len);
 
     // receive response
     if (physInterface == UART)
@@ -1227,11 +1227,11 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
     if (len != lenRx)
-      Error("in 'bsl_memWrite()': ACK1 timeout (expect %d, received %d)", lenRx, len);
+      Error("in 'bsl_memWrite()': at 0x%02x ACK1 timeout (expect %d, received %d)", addr, lenRx, len);
 
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memWrite()': ACK1 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+      Error("in 'bsl_memWrite()': at 0x%02x ACK1 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
 
     /////
@@ -1257,7 +1257,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
     if (len != lenTx)
-      Error("in 'bsl_memWrite()': sending address failed (expect %d, sent %d)", lenTx, len);
+      Error("in 'bsl_memWrite()': at 0x%02x sending address failed (expect %d, sent %d)", addr, lenTx, len);
 
 
     // receive response
@@ -1270,11 +1270,11 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
     #endif
     if (len != lenRx)
-      Error("in 'bsl_memWrite()': ACK2 timeout (expect %d, received %d)", lenRx, len);
+      Error("in 'bsl_memWrite()': at 0x%02x ACK2 timeout (expect %d, received %d)", addr, lenRx, len);
 
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memWrite()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+      Error("in 'bsl_memWrite()': at 0x%02x ACK2 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
 
     /////
@@ -1305,7 +1305,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
         len = send_spi_spidev(ptrPort, lenTx, Tx);
     #endif
     if (len != lenTx)
-      Error("in 'bsl_memWrite()': sending data failed (expect %d, sent %d)", lenTx, len);
+      Error("in 'bsl_memWrite()': at 0x%02x sending data failed (expect %d, sent %d)", addr, lenTx, len);
 
 
     // receive response
@@ -1328,11 +1328,11 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       }
     #endif
     if (len != lenRx)
-      Error("in 'bsl_memWrite()': ACK3 timeout (expect %d, received %d)", lenRx, len);
+      Error("in 'bsl_memWrite()': at 0x%02x ACK3 timeout (expect %d, received %d)", addr, lenRx, len);
 
     // check acknowledge
     if (Rx[0]!=ACK)
-      Error("in 'bsl_memWrite()': ACK3 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
+      Error("in 'bsl_memWrite()': at 0x%02x ACK3 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
     // print progress
     if (((++countBlock) % 8) == 0) {

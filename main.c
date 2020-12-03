@@ -857,7 +857,6 @@ int main(int argc, char ** argv) {
   } // if STM8S or low-density STM8L -> upload RAM code
 
 
-
   /////////////////
   // 2nd pass of commandline arguments: execute actions, e.g. upload and download files
   /////////////////
