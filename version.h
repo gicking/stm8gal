@@ -1,15 +1,15 @@
 /**
   \file version.h
-   
+
   \author G. Icking-Konert
   \date 2008-11-02
   \version 0.1
-   
+
   \brief declaration of SW version number
-   
+
   declaration of 2B SW version number. Format is xx.xxxxxxxx.xxxxx.x
-  A change major version ([15:14] -> 0..3) indicates e.g. change in the SW architecture. 
-  A change in the minor version ([13:6] -> 0..255) indicates e.g. critical bugfixes. 
+  A change major version ([15:14] -> 0..3) indicates e.g. change in the SW architecture.
+  A change in the minor version ([13:6] -> 0..255) indicates e.g. critical bugfixes.
   A change in build number ([5:1] -> 0..31) indicates cosmetic changes.
   The release status is indicated by bit [0] (0=beta; 1=released)
 */
@@ -18,8 +18,8 @@
 #ifndef _SW_VERSION_H_
 #define _SW_VERSION_H_
 
-/// 16b SW version identifier 
-#define VERSION     ((1<<14) | (4<<6) | (0<<1) | 1)     // -> v1.4.0
+/// 16b SW version identifier
+#define VERSION     ((1<<14) | (4<<6) | (1<<1) | 1)     // -> v1.4.1
 
 #endif // _SW_VERSION_H_
 
@@ -79,7 +79,7 @@ v1.1.5 (2017-12-20)
 v1.1.4 (2017-12-14)
   - added SPI support via spidev (currently only POSIX)
   - add user-space access to RasPi GPIOs via wiringPi for automatic reset. Use header numbering scheme (="physical")
-  - removed verbose commandline option (-V). Always print verbose 
+  - removed verbose commandline option (-V). Always print verbose
   - added listing of /dev/serial0 (new in Pi3, see https://raspberrypi.stackexchange.com/questions/45570/how-do-i-make-serial-work-on-the-raspberry-pi3)
 
 ----------------
@@ -108,7 +108,7 @@ v1.1.0 (2015-06-22):
 
 v1.0.0 (2014-12-21):
   - initial release by Georg Icking-Konert under the Apache License 2.0
-      
+
 ********************/
 
 // end of file

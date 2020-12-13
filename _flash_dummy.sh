@@ -15,8 +15,8 @@ cd `dirname $0`
 LOADER=./stm8gal
 
 # set other parameters
-FIRMWARE=./dummy.s19
-#FIRMWARE=./dummy.txt
+FIRMWARE=./dummy_32kB.s19
+#FIRMWARE=./dummy_32kB.txt
 
 # set serial port
 PORT=/dev/ttyUSB0
