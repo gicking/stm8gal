@@ -284,10 +284,15 @@ int main(int argc, char ** argv) {
     // jump adress before program termination (-1 or 0xFFFFFFFF == skip jump)
     else if ((!strcmp(argv[i], "-j")) || (!strcmp(argv[i], "-jump-addr"))) {
 
-      // get jump address (0x
+      // get jump address (0x indicates hex, else decimal)
       if (i+1<argc) {
         uint64_t addr;
-        sscanf(argv[++i], "%" SCNx64, &addr);
+        strncpy(tmp, argv[++i], STRLEN-1);
+        if (strstr(tmp, "0x") != NULL)
+          sscanf(tmp, "%" SCNx64, &addr);   // read as hex
+        else
+          sscanf(tmp, "%" SCNu64, &addr);   // read as dec
+        //printf("\n0x%" PRIx64 "\t%d\n", addr, (int) addr); exit(1);
         jumpAddr = addr;
       }
       else {
@@ -398,11 +403,11 @@ int main(int argc, char ** argv) {
     printf("    -p/-port [name]                 communication port (default: list available ports)\n");
     printf("    -b/-baudrate [speed]            communication baudrate in Baud (default: 115200)\n");
     printf("    -V/-no-verify                   don't verify code in flash after upload (default: verify)\n");
-    printf("    -j/-jump-addr [address]         jump address before exit of %s, or -1 for skip (default: flash)\n", appname);
-    printf("    -w/-write-file [file [addr]]    upload file from PC to uController. For binary file (*.bin) with address offset (as hex)\n");
-    printf("    -W/-write-byte [addr value]     change value at given address (as dec or hex)\n");
-    printf("    -r/-read [start stop output]    read memory range (as hex) and save to file or print (output=console)\n");
-    printf("    -e/-erase-sector [addr]         erase flash sector containing given address. Use carefully!\n");
+    printf("    -j/-jump-addr [address]         jump to address (as dec or hex) before exit of %s, or -1 for skip (default: flash)\n", appname);
+    printf("    -w/-write-file [file [addr]]    upload file from PC to uController. For binary file (*.bin) with address offset (as dec or hex)\n");
+    printf("    -W/-write-byte [addr value]     change value at given address (both as dec or hex)\n");
+    printf("    -r/-read [start stop output]    read memory range (as dec or hex) and save to file or print (output=console)\n");
+    printf("    -e/-erase-sector [addr]         erase flash sector containing given address (as dec or hex). Use carefully!\n");
     printf("    -E/-erase-full                  mass erase complete flash. Use carefully!\n");
     printf("\n");
     printf("Supported import formats:\n");
@@ -744,6 +749,7 @@ int main(int argc, char ** argv) {
   bsl_getInfo(ptrPort, physInterface, uartMode, &flashsize, &versBSL, &family, verbose);
 
   // for STM8S and 8kB STM8L upload RAM routines, else skip
+  //if (0) {
   if ((family == STM8S) || (flashsize==8)) {
 
     char   *ptrRAM = NULL;          // pointer to array with RAM routines
@@ -949,7 +955,11 @@ int main(int argc, char ** argv) {
       // for binary file also get starting address
       if (strstr(infile, ".bin") != NULL) {
         strncpy(tmp, argv[++i], STRLEN-1);
-        sscanf(tmp, "%" SCNx64, &addrStart);
+        if (strstr(tmp, "0x") != NULL)
+          sscanf(tmp, "%" SCNx64, &addrStart);   // read as hex
+        else
+          sscanf(tmp, "%" SCNu64, &addrStart);   // read as dec
+        //printf("\n0x%" PRIx64 "\t%d\n", addrStart, (int) addrStart); exit(1);
       }
 
       // import file into string buffer (no interpretation, yet)
@@ -991,14 +1001,28 @@ int main(int argc, char ** argv) {
 
       // intermediate variables
       uint64_t  addr;
-      int       val;
+      uint8_t   val;
 
       // clear image buffer
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
+      // get address
+      strncpy(tmp, argv[++i], STRLEN-1);
+      if (strstr(tmp, "0x") != NULL)
+        sscanf(tmp, "%" SCNx64, &addr);   // read as hex
+      else
+        sscanf(tmp, "%" SCNu64, &addr);   // read as dec
+      //printf("\n0x%" PRIx64 "\t%d\n", addr, (int) addr); exit(1);
+
       // get address and value and store to parameters for bsl_memWrite
-      sscanf(argv[++i], "%" SCNx64, &addr);
-      sscanf(argv[++i], "%x", &val);
+      strncpy(tmp, argv[++i], STRLEN-1);
+      if (strstr(tmp, "0x") != NULL)
+        sscanf(tmp, "%" SCNx8, &val);   // read as hex
+      else
+        sscanf(tmp, "%" SCNu8, &val);   // read as dec
+      //printf("\n0x%" PRIx64 "\t%d\n", addr, (int) addr); exit(1);
+
+      // get address and value and store to parameters for bsl_memWrite
       imageBuf[addr] = (uint16_t) (val | 0xFF00);
 
       // get image size
@@ -1024,9 +1048,35 @@ int main(int argc, char ** argv) {
       char      outfile[STRLEN]="";     // name of export file
       uint64_t  addrTmp;
 
-      // get start & stop address, and export filename
-      sscanf(argv[++i], "%" SCNx64, &addrTmp);   addrStart = addrTmp;
-      sscanf(argv[++i], "%" SCNx64, &addrTmp);   addrStop  = addrTmp;
+      // get start address
+      strncpy(tmp, argv[++i], STRLEN-1);
+      if (strstr(tmp, "0x") != NULL)
+      {
+        sscanf(tmp, "%" SCNx64, &addrTmp);   // read as hex
+        addrStart = addrTmp;
+      }
+      else
+      {
+        sscanf(tmp, "%" SCNu64, &addrTmp);   // read as dec
+        addrStart = addrTmp;
+      }
+      //printf("\n0x%" PRIx64 "\t%d\n", addrStart, (int) addrStart); exit(1);
+
+      // get stop address
+      strncpy(tmp, argv[++i], STRLEN-1);
+      if (strstr(tmp, "0x") != NULL)
+      {
+        sscanf(tmp, "%" SCNx64, &addrTmp);   // read as hex
+        addrStop = addrTmp;
+      }
+      else
+      {
+        sscanf(tmp, "%" SCNu64, &addrTmp);   // read as dec
+        addrStop = addrTmp;
+      }
+      //printf("\n0x%" PRIx64 "\t%d\n", addrStop, (int) addrStop); exit(1);
+
+      // get export filename
       strncpy(outfile, argv[++i], STRLEN-1);
 
       // clear image buffer
@@ -1058,7 +1108,12 @@ int main(int argc, char ** argv) {
 
       // get address of sector to erase. See respective STM8 datasheet
       uint64_t addr;
-      sscanf(argv[++i], "%" SCNx64, &addr);
+      strncpy(tmp, argv[++i], STRLEN-1);
+      if (strstr(tmp, "0x") != NULL)
+        sscanf(tmp, "%" SCNx64, &addr);   // read as hex
+      else
+        sscanf(tmp, "%" SCNu64, &addr);   // read as dec
+      //printf("\n0x%" PRIx64 "\t%d\n", addr, (int) addr); exit(1);
 
       // trigger flash mass erase
       bsl_flashSectorErase(ptrPort, physInterface, uartMode, addr, verbose);
@@ -1085,9 +1140,9 @@ int main(int argc, char ** argv) {
 
 
   ////////
-  // jump to address prior to exit (default: beginning of P-flash=0x8000). Skip if 0xFFFFFFFF
+  // jump to address prior to exit (default: beginning of P-flash=0x8000). Skip if 0xFFFFFFFFFFFFFFFF
   ////////
-  if (jumpAddr != 0xFFFFFFFF) {
+  if (jumpAddr != 0xFFFFFFFFFFFFFFFF) {
 
     // don't know why, but seems to be required for SPI
     #if defined(USE_SPIDEV)

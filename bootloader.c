@@ -907,6 +907,16 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   Tx[2] = (Tx[0] ^ Tx[1]);
   lenRx = 1;
 
+  // debug: construct pattern for sector N & (N+1)
+  /*
+  lenTx = 4;
+  Tx[0] = 0x01;      // number of sectors to erase -1 (here 2 sectors)
+  Tx[1] = sector;
+  Tx[2] = sector+1;
+  Tx[3] = (Tx[0] ^ Tx[1] ^ Tx[2]);
+  lenRx = 1;
+  */
+
   // measure time for sector erase
   tStart = millis();
 
