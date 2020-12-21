@@ -110,6 +110,7 @@ int main(int argc, char ** argv) {
   bool      verifyUpload;         // verify memory after upload
   uint64_t  jumpAddr;             // address to jump to before exit program
   bool      printHelp;            // flag for printing help page
+  int       paramHelp=-1;         // parameter index to print help for
   int       i, j;                 // generic variables
   char      tmp[STRLEN];          // misc buffer
   uint64_t  addrStart, addrStop, numData;  // image data range
@@ -342,6 +343,7 @@ int main(int argc, char ** argv) {
         i+=3;
       else {
         printHelp = true;
+        paramHelp = i;
         break;
       }
     } // read
@@ -367,6 +369,7 @@ int main(int argc, char ** argv) {
     // else print help
     else {
       printHelp = true;
+      paramHelp = i;
       break;
     }
 
@@ -427,6 +430,11 @@ int main(int argc, char ** argv) {
     printf("overwrite previous uploads. Also exports only contain the previous uploads, i.e.\n");
     printf("intermediate exports only contain the memory content up to that point in time.\n");
     printf("\n");
+
+    // in case of a wrong parameter print index
+    if (paramHelp > 0)
+      printf("\nerror occurred in parameter %d\n", paramHelp);
+
     Exit(0,0);
   }
 
@@ -749,7 +757,6 @@ int main(int argc, char ** argv) {
   bsl_getInfo(ptrPort, physInterface, uartMode, &flashsize, &versBSL, &family, verbose);
 
   // for STM8S and 8kB STM8L upload RAM routines, else skip
-  //if (0) {
   if ((family == STM8S) || (flashsize==8)) {
 
     char   *ptrRAM = NULL;          // pointer to array with RAM routines
