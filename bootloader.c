@@ -60,6 +60,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   Tx[0] = SYNCH;
   lenRx = 1;
 
+  // synchronize. Repeat until NACK received (problems re-synchronizing with ACK -> wait for NACK)
   count = 0;
   do {
 
@@ -95,20 +96,12 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
     // avoid flooding the STM8
     SLEEP(10);
 
-  } while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
+  } while ((count<50) && ((len!=lenRx) || (Rx[0]!=NACK)));
 
-  // check if ok
-  if ((len==lenRx) && (Rx[0]==ACK)) {
-    if (verbose == SILENT)
+  // check if ok (check for NACK, not ACK!)
+  if ((len==lenRx) && (Rx[0]==NACK)) {
+    if (verbose >= SILENT)
       printf("done\n");
-    else if (verbose > SILENT)
-      printf("done (ACK)\n");
-  }
-  else if ((len==lenRx) && (Rx[0]==NACK)) {
-    if (verbose == SILENT)
-      printf("done\n");
-    else if (verbose > SILENT)
-      printf("done (NACK)\n");
   }
   else if (len==lenRx)
     Error("in 'bsl_sync()': wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
@@ -164,15 +157,15 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   } while (len==0);
 
   // tested empirically...
-  if (Rx[0] == ACK) {              // UART mode 0: 2-wire duplex, no SW reply, even parity
+  if (Rx[0] == ACK) {               // UART mode 0: 2-wire duplex, no SW reply, even parity
     uartMode = 0;
     set_parity(ptrPort, 2);
   }
-  else if (Rx[0] == Tx[0]) {       // UART mode 1: 1-wire reply, no SW reply, no parity
+  else if (Rx[0] == Tx[0]) {        // UART mode 1: 1-wire reply, no SW reply, no parity
     uartMode = 1;
     set_parity(ptrPort, 0);
   }
-  else if (Rx[0] == NACK) {        // UART mode 2: 2-wire reply, SW reply, no parity
+  else if (Rx[0] == NACK) {         // UART mode 2: 2-wire reply, SW reply, no parity
     uartMode = 2;
     set_parity(ptrPort, 0);
   }
@@ -916,7 +909,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   Tx[3] = (Tx[0] ^ Tx[1] ^ Tx[2]);
   lenRx = 1;
   */
-
+  
   // measure time for sector erase
   tStart = millis();
 
