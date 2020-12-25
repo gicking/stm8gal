@@ -96,6 +96,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
     // avoid flooding the STM8
     SLEEP(10);
 
+  //xxx} while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
   } while ((count<50) && ((len!=lenRx) || (Rx[0]!=NACK)));
 
   // check if ok (check for NACK, not ACK!)
@@ -103,6 +104,21 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
     if (verbose >= SILENT)
       printf("done\n");
   }
+  /* xxx
+  // check if ok
+  if ((len==lenRx) && (Rx[0]==ACK)) {
+    if (verbose == SILENT)
+      printf("done\n");
+    else if (verbose > SILENT)
+      printf("done (ACK)\n");
+  }
+  else if ((len==lenRx) && (Rx[0]==NACK)) {
+    if (verbose == SILENT)
+      printf("done\n");
+    else if (verbose > SILENT)
+      printf("done (NACK)\n");
+  }
+  */
   else if (len==lenRx)
     Error("in 'bsl_sync()': wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
   else
