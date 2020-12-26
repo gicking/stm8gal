@@ -18,6 +18,9 @@
 #include "spi_spidev_comm.h"
 #include "spi_Arduino_comm.h"
 #include "misc.h"
+#if defined(__ARMEL__) && defined(USE_WIRING)
+  #include <wiringPi.h>
+#endif
 
 
 /**
@@ -1339,7 +1342,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     }
     #if defined(USE_SPIDEV)
       else if (physInterface == SPI_SPIDEV) {
-        if ((addrTmp >= 0x8000) && (addrTmp % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
+        if ((addrBlock >= PFLASH_START) && (addrBlock % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
           SLEEP(1200);                               // for not 128-aligned data wait >1.1s
         else
           SLEEP(20);                                 // for 128-aligned data wait >8.5ms

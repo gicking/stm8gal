@@ -1,12 +1,12 @@
 /**
   \file misc.c
-  
+
   \author G. Icking-Konert
   \date 2014-03-14
   \version 0.1
-   
+
   \brief implementation of misc routines
-   
+
   implementation of routines not really fitting anywhere else
 */
 
@@ -47,8 +47,8 @@
   #define FG_VIOLET     ( FOREGROUND_RED | FOREGROUND_BLUE )
   #define FG_WHITE      ( FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY )
   #define FG_YELLOW     ( FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY )
-  
-  // background colours 
+
+  // background colours
   #define BG_BLACK      ( 0 )
   #define BG_BLUE       ( BACKGROUND_BLUE | BACKGROUND_INTENSITY )
   #define BG_BROWN      ( BACKGROUND_RED | BACKGROUND_GREEN )
@@ -74,7 +74,7 @@
 
 /**
   \fn void Error(const char *format, ...)
-   
+
   \param[in] code    return code of application to commandline
   \param[in] pause   wait for keyboard input before terminating
 
@@ -98,11 +98,11 @@ void Error(const char *format, ...)
 
 /**
   \fn void Exit(uint8_t code, uint8_t pause)
-   
+
   \param[in] code    return code of application to commandline
   \param[in] pause   wait for keyboard input before terminating
 
-  Terminate program. Replace standard exit() to query for \<return\> 
+  Terminate program. Replace standard exit() to query for \<return\>
   before termination, unless background operation is specified.
 */
 void Exit(uint8_t code, uint8_t pause) {
@@ -112,7 +112,7 @@ void Exit(uint8_t code, uint8_t pause) {
     printf("\a");
     fflush(stdout);
   }
-  
+
   // reset text color to default
   setConsoleColor(PRM_COLOR_DEFAULT);
 
@@ -134,11 +134,11 @@ void Exit(uint8_t code, uint8_t pause) {
 
 /**
   \fn void stripPath(char *in, char *out)
-   
+
   \param[in] in      name of application incl. path
   \param[in] out     name of application excl. path
 
-  strip pathname from application name 
+  strip pathname from application name
 */
 void stripPath(char *in, char *out) {
 
@@ -161,7 +161,7 @@ void stripPath(char *in, char *out) {
 
 /**
   \fn void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, uint8_t *status)
-   
+
   \param[in]  vers      16b revision number in format xx.xxxxxxxx.xxxxx.x
   \param[out] major     major revision number [15:14] -> 0..3
   \param[out] minor     minor revision number [13:6] -> 0..255
@@ -175,23 +175,23 @@ void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, 
 
   // major version ([15:14] -> 0..7)
   *major = (uint8_t) ((vers & 0xC000) >> 14);
-  
+
   // minor version ([13:6] -> 0..255)
   *minor = (uint8_t) ((vers & 0x3FC0) >> 6);
-  
+
   // build number ([5:1] -> 0..31)
   *build = (uint8_t) ((vers&0x003E) >> 1);
-  
+
   // release status ([0] -> 0=beta; 1=released)
   *status = (uint8_t) (vers&0x0001);
-  
+
 } // get_version
 
 
 
 /**
   \fn void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr)
-   
+
   \param[in]  appFull   name of application incl. path
   \param[in]  versID    16b version identifier
   \param[out] appName   name of application w/o path
@@ -218,7 +218,7 @@ void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr) 
 
   // extract major / minor / build revision number
   get_version(versID, &major, &minor, &build, &status);
-  
+
   // copy version data to string
   if (status==0)
     sprintf(versStr, "v%d.%d.%d beta", major, minor, build);
@@ -231,19 +231,19 @@ void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr) 
 
 /**
   \fn void setConsoleTitle(const char *title)
-  
+
   \param[in]  title   title for console window
-  
+
    set console title to application name + version number
      Win32: uses Windows API functions
      POSIX: use console escape sequence
 */
- 
-// 
+
+//
 #if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
 void setConsoleTitle(const char *title) {
-  
-  // for background operation skip to avoid strange control characters 
+
+  // for background operation skip to avoid strange control characters
   if (g_backgroundOperation)
     return;
 
@@ -261,20 +261,20 @@ void setConsoleTitle(const char *title) {
 } // SetTitle
 #endif // WIN32 || __APPLE__ || __unix__
 
-  
-  
+
+
 /**
   \fn void setConsoleColor(uint8_t color)
-  
+
   \param[in] color  new text color
-   
+
   switch text color in console output to specified value
     Win32: uses Windows API functions
     POSIX: uses VT100 escape codes
 */
 void setConsoleColor(uint8_t color) {
-  
-  // for background operation skip to avoid strange control characters 
+
+  // for background operation skip to avoid strange control characters
   if (g_backgroundOperation)
     return;
 
@@ -283,8 +283,8 @@ void setConsoleColor(uint8_t color) {
 
   static WORD                   oldColor, colorBck;
   static char                   flag=0;
-  CONSOLE_SCREEN_BUFFER_INFO    csbiInfo; 
-  
+  CONSOLE_SCREEN_BUFFER_INFO    csbiInfo;
+
   // at first call get and store current text and backgound color
   if (flag==0) {
     flag = 1;
@@ -295,7 +295,7 @@ void setConsoleColor(uint8_t color) {
 
   // set to text color
   switch (color) {
-    
+
     // revert color to start value
     case PRM_COLOR_DEFAULT:
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), oldColor);
@@ -325,30 +325,30 @@ void setConsoleColor(uint8_t color) {
     case PRM_COLOR_PINK:
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FG_PINK | colorBck);
       break;
-      
+
     // set color to white; retain background color
     case PRM_COLOR_WHITE:
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FG_WHITE | colorBck);
       break;
-      
+
     // set color to yellow; retain background color
     case PRM_COLOR_YELLOW:
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FG_YELLOW | colorBck);
       break;
-      
+
     // else revert color to default
     default:
       //fprintf(stderr, "\n\ndefault\n\n");
       SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), oldColor);
-      
+
   } //  switch (color)
-  
+
 
 #elif defined(__APPLE__) || defined(__unix__)
 
   // set to text color (see http://linuxgazette.net/issue65/padala.html)
   switch (color) {
-    
+
     // revert color to start value
     case PRM_COLOR_DEFAULT:
       printf("\033[0m");
@@ -383,34 +383,34 @@ void setConsoleColor(uint8_t color) {
       //printf("\n\nred\n\n");
       fflush(stdout);
       break;
-      
+
     // set color to pink; retain background color
     case PRM_COLOR_PINK:
       printf("\033[1;35m");
       //printf("\n\npink\n\n");
       fflush(stdout);
       break;
-      
+
     // set color to white; retain background color
     case PRM_COLOR_WHITE:
       printf("\033[37m");
       //printf("\n\nwhite\n\n");
       fflush(stdout);
       break;
-      
+
     // set color to yellow; retain background color
     case PRM_COLOR_YELLOW:
       printf("\033[1;33m");
       //printf("\n\nyellow\n\n");
       fflush(stdout);
       break;
-      
+
     // else revert color to default
     default:
       printf("\033[0m");
       //printf("\n\ndefault\n\n");
       fflush(stdout);
-      
+
   } //  switch (color)
 
 #else
@@ -419,79 +419,84 @@ void setConsoleColor(uint8_t color) {
 
 } // setConsoleColor
 
-  
-  
-/**
-  \fn uint64_t millis(void)
-  
-  \return time [ms] since start of program
-  
-  Return the number of milliseconds since the current program was launched. 
-  Due to used uint64_t format this number will not overflow in any realistic
-  time (in contrast to Arduino).
-*/
-uint64_t millis() {
-
-  // use below micros() for simplicity. On a PC overhead is negligible
-  return(micros()/1000LL);
-
-} // millis
-
-  
-  
-/**
-  \fn uint64_t micros(void)
-  
-  \return time [us] since start of program
-  
-  Return the number of microseconds since the current program was launched. 
-  Due to used uint64_t format this number will not overflow in any realistic
-  time (in contrast to Arduino).
-*/
-uint64_t micros() {
-
-  static bool      s_firstCall = true;
-  static uint64_t  s_microsStart = 0;
-  uint64_t         microsCurr;
-
-#if defined(WIN32)
-
-  static double    s_ticksPerMicros = 0;     // resolution of Windows fast core timer
-  LARGE_INTEGER    tick;
-
-  // on first call get resolution of fast core timer
-  if (s_firstCall) {
-    QueryPerformanceFrequency(&tick);
-    s_ticksPerMicros = (double) (tick.QuadPart) / 1e6;
-  }
-
-  // get time in us
-  QueryPerformanceCounter(&tick);
-  microsCurr = (uint64_t) (tick.QuadPart / s_ticksPerMicros);
-
-#endif // WIN32
 
 
-#if defined(__APPLE__) || defined(__unix__)
-  
-  // get current time
-  struct timeval  te; 
-  gettimeofday(&te, NULL);
+// skip for RasPi with WiringPi
+#ifndef USE_WIRING
 
-  // calculate milliseconds
-  microsCurr = te.tv_sec*1000000LL + te.tv_usec;
+  /**
+    \fn uint64_t millis(void)
 
-#endif // WIN32
+    \return time [ms] since start of program
 
-  // on 1st call also store starting time and set flag
-  if (s_firstCall) {
-    s_firstCall = false;
-    s_microsStart = microsCurr;
-  }
+    Return the number of milliseconds since the current program was launched.
+    Due to used uint64_t format this number will not overflow in any realistic
+    time (in contrast to Arduino).
+    */
+    uint64_t millis() {
 
-  // return micros since 1st call
-  return(microsCurr - s_microsStart);
+      // use below micros() for simplicity. On a PC overhead is negligible
+      return(micros()/1000LL);
 
-} // micros
+    } // millis
+
+
+
+    /**
+    \fn uint64_t micros(void)
+
+    \return time [us] since start of program
+
+    Return the number of microseconds since the current program was launched.
+    Due to used uint64_t format this number will not overflow in any realistic
+    time (in contrast to Arduino).
+    */
+    uint64_t micros() {
+
+      static bool      s_firstCall = true;
+      static uint64_t  s_microsStart = 0;
+      uint64_t         microsCurr;
+
+      #if defined(WIN32)
+
+      static double    s_ticksPerMicros = 0;     // resolution of Windows fast core timer
+      LARGE_INTEGER    tick;
+
+      // on first call get resolution of fast core timer
+      if (s_firstCall) {
+        QueryPerformanceFrequency(&tick);
+        s_ticksPerMicros = (double) (tick.QuadPart) / 1e6;
+      }
+
+      // get time in us
+      QueryPerformanceCounter(&tick);
+      microsCurr = (uint64_t) (tick.QuadPart / s_ticksPerMicros);
+
+      #endif // WIN32
+
+
+      #if defined(__APPLE__) || defined(__unix__)
+
+      // get current time
+      struct timeval  te;
+      gettimeofday(&te, NULL);
+
+      // calculate milliseconds
+      microsCurr = te.tv_sec*1000000LL + te.tv_usec;
+
+      #endif // WIN32
+
+      // on 1st call also store starting time and set flag
+      if (s_firstCall) {
+        s_firstCall = false;
+        s_microsStart = microsCurr;
+      }
+
+      // return micros since 1st call
+      return(microsCurr - s_microsStart);
+
+    } // micros
+
+#endif // USE_WIRING
 
 // end of file

@@ -99,8 +99,8 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
     -v/-verbose [level]             set verbosity level 0..3 (default: 2)
     -B/-background                  skip prompts and colors for background operation (default: foreground)
     -q/-exit-prompt                 prompt for <return> prior to exit (default: no prompt)
-    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 6=RTS line (RS232) (default: manual)
-    -i/-interface [line]            communication interface: 0=UART, 1=SPI via Arduino (default: UART)
+    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default:     manual)
+    -i/-interface [line]            communication interface: 0=UART, 1=SPI via Arduino, 2=SPI via spidev (default: UART)
     -u/-uart-mode [mode]            UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
     -p/-port [name]                 communication port (default: list available ports)
     -b/-baudrate [speed]            communication baudrate in Baud (default: 115200)
@@ -113,10 +113,10 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
     -E/-erase-full                  mass erase complete flash. Use carefully!
 
 Notes:
-  - reset via RasPi GPIO (`-R 5`) is only available on a Raspberry Pi and if _stm8gal_ was built with _wiringPi_ support (see [Building the Software](#building-the-software)
-  - interface spidev (`-i 2`) is only available if _stm8gal_ was built with _spidev_ support (see [Building the Software](#building-the-software)
+  - reset via RasPi GPIO (`-R 5`) is only available on a Raspberry Pi and if _stm8gal_ was built with _wiringPi_ support (see [Building the Software](#building-the-software))
+  - interface spidev (`-i 2`) is only available if _stm8gal_ was built with _spidev_ support (see [Building the Software](#building-the-software))
   - SPI via Arduino (`-i 1`) and reset via Arduino GPIO (`-R 4`) requires an additional Arduino programmed as [SPI bridge](https://github.com/gicking/Arduino_SPI_bridge)
-  - flash write/erase routines in RAM use addresses 0x00-0x1FF. Don't use this range for custom RAM code
+  - flash write/erase routines in RAM use addresses 0x00-0x1FF. Don't use this range for custom RAM code (see [UM0560](https://www.st.com/content/ccc/resource/technical/document/user_manual/e4/83/c1/d6/ee/d8/49/b8/CD00201192.pdf/files/CD00201192.pdf/jcr:content/translations/en.CD00201192.pdf))
   - CRC32 checksum routine in RAM use addresses 0x200-0x0x35C. In case you use verify via CRC32 ('-V 1') don't use this range for custom RAM code
 
 ***

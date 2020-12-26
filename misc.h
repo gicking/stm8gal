@@ -1,12 +1,12 @@
 /**
   \file misc.h
-   
+
   \author G. Icking-Konert
   \date 2014-03-14
   \version 0.1
-   
+
   \brief declaration of misc routines
-   
+
   declaration of routines not really fitting anywhere else
 */
 
@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-// color codes 
+// color codes
 #define PRM_COLOR_DEFAULT       0
 #define PRM_COLOR_BLACK         1
 #define PRM_COLOR_BLUE          2
@@ -66,11 +66,16 @@ void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr);
 /// set console text color
 void setConsoleColor(uint8_t color);
 
-/// get milliseconds since start of program (as Arduino)
-uint64_t millis(void);
+// skip for RasPi with WiringPi
+#ifndef USE_WIRING
 
-/// get microseconds since start of program (as Arduino)
-uint64_t micros(void);
+  /// get milliseconds since start of program (as Arduino)
+  uint64_t millis(void);
+
+  /// get microseconds since start of program (as Arduino)
+  uint64_t micros(void);
+
+#endif // USE_WIRING
 
 #endif // _MISC_H_
 
