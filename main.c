@@ -64,6 +64,7 @@
 #include "spi_Arduino_comm.h"
 #include "bootloader.h"
 #include "hexfile.h"
+#include "verify_CRC32.h"
 #include "version.h"
 
 
@@ -107,7 +108,7 @@ int main(int argc, char ** argv) {
   int       uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
   int       resetSTM8;            // reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default: manual)
   uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
-  bool      verifyUpload;         // verify memory after upload
+  int       verifyUpload;         // verify method after upload (0=skip, 1=CRC32, 2=read-out)
   uint64_t  jumpAddr;             // address to jump to before exit program
   bool      printHelp;            // flag for printing help page
   int       paramHelp=-1;         // parameter index to print help for
@@ -132,7 +133,7 @@ int main(int argc, char ** argv) {
   baudrate       = 115200;        // default baudrate
   verbose        = INFORM;        // verbosity level medium
   resetSTM8      = 1;             // manual reset of STM8
-  verifyUpload   = true;          // verify memory content after upload
+  verifyUpload   = 2;             // read back memory after upload  (0=skip, 1=CRC32, 2=read-out)
   jumpAddr       = PFLASH_START;  // by default jump to start of P-flash (see bootloader.h)
 
 
@@ -276,10 +277,20 @@ int main(int argc, char ** argv) {
     } // baudrate
 
 
-    // no verify of memory content after upload
-    else if ((!strcmp(argv[i], "-V")) || (!strcmp(argv[i], "-no-verify"))) {
-      verifyUpload = false;
-    } // no-verify
+    // set verify method after upload
+    else if ((!strcmp(argv[i], "-V")) || (!strcmp(argv[i], "-verify"))) {
+
+      // get memory verify method
+      if (i+1<argc)
+        sscanf(argv[++i],"%d",&verifyUpload);
+      else {
+        printHelp = true;
+        break;
+      }
+      if (verifyUpload < 0) verifyUpload = 0;
+      if (verifyUpload > 2) verifyUpload = 2;
+
+    } // verify method
 
 
     // jump adress before program termination (-1 or 0xFFFFFFFF == skip jump)
@@ -405,7 +416,7 @@ int main(int argc, char ** argv) {
     printf("    -u/-uart-mode [mode]            UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)\n");
     printf("    -p/-port [name]                 communication port (default: list available ports)\n");
     printf("    -b/-baudrate [speed]            communication baudrate in Baud (default: 115200)\n");
-    printf("    -V/-no-verify                   don't verify code in flash after upload (default: verify)\n");
+    printf("    -V/-verify                      verify flash content after upload: 0=skip, 1=CRC32 checksum, 2=read back (default: read back)\n");
     printf("    -j/-jump-addr [address]         jump to address (as dec or hex) before exit of %s, or -1 for skip (default: flash)\n", appname);
     printf("    -w/-write-file [file [addr]]    upload file from PC to uController. For binary file (*.bin) with address offset (as dec or hex)\n");
     printf("    -W/-write-byte [addr value]     change value at given address (both as dec or hex)\n");
@@ -446,10 +457,10 @@ int main(int argc, char ** argv) {
   // read back after writing doesn't work for SPI (don't know why)
   #if defined(USE_SPIDEV)
     if ((physInterface == SPI_ARDUINO) || (physInterface == SPI_SPIDEV))
-      verifyUpload = false;
+      verifyUpload = 0;
   #else
     if (physInterface == SPI_ARDUINO)
-      verifyUpload = false;
+      verifyUpload = 0;
   #endif
 
   // for background operation avoid prompt on exit
@@ -932,9 +943,9 @@ int main(int argc, char ** argv) {
     }
 
 
-    // skip verify flag w/o parameter, is handled in 1st run
-    else if ((!strcmp(argv[i], "-V")) || (!strcmp(argv[i], "-no-verify"))) {
-      i += 0;   // dummy
+    // skip verify method with 1 parameter, is handled in 1st run
+    else if ((!strcmp(argv[i], "-V")) || (!strcmp(argv[i], "-verify"))) {
+      i += 1;
     }
 
 
@@ -994,8 +1005,14 @@ int main(int argc, char ** argv) {
       bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
 
       // optionally verify upload
-      if (verifyUpload)
+      if (verifyUpload == 0)        // skip verify
+        ;
+      else if (verifyUpload == 1)   // compare CRC32 checksums
+        verify_crc32(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      else if (verifyUpload == 2)   // read back memory and compare
         bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      else
+        Error("Unknown memory verify method %d", verifyUpload);
 
       // clear memory image again
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
@@ -1039,8 +1056,14 @@ int main(int argc, char ** argv) {
       bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
 
       // optionally verify upload
-      if (verifyUpload)
+      if (verifyUpload == 0)        // skip verify
+        ;
+      else if (verifyUpload == 1)   // compare CRC32 checksums
         bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      else if (verifyUpload == 2)   // read back memory and compare
+        bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      else
+        Error("Unknown memory verify method %d", verifyUpload);
 
       // clear memory image again
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
@@ -1160,7 +1183,7 @@ int main(int argc, char ** argv) {
         SLEEP(500);
     #endif
 
-    // jumpt to application
+    // jump to application
     bsl_jumpTo(ptrPort, physInterface, uartMode, jumpAddr, verbose);
 
   } // jump to STM8 address

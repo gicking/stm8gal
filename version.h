@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier
-#define VERSION     ((1<<14) | (4<<6) | (1<<1) | 1)     // -> v1.4.1
+#define VERSION     ((1<<14) | (4<<6) | (2<<1) | 1)     // -> v1.4.2
 
 #endif // _SW_VERSION_H_
 
@@ -29,9 +29,15 @@
 Revision History
 ----------------
 
-v1.4.0 (2020-04-09)
-  - improved S19 export for >16bit addresses
-  - added IHX export option
+v1.4.2 (2020-12-26)
+  - support re-synchronization w/o STM8 reset
+  - add option verify via CRC32 checksum (see https://github.com/gicking/stm8gal/issues/20)
+	- add parameter to verify option (-V/-verify). Is required due to new CRC32 check 
+
+----------------
+
+v1.4.1 (2020-12-13)
+  - minor bugfix
 
 ----------------
 

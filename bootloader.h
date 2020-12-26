@@ -1,13 +1,13 @@
 /**
   \file bootloader.h
-   
+
   \author G. Icking-Konert
   \date 2014-03-14
   \version 0.1
-   
-  \brief declaration of STM bootloader routines
-   
-  declaration of of STM bootloader routines
+
+  \brief declaration of STM8 bootloader routines
+
+  declaration of STM8 bootloader routines
 */
 
 // for including file only once
@@ -29,7 +29,7 @@
 
 // BSL command codes
 #define GET     0x00      //< gets version and commands supported by the BSL
-#define READ    0x11      //< read up to 256 bytes of memory 
+#define READ    0x11      //< read up to 256 bytes of memory
 #define ERASE   0x43      //< erase flash program memory/data EEPROM sectors
 #define WRITE   0x31      //< write up to 128 bytes to RAM or flash
 #define GO      0x21      //< jump to a specified address e.g. flash

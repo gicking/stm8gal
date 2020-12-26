@@ -5,9 +5,9 @@
   \date 2014-03-14
   \version 0.1
 
-  \brief implementation of STM bootloader routines
+  \brief implementation of STM8 bootloader routines
 
-  implementation of of STM bootloader routines
+  implementation of STM8 bootloader routines
 */
 
 
@@ -925,7 +925,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   Tx[3] = (Tx[0] ^ Tx[1] ^ Tx[2]);
   lenRx = 1;
   */
-  
+
   // measure time for sector erase
   tStart = millis();
 
