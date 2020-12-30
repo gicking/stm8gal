@@ -65,3 +65,4 @@ tool_validation.*
 *.s19
 /stm8gal.exe
 *_dump.txt
+/test-erase/*
