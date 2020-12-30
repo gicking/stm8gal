@@ -75,3 +75,4 @@ MSVC/Release/
 *.sdf
 *.suo
 *.user
+/test-erase/*
