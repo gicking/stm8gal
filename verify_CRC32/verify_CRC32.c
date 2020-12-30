@@ -19,7 +19,7 @@
 
 // SDCC pragmas 
 #pragma codeseg VERIFY_SEG
-#pragma callee_saves erase
+#pragma callee_saves watchdog_refresh // TODO: F%$&!! This isn't implemented by SDCC for STM8!
 
 // include files
 #include "verify_CRC32.h"
@@ -45,9 +45,9 @@ void verify_CRC32(void)
     // calculate checksum over specified memory content
     else
     {
-        // switch to 16MHz, store old setting
-        uint8_t oldCLK = CLK_CKDIVR;
-        CLK_CKDIVR = 0x00;
+        // switch to 16MHz, store old setting. Skip, see mail B.Hussain 2020-12-28 
+        //uint8_t oldCLK = CLK_CKDIVR;
+        //CLK_CKDIVR = 0x00;
        
  	// initialize CRC32 checksum
         crc32 = crc32_init();
@@ -70,9 +70,10 @@ void verify_CRC32(void)
             // increment address
             addr_start++;
             
-            // service watchdogs
-            SERVICE_IWDG;
-            SERVICE_WWDG;
+            // service watchdogs. Use ROM routine, see mail B.Hussain 2020-12-28
+            //SERVICE_IWDG;
+            //SERVICE_WWDG;
+            watchdog_refresh();
 
         } // loop over memory
         
@@ -82,8 +83,8 @@ void verify_CRC32(void)
         // set return status
         status = SUCCESS;
 
-        // restore old clock setting;
-        CLK_CKDIVR = oldCLK;
+        // restore old clock setting. Skip, see mail B.Hussain 2020-12-28
+        //CLK_CKDIVR = oldCLK;
 
     } // if calculate checksum
 

@@ -71,6 +71,9 @@
 /// update CRC32 checksum 
 uint32_t crc32_update(uint32_t crc, uint8_t data);
 
+/// ROM routine to service IWDG & WWDG watchdogs
+extern void watchdog_refresh(void);
+
 
 // Parameters passed from ROM-BL to RAM-verify and results passed back.
 // Locations are specified at link time according to compatibility with ROM

@@ -14,7 +14,8 @@ LINKTARGETS = \
 	./linker.lk
 BINDIR = bin
 BINARY = $(BINDIR)/verify_CRC32.ihx
-HEADER = $(BINDIR)/verify_CRC32_ihx.h
+HEADERDIR = include
+HEADER = $(HEADERDIR)/verify_CRC32_ihx.h
 ifeq ($(OS),Windows_NT)
 	RM = cmd.exe /C del /Q
 	MKDIRFLAGS =
@@ -27,7 +28,7 @@ endif
 
 all: $(BINARY) $(HEADER)
 
-$(BINARY): $(LINKTARGETS) $(OBJECTS) $(BINDIR)
+$(BINARY): $(LINKTARGETS) $(OBJECTS) $(BINDIR) $(HEADERDIR)
 	$(LD) $(LDFLAGS) -i $@ -f $(LINKTARGETS)
 
 $(HEADER): $(BINARY)
@@ -48,6 +49,10 @@ $(OBJDIR):
 $(BINDIR):
 	mkdir $(MKDIRFLAGS) $(BINDIR)
 
+$(HEADERDIR):
+	mkdir $(MKDIRFLAGS) $(HEADERDIR)
+
 clean:
 	$(RM) $(OBJDIR)
 	$(RM) $(BINDIR)
+	$(RM) $(HEADERDIR)
