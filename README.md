@@ -99,7 +99,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
     -v/-verbose [level]             set verbosity level 0..3 (default: 2)
     -B/-background                  skip prompts and colors for background operation (default: foreground)
     -q/-exit-prompt                 prompt for <return> prior to exit (default: no prompt)
-    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default:     manual)
+    -R/-reset [rst]                 reset for STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default: manual)
     -i/-interface [line]            communication interface: 0=UART, 1=SPI via Arduino, 2=SPI via spidev (default: UART)
     -u/-uart-mode [mode]            UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
     -p/-port [name]                 communication port (default: list available ports)
