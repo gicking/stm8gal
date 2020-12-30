@@ -1,12 +1,12 @@
 /**
   \file serial_comm.h
-   
+
   \author G. Icking-Konert
   \date 2008-11-02
   \version 0.1
-   
+
   \brief declaration of RS232 comm port routines
-   
+
   declaration of of routines for RS232 communication using the Win32 or Posix API.
   For Win32, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
   For Posix see http://www.easysw.com/~mike/serial/serial.html
@@ -26,20 +26,6 @@ extern "C"
 #include <stdlib.h>
 #include <stdint.h>
 #include <inttypes.h>
-
-/// physical bootloader interface 
-#if defined(USE_SPIDEV) && defined(USE_SPI_ARDUINO)
-  typedef enum {UART=0, SPI_ARDUINO=1, SPI_SPIDEV=2} physInterface_t;
-#elif defined(USE_SPI_ARDUINO)
-  typedef enum {UART=0, SPI_ARDUINO=1} physInterface_t;
-#elif defined(USE_SPIDEV)
-  typedef enum {UART=0, SPI_SPIDEV=2} physInterface_t;
-#else
-  typedef enum {UART=0} physInterface_t;
-#endif
-
-/// UART communication timeout
-#define  TIMEOUT  1000
 
 // OS specific: Windows
 #if defined(WIN32) || defined(WIN64)
@@ -63,6 +49,7 @@ extern "C"
   #error OS not supported
 #endif
 
+
 typedef enum STM8gal_SerialErrors
 {
     STM8GAL_SERIALCOMMS_NO_ERROR = 0,
@@ -78,6 +65,7 @@ typedef enum STM8gal_SerialErrors
     STM8GAL_SERIALCOMMS_FAILED_ONE_WIRE_ECHO,
     STM8GAL_SERIALCOMMS_SEND_ERROR,
 } STM8gal_SerialErrors_t;
+
 
 /// list all available comm ports
 STM8gal_SerialErrors_t        list_ports(void);
@@ -95,7 +83,7 @@ STM8gal_SerialErrors_t        pulse_DTR(HANDLE fpCom, uint32_t duration);
 STM8gal_SerialErrors_t        pulse_RTS(HANDLE fpCom, uint32_t duration);
 
 /// generate low pulse on Raspberry pin in [ms] to reset STM8
-void                          pulse_GPIO(int pin, uint32_t duration);
+STM8gal_SerialErrors_t        pulse_GPIO(int pin, uint32_t duration);
 
 /// get comm port settings
 STM8gal_SerialErrors_t        get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR);
@@ -123,6 +111,9 @@ STM8gal_SerialErrors_t        flush_port(HANDLE fpCom);
 
 /// return last error in the Serial Comms module
 STM8gal_SerialErrors_t        SerialComm_GetLastError(void);
+
+/// clear last error in the Serial Comms module
+void                          SerialComm_ClearLastError(void);
 
 /// return last error string in the Serial Comm module
 const char *                  SerialComm_GetLastErrorString(void);

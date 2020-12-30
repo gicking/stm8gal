@@ -5,9 +5,9 @@
   \date 2014-03-14
   \version 0.1
 
-  \brief implementation of STM bootloader routines
+  \brief implementation of STM8 bootloader routines
 
-  implementation of of STM bootloader routines
+  implementation of STM8 bootloader routines
 */
 
 
@@ -22,11 +22,14 @@
 #if defined (USE_SPI_ARDUINO)
   #include "spi_Arduino_comm.h"
 #endif
+#if defined(__ARMEL__) && defined(USE_WIRING)
+  #include <wiringPi.h>
+#endif
 
 STM8gal_BootloaderErrors_t g_bootloaderLastError = STM8GAL_BOOTLOADER_NO_ERROR;
 
-char * g_bootloaderErrorStrings[STM8GAL_BOOTLOADER_HEXFILE_ERROR+1] = 
-{ 
+char * g_bootloaderErrorStrings[STM8GAL_BOOTLOADER_HEXFILE_ERROR+1] =
+{
     "No Error",                             // STM8GAL_BOOTLOADER_NO_ERROR = 0,
     "Port Not Opem",                        // STM8GAL_BOOTLOADER_PORT_NOT_OPEN,
     "Too Many Sync Attempts",               // STM8GAL_BOOTLOADER_TOO_MANY_SYNC_ATTEMPTS,
@@ -95,6 +98,7 @@ STM8gal_BootloaderErrors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8
   Tx[0] = SYNCH;
   lenRx = 1;
 
+  // synchronize. Repeat until NACK received (problems re-synchronizing with ACK -> wait for NACK)
   count = 0;
   do {
 
@@ -157,8 +161,15 @@ STM8gal_BootloaderErrors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8
     // avoid flooding the STM8
     SLEEP(10);
 
-  } while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
+  //xxx} while ((count<SYNC_RETRIES) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
+  } while ((count<SYNC_RETRIES) && ((len!=lenRx) || (Rx[0]!=NACK)));
 
+  // check if ok (check for NACK, not ACK!)
+  if ((len==lenRx) && (Rx[0]==NACK)) {
+    if (verbose >= SILENT)
+      console_print(STDOUT, "done (%d attempts)\n", count);
+  }
+  /* xxx
   // check if ok
   if ((len==lenRx) && (Rx[0]==ACK)) {
     if (verbose == SILENT)
@@ -172,7 +183,8 @@ STM8gal_BootloaderErrors_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8
     else if (verbose > SILENT)
       console_print(STDOUT, "done (NACK)\n");
   }
-  else if (count >= 50) {
+  */
+  else if (count >= SYNC_RETRIES) {
     console_print(STDOUT, "too many sync retires");
     g_bootloaderLastError = STM8GAL_BOOTLOADER_TOO_MANY_SYNC_ATTEMPTS;
     return(g_bootloaderLastError);
@@ -234,12 +246,12 @@ STM8gal_BootloaderErrors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8_
   do {
     if (send_port(ptrPort, 0, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
       g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
       return(g_bootloaderLastError);
     }
     if (receive_port(ptrPort, 0, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
       g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
       return(g_bootloaderLastError);
     }
     //console_print(STDOUT, "\nmode 1: %d  0x%02x\n", len, (uint8_t) (Rx[0]));
@@ -262,12 +274,12 @@ STM8gal_BootloaderErrors_t bsl_getUartMode(HANDLE ptrPort, uint8_t *mode, uint8_
   else {
     Error("cannot determine UART mode");
     g_bootloaderLastError = STM8GAL_BOOTLOADER_CANNOT_DETERMINE_UART_MODE;
-    set_timeout(ptrPort, TIMEOUT);
+    set_timeout(ptrPort, UART_TIMEOUT);
     return(g_bootloaderLastError);
   }
 
   // revert timeout
-  set_timeout(ptrPort, TIMEOUT);
+  set_timeout(ptrPort, UART_TIMEOUT);
 
   // purge PC input buffer
   flush_port(ptrPort);
@@ -356,7 +368,7 @@ STM8gal_BootloaderErrors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, ui
   else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00100, SILENT) == true) { // STM8L
     if (g_bootloaderLastError != STM8GAL_BOOTLOADER_NO_ERROR) {
       if (physInterface == UART) {
-        set_timeout(ptrPort, TIMEOUT);
+        set_timeout(ptrPort, UART_TIMEOUT);
       }
       return(g_bootloaderLastError);
     }
@@ -369,7 +381,7 @@ STM8gal_BootloaderErrors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, ui
     console_print(STDERR, "cannot identify family");
     g_bootloaderLastError = STM8GAL_BOOTLOADER_CANNOT_IDENTIFY_FAMILY;
     if (physInterface == UART) {
-    set_timeout(ptrPort, TIMEOUT);
+    set_timeout(ptrPort, UART_TIMEOUT);
     }
     return(g_bootloaderLastError);
   }
@@ -403,7 +415,7 @@ STM8gal_BootloaderErrors_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, ui
 
   // restore timeout to avoid timeouts during flash operation
   if (physInterface == UART) {
-    set_timeout(ptrPort, TIMEOUT);
+    set_timeout(ptrPort, UART_TIMEOUT);
   }
 
 
@@ -1297,6 +1309,16 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
   Tx[2] = (Tx[0] ^ Tx[1]);
   lenRx = 1;
 
+  // debug: construct pattern for sector N & (N+1)
+  /*
+  lenTx = 4;
+  Tx[0] = 0x01;      // number of sectors to erase -1 (here 2 sectors)
+  Tx[1] = sector;
+  Tx[2] = sector+1;
+  Tx[3] = (Tx[0] ^ Tx[1] ^ Tx[2]);
+  lenRx = 1;
+  */
+
   // measure time for sector erase
   tStart = millis();
 
@@ -1304,7 +1326,7 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
   if (physInterface == UART) {
     if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
       g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
       return(g_bootloaderLastError);
     }
   }
@@ -1325,7 +1347,7 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
     g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
     if (physInterface == UART) {
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
     }
     return(g_bootloaderLastError);
   }
@@ -1334,7 +1356,7 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
   if (physInterface == UART) {
     if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
       g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
       return(g_bootloaderLastError);
     }
   }
@@ -1359,7 +1381,7 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
     console_print(STDOUT, "ACK2 timeout (expect %d, received %d)", lenTx, len);
     g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
     if (physInterface == UART) {
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
     }
     return(g_bootloaderLastError);
   }
@@ -1369,7 +1391,7 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
     console_print(STDOUT, "ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
     g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
     if (physInterface == UART) {
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
     }
     return(g_bootloaderLastError);
   }
@@ -1378,7 +1400,7 @@ STM8gal_BootloaderErrors_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInte
   tStop = millis();
 
   // restore timeout
-  set_timeout(ptrPort, TIMEOUT);
+  set_timeout(ptrPort, UART_TIMEOUT);
 
 
   // print message
@@ -1529,7 +1551,7 @@ STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterf
   if (physInterface == UART) {
     if (send_port(ptrPort, uartMode, lenTx, Tx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
       g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
       return(g_bootloaderLastError);
     }
   }
@@ -1550,7 +1572,7 @@ STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterf
     console_print(STDOUT, "sending command failed (expect %d, sent %d)", lenTx, len);
     g_bootloaderLastError = STM8GAL_BOOTLOADER_SEND_COMMAND_FAILED;
     if (physInterface == UART) {
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
     }
     return(g_bootloaderLastError);
   }
@@ -1559,7 +1581,7 @@ STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterf
   if (physInterface == UART) {
     if (receive_port(ptrPort, uartMode, lenRx, Rx, &len) != STM8GAL_SERIALCOMMS_NO_ERROR) {
       g_bootloaderLastError = STM8GAL_BOOTLOADER_RECEIVE_COMMAND_FAILED;
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
       return(g_bootloaderLastError);
     }
   }
@@ -1584,7 +1606,7 @@ STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterf
     console_print(STDOUT, "in 'bsl_flashMassErase()': ACK2 timeout (expect %d, received %d)", lenRx, len);
     g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_TIMEOUT;
     if (physInterface == UART) {
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
     }
     return(g_bootloaderLastError);
   }
@@ -1594,7 +1616,7 @@ STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterf
     console_print(STDOUT, "in 'bsl_flashMassErase()': ACK2 failure (expect 0x%02x, received 0x%02x)", (uint8_t) ACK, (uint8_t) (Rx[0]));
     g_bootloaderLastError = STM8GAL_BOOTLOADER_RESPONSE_UNEXPECTED;
     if (physInterface == UART) {
-      set_timeout(ptrPort, TIMEOUT);
+      set_timeout(ptrPort, UART_TIMEOUT);
     }
     return(g_bootloaderLastError);
   }
@@ -1603,7 +1625,7 @@ STM8gal_BootloaderErrors_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterf
   tStop = millis();
 
   // restore timeout
-  set_timeout(ptrPort, TIMEOUT);
+  set_timeout(ptrPort, UART_TIMEOUT);
 
 
   // print message
@@ -1914,7 +1936,7 @@ STM8gal_BootloaderErrors_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, u
     #endif
     #if defined(USE_SPIDEV)
       else if (physInterface == SPI_SPIDEV) {
-        if ((addrTmp >= 0x8000) && (addrTmp % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
+        if ((addrBlock >= 0x8000) && (addrBlock % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
           SLEEP(1200);                               // for not 128-aligned data wait >1.1s
         else
           SLEEP(20);                                 // for 128-aligned data wait >8.5ms
@@ -2274,7 +2296,7 @@ STM8gal_BootloaderErrors_t Bootloader_GetLastError(void) {
 
 /**
   \fn const char * Bootloader_GetLastErrorString(void)
-   
+
   return last error string in the Bootloader module
 */
 const char * Bootloader_GetLastErrorString(void)

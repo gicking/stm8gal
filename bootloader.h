@@ -1,13 +1,13 @@
 /**
   \file bootloader.h
-   
+
   \author G. Icking-Konert
   \date 2014-03-14
   \version 0.1
-   
-  \brief declaration of STM bootloader routines
-   
-  declaration of of STM bootloader routines
+
+  \brief declaration of STM8 bootloader routines
+
+  declaration of STM8 bootloader routines
 */
 
 // for including file only once
@@ -30,7 +30,7 @@ extern "C"
 
 // BSL command codes
 #define GET     0x00      //< gets version and commands supported by the BSL
-#define READ    0x11      //< read up to 256 bytes of memory 
+#define READ    0x11      //< read up to 256 bytes of memory
 #define ERASE   0x43      //< erase flash program memory/data EEPROM sectors
 #define WRITE   0x31      //< write up to 128 bytes to RAM or flash
 #define GO      0x21      //< jump to a specified address e.g. flash
@@ -45,7 +45,21 @@ extern "C"
 #define PFLASH_BLOCKSIZE  1024      //< size of flash block for erase or block write (same for all STM8 devices)
 
 /// max. number of bootloader synchronization attempts
-#define  RETRY    15
+#define  SYNC_RETRIES   50
+
+/// UART communication timeout
+#define  UART_TIMEOUT  1000
+
+/// physical bootloader interface
+#if defined(USE_SPIDEV) && defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1, SPI_SPIDEV=2} physInterface_t;
+#elif defined(USE_SPI_ARDUINO)
+  typedef enum {UART=0, SPI_ARDUINO=1} physInterface_t;
+#elif defined(USE_SPIDEV)
+  typedef enum {UART=0, SPI_SPIDEV=2} physInterface_t;
+#else
+  typedef enum {UART=0} physInterface_t;
+#endif
 
 typedef enum STM8gal_Bootloader_errors
 {

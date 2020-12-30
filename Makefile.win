@@ -4,14 +4,14 @@
 CPP      = g++.exe
 CC       = gcc.exe
 WINDRES  = windres.exe
-OBJ      = Objects/main.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o Objects/spi_Arduino_comm.o Objects/console.o Objects/timer.o
-LINKOBJ  = Objects/main.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o Objects/spi_Arduino_comm.o Objects/console.o Objects/timer.o
-LIBS     = -L"C:/Program Files/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib32" -static-libgcc -m32
-INCS     = -I"C:/Program Files/Dev-Cpp/MinGW64/include" -I"C:/Program Files/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"./STM8_Routines"
-CXXINCS  = -I"C:/Program Files/Dev-Cpp/MinGW64/include" -I"C:/Program Files/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"C:/Program Files/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include/c++" -I"./STM8_Routines"
+OBJ      = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o Objects/spi_Arduino_comm.o Objects/verify_CRC32.o
+LINKOBJ  = Objects/main.o Objects/misc.o Objects/serial_comm.o Objects/bootloader.o Objects/hexfile.o Objects/spi_Arduino_comm.o Objects/verify_CRC32.o
+LIBS     = -L"C:/Program Files/Dev-Cpp/MinGW64/lib" -L"C:/Program Files/Dev-Cpp/MinGW64/x86_64-w64-mingw32/lib" -static-libgcc
+INCS     = -I"C:/Program Files/Dev-Cpp/MinGW64/include" -I"C:/Program Files/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"./RAM_Routines"
+CXXINCS  = -I"C:/Program Files/Dev-Cpp/MinGW64/include" -I"C:/Program Files/Dev-Cpp/MinGW64/x86_64-w64-mingw32/include" -I"C:/Program Files/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include" -I"C:/Program Files/Dev-Cpp/MinGW64/lib/gcc/x86_64-w64-mingw32/4.9.2/include/c++" -I"./RAM_Routines"
 BIN      = stm8gal.exe
-CXXFLAGS = $(CXXINCS) -m32 -Wall
-CFLAGS   = $(INCS) -m32 -Wall -DUSE_SPI_ARDUINO
+CXXFLAGS = $(CXXINCS) -std=gnu99
+CFLAGS   = $(INCS) -std=gnu99
 RM       = rm.exe -f
 
 .PHONY: all all-before all-after clean clean-custom
@@ -38,6 +38,9 @@ Objects/hexfile.o: hexfile.c
 
 Objects/spi_Arduino_comm.o: spi_Arduino_comm.c
 	$(CC) -c spi_Arduino_comm.c -o Objects/spi_Arduino_comm.o $(CFLAGS)
+
+Objects/verify_CRC32.o: verify_CRC32.c
+	$(CC) -c verify_CRC32.c -o Objects/verify_CRC32.o $(CFLAGS)
 
 Objects/console.o: console.c
 	$(CC) -c console.c -o Objects/console.o $(CFLAGS)

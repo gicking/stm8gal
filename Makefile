@@ -1,13 +1,13 @@
 # Project: stm8gal
 
 CC            = gcc
-CFLAGS        = -c -Wall -I./STM8_Routines
+CFLAGS        = -c -Wall -I./RAM_Routines
 #CFLAGS       += -DDEBUG
 LDFLAGS       = -g3 -lm
-SOURCES       = bootloader.c hexfile.c main.c console.c timer.c serial_comm.c
-INCLUDES      = bootloader.h hexfile.h main.h console.h timer.h serial_comm.h
-STM8FLASH     = STM8_Routines/E_W_ROUTINEs_128K_ver_2.1.s19 STM8_Routines/E_W_ROUTINEs_128K_ver_2.0.s19 STM8_Routines/E_W_ROUTINEs_256K_ver_1.0.s19 STM8_Routines/E_W_ROUTINEs_32K_ver_1.3.s19 STM8_Routines/E_W_ROUTINEs_32K_ver_1.4.s19 STM8_Routines/E_W_ROUTINEs_128K_ver_2.2.s19 STM8_Routines/E_W_ROUTINEs_32K_ver_1.0.s19 STM8_Routines/E_W_ROUTINEs_128K_ver_2.4.s19 STM8_Routines/E_W_ROUTINEs_32K_ver_1.2.s19  STM8_Routines/E_W_ROUTINEs_32K_verL_1.0.s19 STM8_Routines/E_W_ROUTINEs_8K_verL_1.0.s19
-STM8INCLUDES  = $(STM8FLASH:.s19=.h)
+SOURCES       = bootloader.c hexfile.c main.c console.c timer.c serial_comm.c verify_CRC32.c
+INCLUDES      = bootloader.h hexfile.h main.h console.h timer.h serial_comm.h verify_CRC32.h
+RAMROUTINES   = RAM_Routines/E_W_ROUTINEs_128K_ver_2.1.s19 RAM_Routines/E_W_ROUTINEs_128K_ver_2.0.s19 RAM_Routines/E_W_ROUTINEs_256K_ver_1.0.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.3.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.4.s19 RAM_Routines/E_W_ROUTINEs_128K_ver_2.2.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.0.s19 RAM_Routines/E_W_ROUTINEs_128K_ver_2.4.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.2.s19  RAM_Routines/E_W_ROUTINEs_32K_verL_1.0.s19 RAM_Routines/E_W_ROUTINEs_8K_verL_1.0.s19
+RAMINCLUDES   = $(RAMROUTINES:.s19=.h)
 OBJDIR        = Objects
 OBJECTS       = $(patsubst %.c, $(OBJDIR)/%.o, $(SOURCES))
 BIN           = stm8gal
@@ -34,7 +34,7 @@ RM            = rm -fr
 
 default: $(BIN) $(OBJDIR)
 
-all: $(STM8INCLUDES) $(SOURCES) $(BIN)
+all: $(RAMINCLUDES) $(SOURCES) $(BIN)
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)
@@ -42,7 +42,7 @@ $(OBJDIR):
 clean:
 	${RM} $(OBJECTS) $(OBJDIR) $(BIN) $(BIN).exe *~ .DS_Store
 
-%.h: %.s19 $(STM8FLASH)
+%.h: %.s19 $(RAMROUTINES)
 	xxd -i $< > $@
 
 # link application
@@ -50,5 +50,5 @@ $(BIN): $(OBJECTS) $(OBJDIR)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
 
 # compile all *c files
-$(OBJDIR)/%.o: %.c $(SOURCES) $(INCLUDES) $(STM8INCLUDES) $(OBJDIR)
+$(OBJDIR)/%.o: %.c $(SOURCES) $(INCLUDES) $(RAMINCLUDES) $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@

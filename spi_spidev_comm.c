@@ -14,7 +14,7 @@
 // include files
 #include "spi_spidev_comm.h"
 #include "main.h"
-#include "misc.h"
+#include "console.h"
 
 
 

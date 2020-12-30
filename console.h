@@ -1,12 +1,12 @@
 /**
   \file console.h
-   
+
   \author G. Icking-Konert
   \date 2020-10-10
   \version 0.1
-   
+
   \brief declaration of console related routines
-   
+
   declaration of console related routines
 */
 
@@ -24,7 +24,7 @@ extern "C"
 /// verbosity level in readable way, from no output to very chatty
 typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
 
-// color codes 
+// color codes
 #define PRM_COLOR_DEFAULT       0
 #define PRM_COLOR_BLACK         1
 #define PRM_COLOR_BLUE          2
@@ -56,8 +56,8 @@ typedef enum {MUTE=0, SILENT, INFORM, CHATTY} verbose_t;
   #define FG_VIOLET     ( FOREGROUND_RED | FOREGROUND_BLUE )
   #define FG_WHITE      ( FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY )
   #define FG_YELLOW     ( FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY )
-  
-  // background colours 
+
+  // background colours
   #define BG_BLACK      ( 0 )
   #define BG_BLUE       ( BACKGROUND_BLUE | BACKGROUND_INTENSITY )
   #define BG_BROWN      ( BACKGROUND_RED | BACKGROUND_GREEN )
@@ -102,13 +102,17 @@ void setConsoleColor(uint8_t color);
 int console_print(output_t dest, char *fmt, ...);
 
 #ifdef NO_EXIT_ON_ERROR
-#define Error       printf
-#else   /* NO_EXIT_ON_ERROR */
-/// display error message and terminate
-int Error(char *format, ...);
+  #define Error               printf
+  #define Exit(code, pause)   
 
-/// terminate program after cleaning up
-void Exit(uint8_t code, uint8_t pause);
+#else   /* NO_EXIT_ON_ERROR */
+
+  /// display error message and terminate
+  int Error(char *format, ...);
+
+  /// terminate program after cleaning up
+  void Exit(uint8_t code, uint8_t pause);
+
 #endif   /* NO_EXIT_ON_ERROR */
 
 #ifdef __cplusplus

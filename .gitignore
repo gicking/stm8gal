@@ -29,20 +29,17 @@ stm8gal
 *.x86_64
 *.hex
 
-# MSVC output
-MSVC/x64/*
-MSVC/Debug/*
-MSVC/Release/*
-*.opensdf
-*.sdf
-*.suo
-
 # Doxygen output
 doxygen/html/*
 doxygen/latex/*
 doxygen/man/*
 doxygen/rtf/*
 doxygen/xml/*
+
+# CRC32 verify output
+verify_CRC32/obj/*
+verify_CRC32/bin/*
+verify_CRC32/include/*
 
 # STM8 / bootloader manuals
 STM8_Datasheets/*
@@ -53,7 +50,7 @@ tool_validation.*
 # Others
 .DS_Store
 *.rel
-#*.asm
+*.asm
 *.lst
 *.rst
 *.sym
@@ -68,11 +65,4 @@ tool_validation.*
 *.s19
 /stm8gal.exe
 *_dump.txt
-MSVC/x64/
-MSVC/Debug/
-MSVC/Release/
-*.opensdf
-*.sdf
-*.suo
-*.user
 /test-erase/*

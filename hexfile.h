@@ -1,16 +1,16 @@
 /**
    \file hexfile.h
-
+   
    \author G. Icking-Konert
    \date 2018-12-14
    \version 0.2
-
+   
    \brief declaration of routines for HEX, S19 and table files
-
-   declaration of routines for importing and exporting Motorola S19 and Intel HEX files,
-   as well as plain ASCII tables.
+   
+   declaration of routines for importing and exporting Motorola S19 and Intel HEX files, 
+   as well as plain ASCII tables.  
    (format descriptions under http://en.wikipedia.org/wiki/SREC_(file_format) or
-   http://www.keil.com/support/docs/1584.htm).
+   http://www.keil.com/support/docs/1584.htm). 
 */
 
 // for including file only once

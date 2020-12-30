@@ -1,12 +1,12 @@
 /**
   \file timer.h
-   
+
   \author G. Icking-Konert
   \date 2020-10-10
   \version 0.1
-   
+
   \brief declaration of time measurement routines
-   
+
   declaration of time measurement routines
 */
 
@@ -38,11 +38,17 @@ extern "C"
 #endif
 
 
-/// get milliseconds since start of program (as Arduino)
-uint64_t millis(void);
+// skip for RasPi with WiringPi
+#if !defined(USE_WIRING) || !defined(__ARMEL__)
 
-/// get microseconds since start of program (as Arduino)
-uint64_t micros(void);
+  /// get milliseconds since start of program (as Arduino)
+  uint64_t millis(void);
+
+  /// get microseconds since start of program (as Arduino)
+  uint64_t micros(void);
+
+#endif // USE_WIRING || __ARMEL__
+
 
 #ifdef __cplusplus
 } // extern "C"

@@ -1,13 +1,13 @@
 /**
   \file spi_Arduino_comm.h
-   
+
   \author G. Icking-Konert
   \date 2017-12-19
   \version 0.1
-   
+
   \brief declaration of SPI routines voa Arduino USB<->SPI bridge
-   
-  declaration of routines for SPI communication using the Arduino 
+
+  declaration of routines for SPI communication using the Arduino
   USB<->SPI bridge available from https://github.com/gicking/Arduino_SPI_bridge
 */
 
@@ -38,7 +38,7 @@ extern "C"
 
 #define ARDUINO_SUCCESS              0x01   //< command ok
 #define ARDUINO_ERROR_FRAME_LENGTH   0x02   //< zero or loo long frame length
-#define ARDUINO_ERROR_CHECKSUM       0x03   //< received and calculated checksums don't match 
+#define ARDUINO_ERROR_CHECKSUM       0x03   //< received and calculated checksums don't match
 #define ARDUINO_ERROR_ILLEGAL_CMD    0x04   //< command unknown
 #define ARDUINO_ERROR_ILLEGAL_PARAM  0x05   //< error with command parameters
 
@@ -52,14 +52,32 @@ extern "C"
 #define send_spi_Arduino(port,len,buf)     sendReceiveSPI_Arduino(port,ARDUINO_CSN_PIN,len,buf,NULL)
 #define receive_spi_Arduino(port,len,buf)  sendReceiveSPI_Arduino(port,ARDUINO_CSN_PIN,len,NULL,buf)
 
+
+typedef enum STM8gal_SpiArduinoErrors
+{
+    STM8GAL_SPI_ARDUINO_NO_ERROR = 0,
+    STM8GAL_SPI_ARDUINO_RESPONSE_TIMEOUT,
+    STM8GAL_SPI_ARDUINO_FRAMELENGTH,
+    STM8GAL_SPI_ARDUINO_CHECKSUM,
+    STM8GAL_SPI_ARDUINO_ACKNOWLEDGE,
+} STM8gal_SpiArduinoErrors_t;
+
+
 /// configure Arduino SPI for bridge
-void      configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_t mode);
+STM8gal_SpiArduinoErrors_t    configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_t mode);
 
 /// set pin on Arduino SPI bridge
-void      setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state);
+STM8gal_SpiArduinoErrors_t    setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state);
 
 /// send/receive SPI frames via Arduino USB<->SPI bridge
-uint32_t  sendReceiveSPI_Arduino(HANDLE fp, uint8_t pin, uint32_t lenFrame, char *bufTx, char *bufRx);
+STM8gal_SpiArduinoErrors_t    sendReceiveSPI_Arduino(HANDLE fp, uint8_t pin, uint32_t lenFrame, char *bufTx, char *bufRx, uint32_t *numRx);
+
+/// return last error in the SPI_Arduino module
+STM8gal_SpiArduinoErrors_t    SPI_Arduino_GetLastError(void);
+
+/// return last error string in the SPI_Arduino module
+const char *                  SPI_Arduino_GetLastErrorString(void);
+
 
 #ifdef __cplusplus
 } // extern "C"
