@@ -1,14 +1,40 @@
+/**
+  \file verify_CRC32.c
+
+  \author G. Icking-Konert
+  \date 2020-12-27
+  \version 0.1
+
+  \brief implementation of STM8 memory check via CRC32.
+
+  implementation of STM8 memory check via CRC32. Routine is called by ROM bootloader.
+  CRC32 routine is copied from https://github.com/basilhussain/stm8-crc.
+  Code is compatible with SDCC, parameters via variables at fixed addresses.
+  After completion ROM-BL is restarted (for details see AppNote UM0560).
+*/
+
+// for including file only once
+#ifndef _VERIFY_CRC32_H_
+#define _VERIFY_CRC32_H_
+
+// SDCC pragmas 
 #pragma codeseg VERIFY_SEG
 #pragma callee_saves erase
 
+// include files
 #include "verify_CRC32.h"
 
 
+/**
+  \fn void verify_CRC32(void)
+
+  Calculate CRC32 checksum over address range addr_start...addr_stop (at fixed addresses).
+  Store error check in variable status and calculated CRC32 result in variable (also at fixed addresses).
+  After completion restart STM8 ROM bootloader (see UM0560).
+*/
 void verify_CRC32(void)
 {
-    uint8_t tmp=0;
-
-    // parameter error
+    // check parameters
     if ((addr_stop < addr_start) || (addr_stop > 0x27FFF))
     {
         // set return status
@@ -16,7 +42,7 @@ void verify_CRC32(void)
         status = ERROR;
     }
 
-    // calculate checksum over memory content
+    // calculate checksum over specified memory content
     else
     {
         // switch to 16MHz, store old setting
@@ -30,7 +56,7 @@ void verify_CRC32(void)
         while (addr_start<=addr_stop)
         {            
             // read from memory. Use inline assembler due to lack of far pointers in SDCC
-            // store data in variable "status"
+            // store data in variable "status" to reduce stack size (overwrite status below)
             __asm
                 push a 
                 ldf  a,[_addr_start+1].e
@@ -76,11 +102,18 @@ void verify_CRC32(void)
 } // verify()
 
 
-// Copied from https://github.com/basilhussain/stm8-crc
-// CRC32 (aka GZIP, PKZIP, PNG, ZMODEM)
-// Polynomial: x^32 + x^26 + x^23 + x^22 + x^16 + x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1 (0xEDB88320, reversed)
-// Initial value: 0xFFFFFFFF
-// XOR out: 0xFFFFFFFF
+/**
+  \fn uint32_t crc32_update(uint32_t crc, uint8_t data)
+
+  \param[in]  crc       old CRC32 checksum
+  \param[in]  data      byte to update checksum with
+
+  \return updated CRC32 checksum
+
+  Update CRC32 checksum. Code is copied from https://github.com/basilhussain/stm8-crc.
+  Polynomial is 0xEDB88320. Note that STM8 is big-endian and requires reverse polynom!
+  Use ASM version w/o ASM_UNROLL_LOOP to minimize codesize.
+*/
 uint32_t crc32_update(uint32_t crc, uint8_t data) __naked {
     
     // Avoid compiler warnings for unreferenced args.
@@ -155,3 +188,7 @@ uint32_t crc32_update(uint32_t crc, uint8_t data) __naked {
         ASM_RETURN
     __endasm;
 }
+
+#endif // _VERIFY_CRC32_H_
+
+// end of file

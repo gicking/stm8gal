@@ -1,9 +1,27 @@
+/**
+  \file verify_CRC32.h
+
+  \author G. Icking-Konert
+  \date 2020-12-27
+  \version 0.1
+
+  \brief declaration of STM8 memory check via CRC32.
+
+  declaration of STM8 memory check via CRC32. Routine is called by ROM bootloader.
+  CRC32 routine is copied from https://github.com/basilhussain/stm8-crc.
+  Code is compatible with SDCC, parameters via variables at fixed addresses.
+  After completion ROM-BL is restarted (for details see AppNote UM0560).
+*/
+
+
+// include files
 #include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 
-// definition of peripheral register
+
+// macro to access STM8 peripheral register
 #define _SFR(mem_addr) (*(volatile uint8_t *)(mem_addr))
 
 // CLK prescaler
@@ -29,7 +47,7 @@
 #define SUCCESS   0
 #define ERROR     1
 
-
+// memory pointer size
 #ifdef __SDCC_MODEL_LARGE
     #define ASM_ARGS_SP_OFFSET 4
     #define ASM_RETURN retf
@@ -37,7 +55,6 @@
     #define ASM_ARGS_SP_OFFSET 3
     #define ASM_RETURN ret
 #endif
-
 
 // Initial value for the CRC32 implementation.
 #define CRC32_INIT ((uint32_t)0xFFFFFFFF)
@@ -51,7 +68,7 @@
 // Function-like macro to do the final XOR of the CRC value.
 #define crc32_final(c) ((c) ^ CRC32_XOROUT)
 
-// Update of CRC32 value 
+/// update CRC32 checksum 
 uint32_t crc32_update(uint32_t crc, uint8_t data);
 
 
