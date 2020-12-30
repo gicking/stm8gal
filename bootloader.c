@@ -875,9 +875,9 @@ STM8gal_BootloaderErrors_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, ui
       }
       else if (verbose == CHATTY) {
         if (numBytes > 1024)
-          console_print(STDOUT, "%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addrStart, addrStop);
+          console_print(STDOUT, "%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addr, (addr + addrStep - 1));
         else
-          console_print(STDOUT, "%c  read %dB / %dB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (int) countBytes, (int) numBytes, addrStart, addrStop);
+          console_print(STDOUT, "%c  read %dB / %dB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (int) countBytes, (int) numBytes, addr, (addr + addrStep - 1));
       }
     }
 
@@ -2053,8 +2053,10 @@ STM8gal_BootloaderErrors_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, 
   // compare defined data data entries (HB!=0x00)
   for (addr=addrStart; addr<=addrStop; addr++) {
     if (imageBuf[addr] & 0xFF00) {
-      if ((imageBuf[addr] & 0xFF) != (tmpImageBuf[addr] & 0xFF))
+      if ((imageBuf[addr] & 0xFF) != (tmpImageBuf[addr] & 0xFF)) {
         console_print(STDOUT, "verify failed at address 0x%" PRIx64 " (0x%02x vs 0x%02x)", addr, (uint8_t) (imageBuf[addr]&0xFF), (uint8_t) (tmpImageBuf[addr]&0xFF));
+        g_bootloaderLastError = STM8GAL_BOOTLOADER_VERIFICATION_FAILED;
+      }
     } // if data defined
   } // loop over address
 
