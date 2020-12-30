@@ -36,6 +36,10 @@ doxygen/man/*
 doxygen/rtf/*
 doxygen/xml/*
 
+# CRC32 verify output
+verify_CRC32/obj/*
+verify_CRC32/bin/*
+
 # STM8 / bootloader manuals
 STM8_Datasheets/*
 
