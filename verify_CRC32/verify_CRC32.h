@@ -13,6 +13,10 @@
   After completion ROM-BL is restarted (for details see AppNote UM0560).
 */
 
+// for including file only once
+#ifndef _VERIFY_CRC32_H_
+#define _VERIFY_CRC32_H_
+
 
 // include files
 #include <stdio.h>
@@ -21,31 +25,45 @@
 #include <stdbool.h>
 
 
-// macro to access STM8 peripheral register
-#define _SFR(mem_addr) (*(volatile uint8_t *)(mem_addr))
+////////
+// Peripheral registers (SFR). Addresses are specified in linker file
+////////
 
 // CLK prescaler
-#define CLK_CKDIVR  _SFR(0x50c6)
+extern volatile uint8_t CLK_CKDIVR;
 
 // IWDG watchdog
-#define IWDG_KR    _SFR(0x50e0)
-#define SERVICE_IWDG  IWDG_KR = 0xAA
+extern volatile uint8_t IWDG_KR;
 
 // WWDG watchdog
-#define WWDG_CR    _SFR(0x50d1)
-#define SERVICE_WWDG  WWDG_CR = 0x7F
+extern volatile uint8_t WWDG_CR;
 
 // TIM2 (must be cleared prior to return to ROM-BL)
-#define TIM2_SR1  _SFR(0x5302)
-#define TIM2_EGR  _SFR(0x5304)
+extern volatile uint8_t TIM2_SR1;
+extern volatile uint8_t TIM2_EGR;
 
 // TIM3 (must be cleared prior to return to ROM-BL)
-#define TIM3_SR1  _SFR(0x5322)
-#define TIM3_EGR  _SFR(0x5324)
+extern volatile uint8_t TIM3_SR1;
+extern volatile uint8_t TIM3_EGR;
 
-// return value (stored in global variable "status")
-#define SUCCESS   0
-#define ERROR     1
+
+////////
+// ROM bootloader parameters. Addresses are specified in linker file
+////////
+extern uint8_t      BL_timeout;    // ROM-BL timeout (0=no timeout; 1=1s timeout)
+
+
+////////
+// Parameters passed between ROM-BL and RAM-verify. Addresses are specified in linker file
+////////
+extern uint32_t     addr_start;    // first address for checksum (@ 0x350 - 0x353)
+extern uint32_t     addr_stop;     // last address for checksum (@ 0x354 - 0x357)
+extern uint32_t     crc32;         // calculated CRC32 checksum (@ 0x358 - 0x35B)
+
+
+////////
+// Preprocessor macros
+////////
 
 // memory pointer size
 #ifdef __SDCC_MODEL_LARGE
@@ -55,6 +73,12 @@
     #define ASM_ARGS_SP_OFFSET 3
     #define ASM_RETURN ret
 #endif
+
+// service IWDG watchdog
+#define SERVICE_IWDG    IWDG_KR = 0xAA
+
+// service WWDG watchdog
+#define SERVICE_WWDG    WWDG_CR = 0x7F
 
 // Initial value for the CRC32 implementation.
 #define CRC32_INIT ((uint32_t)0xFFFFFFFF)
@@ -68,18 +92,9 @@
 // Function-like macro to do the final XOR of the CRC value.
 #define crc32_final(c) ((c) ^ CRC32_XOROUT)
 
-/// update CRC32 checksum 
+/// update CRC32 checksum
 uint32_t crc32_update(uint32_t crc, uint8_t data);
 
-/// ROM routine to service IWDG & WWDG watchdogs
-extern void watchdog_refresh(void);
+#endif // _VERIFY_CRC32_H_
 
-
-// Parameters passed from ROM-BL to RAM-verify and results passed back.
-// Locations are specified at link time according to compatibility with ROM
-// bootloader version. See *.lk command files.
-extern uint32_t     addr_start;    // first address for checksum (@ 0x350 - 0x353)
-extern uint32_t     addr_stop;     // last address for checksum (@ 0x354 - 0x357)
-extern uint8_t      status;        // return status (0=ok, 1=error) (@ 0x358)
-extern uint32_t     crc32;         // calculated CRC32 checksum (@ 0x359 - 0x35C)
-extern uint8_t      BL_timeout;    // ROM-BL timeout (0=no timeout; 1=1s timeout)
+// end of file
