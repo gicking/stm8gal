@@ -189,7 +189,7 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
 		// print verbose message for each block
 		if (verbose == CHATTY)
-			printf("  CRC32 check 0x%" PRIx64 " to 0x%" PRIx64 " ... ", addr, addr+lenCheck);
+			printf("  CRC32 check 0x%" PRIx64 " to 0x%" PRIx64 " ... ", addr, addr+lenCheck-1);
 		fflush(stdout);
 
 		// upload address range for CRC32 calculation
