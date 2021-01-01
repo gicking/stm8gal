@@ -93,7 +93,7 @@ uint8_t upload_crc32_address(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 
 
 
-uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t *status, uint32_t *CRC32)
+uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t *CRC32)
 {
 	// allocate and clear temporary RAM buffer (>1MByte requires dynamic allocation)
   uint16_t  *imageBuf;            // RAM image buffer (high byte != 0 indicates value is set)
@@ -103,11 +103,10 @@ uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
 	// clear image buffer
 	memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
-	// read status and CRC result
-	bsl_memRead(ptrPort, physInterface, uartMode, STATUS_CRC32, RESULT_CRC32+3, imageBuf, MUTE);
+	// read back CRC32 result (4B)
+	bsl_memRead(ptrPort, physInterface, uartMode, RESULT_CRC32, RESULT_CRC32+3, imageBuf, MUTE);
 
-  // get status and CRC result from image buffer
-	*status = (uint8_t) (imageBuf[STATUS_CRC32]);
+  // get CRC32 result from image buffer
 	*CRC32  = ((uint32_t) (imageBuf[RESULT_CRC32]   & 0x00FF)) << 24;
 	*CRC32 += ((uint32_t) (imageBuf[RESULT_CRC32+1] & 0x00FF)) << 16;
 	*CRC32 += ((uint32_t) (imageBuf[RESULT_CRC32+2] & 0x00FF)) << 8;
@@ -156,7 +155,6 @@ uint32_t calculate_crc32(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrSt
 /// compare CRC32 over microcontroller memory vs. CRC32 over RAM image
 uint8_t verify_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
 {
-	uint8_t		status;
 	uint32_t	crc32_uC, crc32_PC;
 	//uint64_t  tStart, tStop;        // measure time [ms]
 
@@ -213,11 +211,9 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 			send_port(ptrPort, 0, 1, &Tx);
 		}
 
-		// read out CRC32 status and checksum
-		read_crc32(ptrPort, physInterface, uartMode, &status, &crc32_uC);
-		if (status != 0)
-			Error("in 'verify_crc32()': CRC32 status from uC failed (expect 0, received %d)", status);
-		//printf("\nuC status = %d, CRC = 0x%08x\n", (int) status, crc32_uC);
+		// read out CRC32 checksum from STM8
+		read_crc32(ptrPort, physInterface, uartMode, &crc32_uC);
+		//printf("\nuC CRC = 0x%08x\n", crc32_uC);
 
 		// calculate CRC32 checksum over corresponding range in RAM image
 		crc32_PC = calculate_crc32(imageBuf, addr, addr+lenCheck-1);

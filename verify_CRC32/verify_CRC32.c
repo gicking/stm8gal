@@ -32,7 +32,7 @@
 void verify_CRC32(void)
 {
   // switch to 16MHz, store old setting
-  uint8_t oldCLK = CLK_CKDIVR;
+  old_CKDIVR = CLK_CKDIVR;
   CLK_CKDIVR = 0x00;
 
   // initialize CRC32 checksum
@@ -42,16 +42,16 @@ void verify_CRC32(void)
   while (addr_start<=addr_stop)
   {
     // read from memory. Use inline assembler due to lack of far pointers in SDCC
-    // store data in variable "BL_timeout" to reduce RAM size (overwrite below)
+    // store value in global variable "data"
     __asm
       push a
       ldf  a,[_addr_start+1].e
-      ld  _BL_timeout, a
+      ld  _data, a
       pop a
     __endasm;
 
     // update CRC32 checksum
-    crc32 = crc32_update(crc32, BL_timeout);
+    crc32 = crc32_update(crc32, data);
 
     // increment address
     addr_start++;
@@ -66,7 +66,7 @@ void verify_CRC32(void)
   crc32 = crc32_final(crc32);
 
   // restore old clock setting
-  CLK_CKDIVR = oldCLK;
+  CLK_CKDIVR = old_CKDIVR;
 
 
   // return to bootloader (see UM0560, appendix B)

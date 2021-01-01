@@ -50,15 +50,17 @@ extern volatile uint8_t TIM3_EGR;
 ////////
 // ROM bootloader parameters. Addresses are specified in linker file
 ////////
-extern uint8_t      BL_timeout;    // ROM-BL timeout (0=no timeout; 1=1s timeout)
+extern volatile uint8_t      BL_timeout;    // ROM-BL timeout (0=no timeout; 1=1s timeout)
 
 
 ////////
 // Parameters passed between ROM-BL and RAM-verify. Addresses are specified in linker file
 ////////
-extern uint32_t     addr_start;    // first address for checksum (@ 0x350 - 0x353)
-extern uint32_t     addr_stop;     // last address for checksum (@ 0x354 - 0x357)
-extern uint32_t     crc32;         // calculated CRC32 checksum (@ 0x358 - 0x35B)
+extern volatile uint32_t     addr_start;    // first address for checksum (@ 0x350 - 0x353)
+extern volatile uint32_t     addr_stop;     // last address for checksum (@ 0x354 - 0x357)
+extern volatile uint32_t     crc32;         // calculated CRC32 checksum (@ 0x358 - 0x35B)
+extern volatile uint8_t      data;          // value read from memory (use BROM data array)
+extern volatile uint8_t      old_CKDIVR;    // old CLK prescaler value (use BROM data array)
 
 
 ////////

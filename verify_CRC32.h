@@ -20,10 +20,9 @@
 
 // RAM routine parameters
 #define START_CODE_CRC32  0x200    // start address of CRC32 routine in RAM
-#define ADDR_START_CRC32  0x350    // location of CRC32 start address (@ 0x350 - 0x353)
-#define ADDR_STOP_CRC32   0x354    // location of CRC32 stop address (@ 0x354 - 0x357)
-#define STATUS_CRC32      0x358    // location of CRC32 status (0=ok, 1=error) (@ 0x358)
-#define RESULT_CRC32      0x359    // location of calculated CRC32 checksum (@ 0x359 - 0x35C)
+#define ADDR_START_CRC32  0x2F4    // location of CRC32 start address (@ 0x2F4 - 0x2F7)
+#define ADDR_STOP_CRC32   0x2F8    // location of CRC32 stop address (@ 0x2F8 - 0x2FB)
+#define RESULT_CRC32      0x2FC    // location of calculated CRC32 checksum (@ 0x2FC - 0x2FF)
 
 // CRC32 polynom (for little-endian). TO DO: version for big-endian
 #define CRC32_POLYNOM     0xEDB88320
@@ -36,7 +35,7 @@ uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMod
 uint8_t upload_crc32_address(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop);
 
 /// read out CRC2 status and result from microcontroller
-uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t *status, uint32_t *CRC32);
+uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t *CRC32);
 
 /// calculate CRC2 checksum over RAM image
 uint32_t calculate_crc32(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop);

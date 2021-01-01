@@ -1,8 +1,11 @@
 ; common addresses
--mwx
+-b VERIFY_SEG=0x200
 -b HOME=0x8000
 -b DATA=0x400
--g _addr_start=0x350
--g _addr_stop=0x354
--g _crc32=0x358
+-mwx
+-g _addr_start=0x2F4
+-g _addr_stop=0x2F8
+-g _crc32=0x2FC
+-g _data=0x00
+-g _old_CKDIVR=0x01
 -e
