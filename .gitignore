@@ -55,7 +55,7 @@ tool_validation.*
 *.rst
 *.sym
 *.map
-*.lk
+#*.lk
 *.dep
 *.pdb
 *.wdb
