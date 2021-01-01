@@ -33,6 +33,11 @@ all: $(BINARY) $(HEADER)
 
 $(BINARY): $(LINKCOMMON) $(LINKTARGETS) $(OBJECTS) $(BINDIR) $(HEADERDIR)
 	$(LD) $(LDFLAGS) -i $@ -f $(LINKCOMMON) -f $(LINKTARGETS)
+ifeq ($(OS),Windows_NT)
+	check-seg-size.bat $(BINDIR)/$(basename $(@F)).map
+else
+	awk -f ./check-seg-size.awk $(BINDIR)/$(basename $(@F)).map
+endif
 
 $(HEADER): $(BINARY)
 	xxd -i $(BINARY) > $(HEADER)
