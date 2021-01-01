@@ -1,0 +1,8 @@
+; common addresses
+-mwx
+-b HOME=0x8000
+-b DATA=0x400
+-g _addr_start=0x350
+-g _addr_stop=0x354
+-g _crc32=0x358
+-e
