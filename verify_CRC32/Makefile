@@ -9,9 +9,12 @@ SOURCES = \
 	verify_CRC32.h
 OBJDIR = obj
 OBJECTS = $(patsubst %,$(OBJDIR)/%.rel,$(basename $(filter %.c %.s,$(SOURCES))))
+LINKDIR = link
 # TODO: use $(wildcard ...) to auto-populate this list from link dir contents?
 LINKTARGETS = \
-	./linker.lk
+	$(LINKDIR)/linker.lk
+LINKCOMMON = \
+	$(LINKDIR)/common.lk
 BINDIR = bin
 BINARY = $(BINDIR)/verify_CRC32.ihx
 HEADERDIR = include
@@ -28,8 +31,8 @@ endif
 
 all: $(BINARY) $(HEADER)
 
-$(BINARY): $(LINKTARGETS) $(OBJECTS) $(BINDIR) $(HEADERDIR)
-	$(LD) $(LDFLAGS) -i $@ -f $(LINKTARGETS)
+$(BINARY): $(LINKCOMMON) $(LINKTARGETS) $(OBJECTS) $(BINDIR) $(HEADERDIR)
+	$(LD) $(LDFLAGS) -i $@ -f $(LINKCOMMON) -f $(LINKTARGETS)
 
 $(HEADER): $(BINARY)
 	xxd -i $(BINARY) > $(HEADER)
