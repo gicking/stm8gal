@@ -34,7 +34,7 @@
 
 
 // system specific delay routines [ms]
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
   #include <windows.h>
   #define SLEEP(a)    Sleep(a)                     //< for sleep(ms) use system specific routines
 #elif defined(__APPLE__) || defined(__unix__)
@@ -59,9 +59,9 @@ void get_version(uint16_t vers, uint8_t *major, uint8_t *minor, uint8_t *build, 
 void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr);
 
 /// set title of console window
-#if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
+#if defined(WIN32) || defined(WIN64) || defined(__APPLE__) || defined(__unix__)
   void setConsoleTitle(const char *title);
-#endif // WIN32 || __APPLE__ || __unix__
+#endif // WIN32 || WIN64 || __APPLE__ || __unix__
 
 /// set console text color
 void setConsoleColor(uint8_t color);

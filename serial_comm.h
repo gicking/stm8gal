@@ -7,8 +7,8 @@
    
   \brief declaration of RS232 comm port routines
    
-  declaration of of routines for RS232 communication using the Win32 or Posix API.
-  For Win32, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
+  declaration of of routines for RS232 communication using the Windows or Posix API.
+  For Windows, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
   For Posix see http://www.easysw.com/~mike/serial/serial.html
 */
 
@@ -23,8 +23,8 @@
 #include <stdint.h>
 #include <inttypes.h>
 
-// OS specific: Win32
-#if defined(WIN32)
+// OS specific: Windows
+#if defined(WIN32) || defined(WIN64)
   #include <windows.h>
   #include <conio.h>
 

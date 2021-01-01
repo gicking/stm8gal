@@ -78,7 +78,7 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
   FILE      *fp;
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
   #else
     const char *shortname = strrchr(filename, '/');
@@ -1023,7 +1023,7 @@ void export_s19(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   int       j;
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
   #else
     shortname = strrchr(filename, '/');
@@ -1161,7 +1161,7 @@ void export_ihx(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     shortname = strrchr(filename, '\\');
   #else
     shortname = strrchr(filename, '/');
@@ -1288,7 +1288,7 @@ void export_txt(char *filename, uint16_t *imageBuf, uint8_t verbose) {
     flagFile = true;
 
     // strip path from filename for readability
-    #if defined(WIN32)
+    #if defined(WIN32) || defined(WIN64)
       shortname = strrchr(filename, '\\');
     #else
       shortname = strrchr(filename, '/');
@@ -1378,7 +1378,7 @@ void export_bin(char *filename, uint16_t *imageBuf, uint8_t verbose) {
   uint8_t   val;
 
   // strip path from filename for readability
-  #if defined(WIN32)
+  #if defined(WIN32) || defined(WIN64)
     const char *shortname = strrchr(filename, '\\');
   #else
     const char *shortname = strrchr(filename, '/');

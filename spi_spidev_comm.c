@@ -32,12 +32,12 @@ HANDLE init_spi_spidev(const char *port, uint32_t baudrate) {
 
   
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
   #error Windows not yet supported (which API?)
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -119,12 +119,12 @@ HANDLE init_spi_spidev(const char *port, uint32_t baudrate) {
 void close_spi_spidev(HANDLE *fp) {
 
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
   #error Windows not yet supported (which API?)
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -155,18 +155,18 @@ void close_spi_spidev(HANDLE *fp) {
   \return number of sent bytes
   
   send data via SPI port. Use this function to facilitate SPI communication
-  on different platforms, e.g. Win32 and Posix.
+  on different platforms, e.g. Windows and Posix.
 */
 uint32_t send_spi_spidev(HANDLE fp, uint32_t lenTx, char *Tx) {
 
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
   #error Windows not yet supported (which API?)
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -201,18 +201,18 @@ uint32_t send_spi_spidev(HANDLE fp, uint32_t lenTx, char *Tx) {
   \return number of received bytes
   
   receive data via SPI port. Use this function to facilitate SPI communication
-  on different platforms, e.g. Win32 and Posix
+  on different platforms, e.g. Windows and Posix
 */
 uint32_t receive_spi_spidev(HANDLE fp, uint32_t lenRx, char *Rx) {
 
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
   #error Windows not yet supported (which API?)
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -246,18 +246,18 @@ uint32_t receive_spi_spidev(HANDLE fp, uint32_t lenRx, char *Rx) {
   \return number of received bytes
   
   send & receive data via SPI port. Use this function to facilitate SPI communication
-  on different platforms, e.g. Win32 and Posix
+  on different platforms, e.g. Windows and Posix
 */
 void spi_transfer(HANDLE fp, int len, uint8_t *Tx, uint8_t *Rx) {
 
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
   #error Windows not yet supported (which API?)
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////

@@ -7,8 +7,8 @@
    
   \brief implementation of RS232 comm port routines
    
-  implementation of of routines for RS232 communication using the Win32 or Posix API.
-  For Win32, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
+  implementation of of routines for RS232 communication using the Windows or Posix API.
+  For Windows, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
   For Posix see http://www.easysw.com/~mike/serial/serial.html
 */
 
@@ -31,9 +31,9 @@
 void list_ports(void) {
   
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   HANDLE        fpCom = NULL;
   uint16_t      i, j;
@@ -63,7 +63,7 @@ void list_ports(void) {
     }
   }
   
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -145,9 +145,9 @@ void list_ports(void) {
 HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
 
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   char          port_tmp[100];
   HANDLE        fpCom = NULL;
@@ -170,7 +170,7 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
   // reset COM port error buffer
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -207,9 +207,9 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 void close_port(HANDLE *fpCom) {
 
 /////////
-// Win32
+// Windows
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   BOOL      fSuccess;
 
@@ -220,7 +220,7 @@ void close_port(HANDLE *fpCom) {
   }
   *fpCom = NULL;
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -252,9 +252,9 @@ void close_port(HANDLE *fpCom) {
 void pulse_DTR(HANDLE fpCom, uint32_t duration) {
   
 /////////
-// Win32 (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
+// Windows (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   // set DTR
   EscapeCommFunction(fpCom, SETDTR);
@@ -265,7 +265,7 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
   // clear DTR
   EscapeCommFunction(fpCom, CLRDTR);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -308,9 +308,9 @@ void pulse_RTS(HANDLE fpCom, uint32_t duration)
 {
 
 /////////
-// Win32 (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
+// Windows (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
 /////////
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
     // set RTS
     EscapeCommFunction(fpCom, SETRTS);
@@ -321,7 +321,7 @@ void pulse_RTS(HANDLE fpCom, uint32_t duration)
     // clear RTS
     EscapeCommFunction(fpCom, CLRRTS);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 /////////
 // Posix
@@ -400,9 +400,9 @@ void pulse_GPIO(int pin, uint32_t duration) {
 void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR) {
 
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DCB           fDCB;
   COMMTIMEOUTS  fTimeout;
@@ -433,7 +433,7 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
     Error("in 'get_port_attribute': GetCommTimeouts() failed with code %d", (int) GetLastError());
   *timeout = fTimeout.ReadTotalTimeoutConstant;       // this parameter fits also for timeout=0
   
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -543,9 +543,9 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
 void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DCB           fDCB;
   BOOL          fSuccess;
@@ -599,7 +599,7 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   if (!fSuccess)
     Error("in 'set_port_attribute()': set port timeout failed with code %d", (int) GetLastError());
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -808,7 +808,7 @@ void set_parity(HANDLE fpCom, uint8_t Parity) {
   \return number of sent bytes
   
   send data via comm port. Use this function to facilitate serial communication
-  on different platforms, e.g. Win32 and Posix.
+  on different platforms, e.g. Windows and Posix.
   If uartMode==1 (1-wire interface), read back LIN echo 
 */
 uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
@@ -819,9 +819,9 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
   
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DWORD   numChars;
   
@@ -829,7 +829,7 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
   WriteFile(fpCom, Tx, lenTx, &numChars, NULL);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -871,16 +871,16 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
   \return number of received bytes
   
   receive data via comm port. Use this function to facilitate serial communication
-  on different platforms, e.g. Win32 and Posix
+  on different platforms, e.g. Windows and Posix
   If uartMode==2 (UART reply mode with 2-wire interface), reply each byte from STM8 -> SLOW
 */
 uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) {
 
   
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   DWORD     numChars, numTmp;
   uint32_t  i;
@@ -911,7 +911,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
   // return number of bytes received
   return((uint32_t) numChars);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////
@@ -989,19 +989,19 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
   \param[in]  fpCom   handle to comm port
   
   flush port input & output buffer. Use this function to facilitate serial communication
-  on different platforms, e.g. Win32 and Posix
+  on different platforms, e.g. Windows and Posix
 */
 void flush_port(HANDLE fpCom) {
 
 /////////
-// Win32
+// Windows
 /////////
-#ifdef WIN32
+#if defined(WIN32) || defined(WIN64)
 
   // purge all port buffers (see http://msdn.microsoft.com/en-us/library/windows/desktop/aa363428%28v=vs.85%29.aspx)
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
 
-#endif // WIN32
+#endif // WIN32 || WIN64
 
 
 /////////

@@ -31,10 +31,11 @@
 
 #include <time.h>
 
-// OS specific: Win32
-#if defined(WIN32)
+// OS specific: Windows
+#if defined(WIN32) || defined(WIN64) 
   #include <windows.h>
   #include <malloc.h>
+  #include <inttypes.h>
 
 // OS specific: Posix
 #elif defined(__APPLE__) || defined(__unix__)
@@ -472,7 +473,7 @@ int main(int argc, char ** argv) {
     setConsoleTitle(tmp);
   }
 
-  // reset console color (needs to be called once for Win32)
+  // reset console color (needs to be called once for Windows)
   setConsoleColor(PRM_COLOR_DEFAULT);
 
   // allocate and init global RAM image (>1MByte requires dynamic allocation)

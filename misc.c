@@ -25,8 +25,8 @@
 #include "version.h"
 
 
-// WIN32 specific
-#if defined(WIN32)
+// Windows specific
+#if defined(WIN32) || defined(WIN64)
 
   #include "windows.h"
 
@@ -235,12 +235,12 @@ void get_app_name(char *appFull, uint16_t versID, char *appName, char *versStr) 
   \param[in]  title   title for console window
 
    set console title to application name + version number
-     Win32: uses Windows API functions
-     POSIX: use console escape sequence
+     Windows: uses Windows API functions
+     POSIX:   use console escape sequence
 */
 
 //
-#if defined(WIN32) || defined(__APPLE__) || defined(__unix__)
+#if defined(WIN32) || defined(WIN64) || defined(__APPLE__) || defined(__unix__)
 void setConsoleTitle(const char *title) {
 
   // for background operation skip to avoid strange control characters
@@ -248,7 +248,7 @@ void setConsoleTitle(const char *title) {
     return;
 
 
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
   SetConsoleTitle(title);
 
 #elif defined(__APPLE__) || defined(__unix__)
@@ -259,7 +259,7 @@ void setConsoleTitle(const char *title) {
 #endif
 
 } // SetTitle
-#endif // WIN32 || __APPLE__ || __unix__
+#endif // WIN32 || WIN64 || __APPLE__ || __unix__
 
 
 
@@ -269,8 +269,8 @@ void setConsoleTitle(const char *title) {
   \param[in] color  new text color
 
   switch text color in console output to specified value
-    Win32: uses Windows API functions
-    POSIX: uses VT100 escape codes
+    Windows: uses Windows API functions
+    POSIX:   uses VT100 escape codes
 */
 void setConsoleColor(uint8_t color) {
 
@@ -279,7 +279,7 @@ void setConsoleColor(uint8_t color) {
     return;
 
 
-#if defined(WIN32)
+#if defined(WIN32) || defined(WIN64)
 
   static WORD                   oldColor, colorBck;
   static char                   flag=0;
@@ -457,7 +457,7 @@ void setConsoleColor(uint8_t color) {
       static uint64_t  s_microsStart = 0;
       uint64_t         microsCurr;
 
-      #if defined(WIN32)
+      #if defined(WIN32) || defined(WIN64)
 
       static double    s_ticksPerMicros = 0;     // resolution of Windows fast core timer
       LARGE_INTEGER    tick;
@@ -472,7 +472,7 @@ void setConsoleColor(uint8_t color) {
       QueryPerformanceCounter(&tick);
       microsCurr = (uint64_t) (tick.QuadPart / s_ticksPerMicros);
 
-      #endif // WIN32
+      #endif // WIN32 || WIN64
 
 
       #if defined(__APPLE__) || defined(__unix__)
@@ -484,7 +484,7 @@ void setConsoleColor(uint8_t color) {
       // calculate milliseconds
       microsCurr = te.tv_sec*1000000LL + te.tv_usec;
 
-      #endif // WIN32
+      #endif // __APPLE__ || __unix__
 
       // on 1st call also store starting time and set flag
       if (s_firstCall) {
