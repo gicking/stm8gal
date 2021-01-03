@@ -53,10 +53,12 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   if (!ptrPort)
     Error("in 'bsl_sync()': port not open");
 
-  // purge UART input buffer
+  // purge UART input buffer and set low receive timeout
   if (physInterface == UART)
+  {
     flush_port(ptrPort);
-
+    set_timeout(ptrPort, 200);
+  }
 
   // construct SYNC command. Note: SYNC has even parity -> works in all UART modes
   lenTx = 1;
@@ -99,7 +101,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
     // avoid flooding the STM8
     SLEEP(10);
 
-  //xxx} while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
+  //} while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
   } while ((count<50) && ((len!=lenRx) || (Rx[0]!=NACK)));
 
   // check if ok (check for NACK, not ACK!)
@@ -131,6 +133,10 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   // purge PC input buffer
   flush_port(ptrPort);
   SLEEP(50);              // seems to be required for some reason
+
+  // restore receive timeout
+  if (physInterface == UART)
+    set_timeout(ptrPort, TIMEOUT);
 
   // return success
   return(0);
