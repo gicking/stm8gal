@@ -1,11 +1,17 @@
 ; common addresses
--b VERIFY_SEG=0x200
--b HOME=0x8000
--b DATA=0x400
+-b VERIFY_SEG=0x200		; address of segment VERIFY_SEG
+-b HOME=0x8000			; required by SDCC
+-b DATA=0x400			; required by SDCC
 -mwx
--g _addr_start=0x2F4
--g _addr_stop=0x2F8
--g _crc32=0x2FC
--g _data=0x00
--g _old_CKDIVR=0x01
+; parameters to/from RAM routine
+-g _addr_start=0x2F4		; in: start address for CRC32 calculation
+-g _addr_stop=0x2F8		; in: last address for CRC32 calculation
+-g _crc32=0x2FC			; out: calculated CRC32 checksum
+-g _data=0x03			; buffer to read memory (in STM8L/AL data array starts at 0x03)
+-g _old_CKDIVR=0x04		; buffer to store clock setting
+;
+; files to link (order is significant)
+obj/verify_CRC32.rel
+obj/crc32.rel
+;
 -e
