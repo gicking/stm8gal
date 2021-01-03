@@ -15,10 +15,14 @@
 
 // SDCC pragmas
 #pragma codeseg VERIFY_SEG
-#pragma callee_saves watchdog_refresh // TODO: F%$&!! This isn't implemented by SDCC for STM8!
 
 // include files
 #include "verify_CRC32.h"
+#include "stm8-crc/crc.h"
+
+// declare jump back to ROM bootloader
+void bootloader_jump(void);
+
 
 
 /**
@@ -70,106 +74,27 @@ void verify_CRC32(void)
 
 
   // return to bootloader (see UM0560, appendix B)
-  TIM2_EGR = 0x01;      // refresh TIM2 prescaler shadow registers to 1
+  TIM2_EGR = 0x01;          // refresh TIM2 prescaler shadow registers to 1
   TIM2_SR1;
   TIM2_SR1 = 0x00;
-  TIM3_EGR = 0x01;      // refresh TIM3 prescaler shadow registers to 1
+  TIM3_EGR = 0x01;          // refresh TIM3 prescaler shadow registers to 1
   TIM3_SR1;
   TIM3_SR1 = 0x00;
-  BL_timeout = 0x00;      // no ROM-BL timeout
-  //__asm__("jp 0x6000");   // jump back to start of ROM-BL
-  //__asm__("jp 0x601E");   // jump back to ROM-BL after checking BL activation
-  __asm__("jp 0x602E");     // jump back to ROM-BL after checking ROP
+  //BL_timeout = 0x00;        // ROM-BL timeout (0=no timeout; 1=1s timeout). Address unknown for STM8L/AL -> skip and accept 1s timeout
+  bootloader_jump();        // jump back to ROM-BL
 
 } // verify()
 
 
-
 /**
-  \fn uint32_t crc32_update(uint32_t crc, uint8_t data)
+  \fn void bootloader_jump_reset(void)
 
-  \param[in]  crc     old CRC32 checksum
-  \param[in]  data    byte to update checksum with
-
-  \return updated CRC32 checksum
-
-  Update CRC32 checksum. Code is copied from https://github.com/basilhussain/stm8-crc.
-  Polynomial is 0xEDB88320. Note that STM8 is big-endian and requires reverse polynom!
-  Use ASM version w/o ASM_UNROLL_LOOP to minimize codesize.
+  Jump back to bootloader. Address is given in linker file.
+  Ideally skip BL and ROP check to avoid issues after changing respective OPT bytes.
 */
-uint32_t crc32_update(uint32_t crc, uint8_t data) __naked {
-
-  // Avoid compiler warnings for unreferenced args.
-  (void)crc;
-  (void)data;
-
-  // For return value/arg: 0xAABBCCDD
-  // x = 0xCCDD (xh = 0xCC, xl = 0xDD)
-  // y = 0xAABB (yh = 0xAA, yl = 0xBB)
-
-  __asm
-    ; XOR the LSB of the CRC with data byte, and put it back in the CRC.
-    ld a, (ASM_ARGS_SP_OFFSET+4, sp)
-    xor a, (ASM_ARGS_SP_OFFSET+3, sp)
-    ld (ASM_ARGS_SP_OFFSET+3, sp), a
-
-    ; Load CRC variable from stack into X & Y regs for further work.
-    ldw x, (ASM_ARGS_SP_OFFSET+2, sp)
-    ldw y, (ASM_ARGS_SP_OFFSET+0, sp)
-
-  .macro crc32_update_shift_xor skip_lbl
-      ; Shift CRC value right by one bit.
-      srlw y
-      rrcw x
-
-      ; Jump if least-significant bit of CRC is now zero.
-      jrnc skip_lbl
-
-      ; XOR the CRC value with the polynomial value.
-      rrwa x
-      xor a, #0x20
-      rrwa x
-      xor a, #0x83
-      rrwa x
-      rrwa y
-      xor a, #0xB8
-      rrwa y
-      xor a, #0xED
-      rrwa y
-
-    skip_lbl:
-  .endm
-
-#ifdef ASM_UNROLL_LOOP
-
-    crc32_update_shift_xor 0001$
-    crc32_update_shift_xor 0002$
-    crc32_update_shift_xor 0003$
-    crc32_update_shift_xor 0004$
-    crc32_update_shift_xor 0005$
-    crc32_update_shift_xor 0006$
-    crc32_update_shift_xor 0007$
-    crc32_update_shift_xor 0008$
-
-#else
-
-    ; Initialise counter to loop 8 times, once for each bit of data byte.
-    ld a, #8
-
-  0001$:
-
-    crc32_update_shift_xor 0002$
-
-    ; Decrement counter and loop around if it is not zero.
-    dec a
-    jrne 0001$
-
-#endif
-
-    ; The X and Y registers now contain updated CRC value, so leave them
-    ; there as function return value.
-    ASM_RETURN
-  __endasm;
+void bootloader_jump(void) __naked {
+    __asm__("jp _bootloader_entry");
 }
+
 
 // end of file
