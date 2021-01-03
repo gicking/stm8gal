@@ -32,7 +32,7 @@
 #include <time.h>
 
 // OS specific: Windows
-#if defined(WIN32) || defined(WIN64) 
+#if defined(WIN32) || defined(WIN64)
   #include <windows.h>
   #include <malloc.h>
   #include <inttypes.h>
@@ -717,7 +717,8 @@ int main(int argc, char ** argv) {
 
 
   // debug: communication test (echo+1 test-SW on STM8)
-  #ifdef DEBUG
+  #ifdef DONIX
+    char Tx[1000];
     printf("open: %d\n", ptrPort);
     for (i=0; i<254; i++) {
       Tx[0] = i;
@@ -810,7 +811,7 @@ int main(int argc, char ** argv) {
       ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_32K_ver_1_4_s19;
       lenRAM = STM8_Routines_E_W_ROUTINEs_32K_ver_1_4_s19_len;
     }
-    else if ((flashsize==128) && (versBSL==0x20)) {
+    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x20)) {
       #ifdef DEBUG
         printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19 \n");
       #endif
@@ -818,7 +819,7 @@ int main(int argc, char ** argv) {
       lenRAM = STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19_len;
     }
     #ifdef DONIX
-    else if ((flashsize==128) && (versBSL==0x20)) {
+    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x20)) {
       #ifdef DEBUG
         printf("header STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19 \n");
       #endif
@@ -826,21 +827,21 @@ int main(int argc, char ** argv) {
       lenRAM = STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19_len;
     }
     #endif // DONIX
-    else if ((flashsize==128) && (versBSL==0x21)) {
+    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x21)) {
       #ifdef DEBUG
         printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19 \n");
       #endif
       ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19;
       lenRAM = STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19_len;
     }
-    else if ((flashsize==128) && (versBSL==0x22)) {
+    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x22)) {
       #ifdef DEBUG
         printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_2_s19 \n");
       #endif
       ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_128K_ver_2_2_s19;
       lenRAM = STM8_Routines_E_W_ROUTINEs_128K_ver_2_2_s19_len;
     }
-    else if ((flashsize==128) && (versBSL==0x24)) {
+    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x24)) {
       #ifdef DEBUG
         printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_4_s19 \n");
       #endif
@@ -1009,7 +1010,7 @@ int main(int argc, char ** argv) {
       if (verifyUpload == 0)        // skip verify
         ;
       else if (verifyUpload == 1)   // compare CRC32 checksums
-        verify_crc32(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        verify_crc32(ptrPort, family, flashsize, versBSL, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
       else if (verifyUpload == 2)   // read back memory and compare
         bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
       else
