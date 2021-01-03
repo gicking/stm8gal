@@ -29,19 +29,19 @@
 
 
 /// upload RAM routine to calculate CRC32 checksum
-uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode);
+//uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t versBSL, uint8_t physInterface, uint8_t uartMode);
 
 /// upload address range to calculate CRC32 over
-uint8_t upload_crc32_address(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop);
+//uint8_t upload_crc32_address(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop);
 
 /// read out CRC2 status and result from microcontroller
-uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t *CRC32);
+//uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t *CRC32);
 
 /// calculate CRC2 checksum over RAM image
-uint32_t calculate_crc32(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop);
+//uint32_t calculate_crc32(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop);
 
 /// compare CRC32 over microcontroller memory vs. CRC32 over RAM image
-uint8_t verify_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);
+uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t versBSL, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose);
 
 #endif // _VERIFY32_H_
 
