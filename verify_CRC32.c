@@ -283,33 +283,33 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t vers
   // jump to CRC32 routine in RAM
   bsl_jumpTo(ptrPort, physInterface, uartMode, START_CODE_CRC32, MUTE);
 
-  /*
-  set_timeout(ptrPort, 10);
-  while (1)
-  {
-    int   lenTx, lenRx, len;
-    char  Tx[1000], Rx[1000];
-
-    lenTx = 1;
-    Tx[0] = SYNCH;
-    lenRx = 1;
-
-    len = send_port(ptrPort, 0, lenTx, Tx);
-    len = receive_port(ptrPort, 0, lenRx, Rx);
-
-    SLEEP(10);
-  }
-  */
-
   // re-synchronize after re-start of ROM-BSL
   bsl_sync(ptrPort, physInterface, MUTE);
 
-  // for UART 2-wire reply mode reply NACK echo
-  if ((physInterface == 0) && (uartMode == 2))
+
+  // reset command state machine sending 0x00 until a NACK is received
+  if (physInterface == 0)
   {
-    char Tx = NACK;
-    send_port(ptrPort, 0, 1, &Tx);
-  }
+    char      Tx=0x00, Rx;
+    int       lenRx;
+
+    // send (wrong) GET command until NACK is received. Then state machine is ready to receive next command
+    set_timeout(ptrPort, 100);
+    for (int i=0; i<5; i++)
+    {
+      send_port(ptrPort, 0, 1, &Tx);
+      lenRx = receive_port(ptrPort, 0, 1, &Rx);
+      if ((lenRx == 1) && (Rx == NACK))
+        break;
+    }
+    set_timeout(ptrPort, TIMEOUT);
+
+    // for UART 2-wire reply mode reply NACK echo
+    if (uartMode == 2)
+      send_port(ptrPort, 0, 1, &Rx);
+
+  } // UART interface
+
 
   // read out CRC32 checksum from STM8
   read_crc32(ptrPort, physInterface, uartMode, &crc32_uC);
@@ -333,14 +333,14 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t vers
 
   } // loop over image
 
-  // get end time [ms]
-  //tStop = millis();
-  //printf("\ntime (%1.1fs)\n", (float) (tStop - tStart)*0.001);
-
   // print collective message
   if ((verbose == SILENT) || (verbose == INFORM))
   printf("passed\n");
   fflush(stdout);
+
+  // get end time [ms]
+  //tStop = millis();
+  //printf("time (%1.1fs)\n", (float) (tStop - tStart)*0.001);
 
   // avoid compiler warnings
   return(0);

@@ -1,12 +1,12 @@
 /**
   \file serial_comm.c
-   
+
   \author G. Icking-Konert
   \date 2008-11-02
   \version 0.1
-   
+
   \brief implementation of RS232 comm port routines
-   
+
   implementation of of routines for RS232 communication using the Windows or Posix API.
   For Windows, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
   For Posix see http://www.easysw.com/~mike/serial/serial.html
@@ -24,12 +24,12 @@
 
 /**
   \fn void list_ports(void)
-   
+
   print list of all available COM ports. I don't know how to do this in
   a better way than to actually try and open each of them...
 */
 void list_ports(void) {
-  
+
 /////////
 // Windows
 /////////
@@ -38,14 +38,14 @@ void list_ports(void) {
   HANDLE        fpCom = NULL;
   uint16_t      i, j;
   char          port_tmp[100];
-    
+
   // loop 1..255 over ports and list each available
   j=1;
   for (i=1; i<=255; i++) {
 
     // required to allow COM ports >COM9
-    sprintf(port_tmp,"\\\\.\\COM%d", i);    
-  
+    sprintf(port_tmp,"\\\\.\\COM%d", i);
+
     // try to open COM-port
     fpCom = CreateFile(port_tmp,
       GENERIC_READ | GENERIC_WRITE,  // both read & write
@@ -62,14 +62,14 @@ void list_ports(void) {
       j++;
     }
   }
-  
+
 #endif // WIN32 || WIN64
 
 
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   // list all  (see http://bytes.com/groups/net-vc/545618-list-files-current-directory)
   uint16_t        i;
@@ -78,7 +78,7 @@ void list_ports(void) {
   if(dir) {
     i = 1;
     while((ent = readdir(dir)) != NULL) {
-      
+
       // FTDI FT232 or CH340 based USB-RS232 adapter (MacOS X)
       if (strstr(ent->d_name, "tty.") && strstr(ent->d_name, "usbserial")) {
         if (i!=1) printf(", ");
@@ -92,14 +92,14 @@ void list_ports(void) {
         printf("/dev/%s", ent->d_name);
         i++;
       }
-      
+
       // FTDI FT232 based USB-RS232 adapter (Ubuntu)
       if (strstr(ent->d_name, "ttyUSB")) {
         if (i!=1) printf(", ");
         printf("/dev/%s", ent->d_name);
         i++;
       }
-      
+
       // direct UART under Raspberry Pi / Raspbian 1+2
       if (strstr(ent->d_name, "ttyAMA")) {
         if (i!=1) printf(", ");
@@ -128,7 +128,7 @@ void list_ports(void) {
 
 /**
   \fn HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR)
-   
+
   \param[in] port       name of port as string
   \param[in] baudrate   comm port speed in Baud (must be supported by port)
   \param[in] timeout    timeout between chars in ms
@@ -139,8 +139,8 @@ void list_ports(void) {
   \param[in] DTR        Data Terminal Ready (required for some multimeter optocouplers)
 
   \return           handle to comm port
-  
-  open comm port for communication, set properties (baudrate, timeout,...). 
+
+  open comm port for communication, set properties (baudrate, timeout,...).
 */
 HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
 
@@ -151,10 +151,10 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 
   char          port_tmp[100];
   HANDLE        fpCom = NULL;
-    
+
   // required to allow COM ports >COM9
-  sprintf(port_tmp,"\\\\.\\%s", port);    
-  
+  sprintf(port_tmp,"\\\\.\\%s", port);
+
   // create handle to COM-port
   fpCom = CreateFile(port_tmp,
     GENERIC_READ | GENERIC_WRITE,  // both read & write
@@ -176,7 +176,7 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   HANDLE          fpCom;
 
@@ -186,10 +186,10 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
     Error("in 'init_port(%s)': open port failed", port);
 
 #endif // __APPLE__ || __unix__
-  
+
   // set port attributes
   set_port_attribute(fpCom, baudrate, timeout, numBits, parity, numStop, RTS, DTR);
-  
+
   // return comm port handle
   return fpCom;
 
@@ -199,10 +199,10 @@ HANDLE init_port(const char *port, uint32_t baudrate, uint32_t timeout, uint8_t 
 
 /**
   \fn void close_port(HANDLE *fpCom)
-   
+
   \param[in] fpCom    handle to comm port
 
-  close & release comm port. 
+  close & release comm port.
 */
 void close_port(HANDLE *fpCom) {
 
@@ -226,7 +226,7 @@ void close_port(HANDLE *fpCom) {
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   // if open, close port
   if (*fpCom != 0) {
@@ -243,14 +243,14 @@ void close_port(HANDLE *fpCom) {
 
 /**
   \fn void pulse_DTR(HANDLE *fpCom, uint32_t duration)
-   
+
   \param[in] fpCom      port handle
   \param[in] duration   duration of DTR low pulse in ms
 
   generate low pulse on DTR in [ms] to reset STM8.
 */
 void pulse_DTR(HANDLE fpCom, uint32_t duration) {
-  
+
 /////////
 // Windows (see https://msdn.microsoft.com/en-us/library/windows/desktop/aa363254(v=vs.85).aspx)
 /////////
@@ -258,10 +258,10 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
 
   // set DTR
   EscapeCommFunction(fpCom, SETDTR);
-  
+
   // wait specified duration
   SLEEP(duration);
-  
+
   // clear DTR
   EscapeCommFunction(fpCom, CLRDTR);
 
@@ -271,10 +271,10 @@ void pulse_DTR(HANDLE fpCom, uint32_t duration) {
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   int status;
-  
+
   ioctl(fpCom, TIOCMGET, &status);
 
   // set DTR
@@ -353,7 +353,7 @@ void pulse_RTS(HANDLE fpCom, uint32_t duration)
 
 /**
   \fn void pulse_GPIO(int pin, uint32_t duration)
-   
+
   \param[in] pin        reset pin (use header numbering)
   \param[in] duration   duration of DTR low pulse in ms
 
@@ -362,22 +362,22 @@ void pulse_RTS(HANDLE fpCom, uint32_t duration)
 */
 #if defined(__ARMEL__) && defined(USE_WIRING)
 void pulse_GPIO(int pin, uint32_t duration) {
-  
+
   // initialize wiringPi. Use header numbering scheme
   wiringPiSetupPhys();
-  
+
   // set direction of GPIO to output
   pinMode (pin, OUTPUT);
 
   // set GPIO low --> reset STM8
   digitalWrite (pin,  LOW);
-  
+
   // wait specified duration [ms]
   SLEEP(duration);
 
   // set GPIO high --> start STM8
   digitalWrite (pin,  HIGH);
-  
+
 } // pulse_GPIO
 #endif // __ARMEL__ && USE_WIRING
 
@@ -385,7 +385,7 @@ void pulse_GPIO(int pin, uint32_t duration) {
 
 /**
   \fn void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uint8_t *numBits, uint8_t *parity, uint8_t *numStop, uint8_t *RTS, uint8_t *DTR)
-   
+
   \param[in]  fpCom      handle to comm port
   \param[out] baudrate   comm port speed in Baud
   \param[out] timeout    timeout between chars in ms
@@ -418,36 +418,36 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   *numBits  = fDCB.ByteSize;        // number of data bits per byte
   *parity   = fDCB.Parity;          // bug in Win API, see https://stackoverflow.com/questions/36411498/fparity-member-of-dcb-structure-always-false-after-a-getcommstate
   *numStop  = fDCB.StopBits;        // number of stop bits
-  if (fDCB.StopBits == ONESTOPBIT) 
+  if (fDCB.StopBits == ONESTOPBIT)
     *numStop = 1;                      // 1 stop bit
-  else if (fDCB.StopBits == TWOSTOPBITS) 
+  else if (fDCB.StopBits == TWOSTOPBITS)
     *numStop = 2;                      // 2 stop bits
   else
     *numStop = 3;                      // 1.5 stop bits
   *RTS      = fDCB.fRtsControl;     // RTS off(=0=-12V) or on(=1=+12V)
   *DTR      = fDCB.fDtrControl;     // DTR off(=0=-12V) or on(=1=+12V)
-  
+
   // get port timeout
   fSuccess = GetCommTimeouts(fpCom, &fTimeout);
   if (!fSuccess)
     Error("in 'get_port_attribute': GetCommTimeouts() failed with code %d", (int) GetLastError());
   *timeout = fTimeout.ReadTotalTimeoutConstant;       // this parameter fits also for timeout=0
-  
+
 #endif // WIN32 || WIN64
 
 
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   struct termios  toptions;
   int             status;
-  
+
   // get attributes
   if (tcgetattr(fpCom, &toptions) < 0)
     Error("in 'get_port_attribute': get port attributes failed");
-  
+
   // get baudrate
   speed_t brate = cfgetospeed(&toptions);
   switch (brate) {
@@ -480,18 +480,18 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
 #endif
     default: *baudrate = UINT32_MAX;
   } // switch (brate)
-  
-  
+
+
   // get timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
   *timeout = toptions.c_cc[VTIME] * 100;   // convert 0.1s to ms
-  
+
   // number of data bits
   if ((toptions.c_cflag & CSIZE) == CS8)
     *numBits = 8;
   else
     *numBits = 7;
-  
-  
+
+
   // get parity bit
   if (!(toptions.c_cflag & PARENB))
     *parity = 0;
@@ -501,13 +501,13 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
     else
       *parity = 2;
   }
-  
+
   // get number of stop bits
   if (toptions.c_cflag & CSTOPB)
     *numStop = 2;
   else
     *numStop = 1;
-  
+
 
   // get static RTS and DTR status (required for some multimeter optocouplers)
   ioctl(fpCom, TIOCMGET, &status);
@@ -521,14 +521,14 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
     *DTR = 0;
 
 #endif // __APPLE__ || __unix__
-     
+
 } // get_port_attribute
 
 
 
 /**
   \fn void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR)
-   
+
   \param[in] fpCom      handle to comm port
   \param[in] baudrate   comm port speed in Baud
   \param[in] timeout    timeout between chars in ms
@@ -541,7 +541,7 @@ void get_port_attribute(HANDLE fpCom, uint32_t *baudrate, uint32_t *timeout, uin
   change attributes of an already open comm port.
 */
 void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8_t numBits, uint8_t parity, uint8_t numStop, uint8_t RTS, uint8_t DTR) {
-  
+
 /////////
 // Windows
 /////////
@@ -550,10 +550,10 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   DCB           fDCB;
   BOOL          fSuccess;
   COMMTIMEOUTS  fTimeout;
-  
+
   // reset COM port error buffer
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
-  
+
   // get the current port configuration
   fSuccess = GetCommState(fpCom, &fDCB);
   if (!fSuccess)
@@ -570,9 +570,9 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     fDCB.fParity  = FALSE;          // disable parity checking
     fDCB.Parity   = NOPARITY;       // just to make sure
   }
-  if (numStop == 1) 
+  if (numStop == 1)
     fDCB.StopBits = ONESTOPBIT;     // one stop bit
-  else if (numStop == 2) 
+  else if (numStop == 2)
     fDCB.StopBits = TWOSTOPBITS;    // two stop bit
   else
     fDCB.StopBits = ONE5STOPBITS;   // 1.5 stop bit
@@ -593,7 +593,7 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     fTimeout.ReadIntervalTimeout        = 0;           // max. ms between following read bytes (0=not used)
   fTimeout.ReadTotalTimeoutMultiplier   = 0;           // time per read byte (use contant timeout instead)
   fTimeout.ReadTotalTimeoutConstant     = timeout;     // total read timeout in ms
-  fTimeout.WriteTotalTimeoutMultiplier  = 0;           // time per write byte (use contant timeout instead) 
+  fTimeout.WriteTotalTimeoutMultiplier  = 0;           // time per write byte (use contant timeout instead)
   fTimeout.WriteTotalTimeoutConstant    = timeout;
   fSuccess = SetCommTimeouts(fpCom, &fTimeout);
   if (!fSuccess)
@@ -605,16 +605,16 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   struct termios  toptions;
   int             status;
-  
-  
+
+
   // get attributes
   if (tcgetattr(fpCom, &toptions) < 0)
     Error("in 'set_port_attribute()': get port attributes failed");
-  
+
   // set baudrate
   speed_t brate = baudrate; // let you override switch below if needed
   switch(baudrate) {
@@ -645,13 +645,13 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
 #ifdef B230400
     case 230400: brate=B230400; break;
 #endif
-    default: 
+    default:
       Error("in 'set_port_attribute()': unsupported baudrate %d Baud", (int) baudrate);
   }
   cfmakeraw(&toptions);
   cfsetispeed(&toptions, brate);    // receive
   cfsetospeed(&toptions, brate);    // send
-  
+
   // number of data bits
   toptions.c_cflag &= ~CSIZE;       // clear data bits entry
   if (numBits == 7)
@@ -685,11 +685,11 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   toptions.c_cflag &= ~CRTSCTS;
   toptions.c_cflag |= CREAD | CLOCAL;  // turn on READ & ignore ctrl lines
   toptions.c_iflag &= ~(IXON | IXOFF | IXANY); // turn off s/w flow ctrl
-  
+
   // make raw
   toptions.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG); // make raw
   toptions.c_oflag &= ~OPOST; // make raw
-  
+
   // set timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
   toptions.c_cc[VMIN]  = 255;
   toptions.c_cc[VTIME] = timeout/100;   // convert ms to 0.1s
@@ -697,8 +697,8 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
   // set term properties
   if (tcsetattr(fpCom, TCSANOW, &toptions) < 0)
     Error("in 'set_port_attribute()': set port attributes failed");
-  
-  
+
+
   // set static RTS and DTR status (required for some multimeter optocouplers)
   ioctl(fpCom, TIOCMGET, &status);
   if (RTS==1)
@@ -711,30 +711,30 @@ void set_port_attribute(HANDLE fpCom, uint32_t baudrate, uint32_t timeout, uint8
     status &= ~TIOCM_DTR;
   if (ioctl(fpCom, TIOCMSET, &status))
     Error("in 'set_port_attribute()': cannot set RTS status");
-  
+
 #endif // __APPLE__ || __unix__
 
-     
+
 } // set_port_attribute
 
 
 
 /**
   \fn void set_baudrate(HANDLE fpCom, uint32_t Baudrate)
-   
+
   \param[in] fpCom      handle to comm port
   \param[in] Baudrate   new comm port speed in Baud (must be supported by port)
 
   set new baudrate for an already open comm port.
 */
 void set_baudrate(HANDLE fpCom, uint32_t Baudrate) {
-  
+
   uint32_t   baudrate, timeout;
   uint8_t    numBits, parity, numStop, RTS, DTR;
 
   // read port setting
   get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
-  
+
   // set new baudrate
   baudrate = Baudrate;
 
@@ -747,20 +747,20 @@ void set_baudrate(HANDLE fpCom, uint32_t Baudrate) {
 
 /**
   \fn void set_timeout(HANDLE fpCom, uint32_t Timeout)
-   
+
   \param[in] fpCom      handle to comm port
   \param[in] Timeout    new timeout in ms
 
   set new timeout for an already open comm port
 */
 void set_timeout(HANDLE fpCom, uint32_t Timeout) {
-  
+
   uint32_t   baudrate, timeout;
   uint8_t    numBits, parity, numStop, RTS, DTR;
 
   // read port setting
   get_port_attribute(fpCom, &baudrate, &timeout, &numBits, &parity, &numStop, &RTS, &DTR);
-  
+
   // set new timeout
   timeout = Timeout;
 
@@ -773,7 +773,7 @@ void set_timeout(HANDLE fpCom, uint32_t Timeout) {
 
 /**
   \fn void set_parity(HANDLE fpCom, uint8_t Parity)
-   
+
   \param[in] fpCom      handle to comm port
   \param[in] Parity     parity control by HW (0=none, 1=odd, 2=even)
 
@@ -799,32 +799,32 @@ void set_parity(HANDLE fpCom, uint8_t Parity) {
 
 /**
   \fn uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx)
-   
+
   \param[in] fpCom      handle to comm port
   \param[in] uartMode   UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in] lenTx      number of bytes to send
   \param[in] Tx         array of bytes to send
 
   \return number of sent bytes
-  
+
   send data via comm port. Use this function to facilitate serial communication
   on different platforms, e.g. Windows and Posix.
-  If uartMode==1 (1-wire interface), read back LIN echo 
+  If uartMode==1 (1-wire interface), read back LIN echo
 */
 uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
 
-  // for reading back LIN echo 
+  // for reading back LIN echo
   char      Rx[1000];
   uint32_t  lenRx;
-  
-  
+
+
 /////////
 // Windows
 /////////
 #if defined(WIN32) || defined(WIN64)
 
   DWORD   numChars;
-  
+
   // send data & return number of sent bytes
   PurgeComm(fpCom, PURGE_RXABORT | PURGE_RXCLEAR | PURGE_TXABORT | PURGE_TXCLEAR);
   WriteFile(fpCom, Tx, lenTx, &numChars, NULL);
@@ -835,10 +835,10 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   uint32_t  numChars;
-  
+
   // send data & return number of sent bytes
   numChars = write(fpCom, Tx, lenTx);
 
@@ -852,7 +852,7 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
       Error("in 'send_port()': read 1-wire echo failed");
     //fprintf(stderr,"received echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
   }
-  
+
   // return number of sent bytes
   return((uint32_t) numChars);
 
@@ -862,21 +862,21 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
 
 /**
   \fn uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx)
-   
+
   \param[in]  fpCom     handle to comm port
   \param[in]  uartMode  UART bootloader mode: 0=duplex, 1=1-wire reply, 2=2-wire reply
   \param[in]  lenRx     number of bytes to receive
   \param[out] Rx        array containing bytes received
-  
+
   \return number of received bytes
-  
+
   receive data via comm port. Use this function to facilitate serial communication
   on different platforms, e.g. Windows and Posix
   If uartMode==2 (UART reply mode with 2-wire interface), reply each byte from STM8 -> SLOW
 */
 uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) {
 
-  
+
 /////////
 // Windows
 /////////
@@ -884,10 +884,10 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 
   DWORD     numChars, numTmp;
   uint32_t  i;
-  
+
   // for UART reply mode with 2-wire interface echo each received bytes -> SLOW
   if (uartMode==2) {
-    
+
     // echo each byte as it is received
     numChars = 0;
     for (i=0; i<lenRx; i++) {
@@ -899,15 +899,15 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
       else
         break;
     } // loop i
-  
+
   } // uartMode==2
-  
-  
+
+
   // UART duplex mode or 1-wire interface -> receive all bytes in single block -> fast
   else {
     ReadFile(fpCom, Rx, lenRx, &numChars, NULL);
   }
-  
+
   // return number of bytes received
   return((uint32_t) numChars);
 
@@ -917,7 +917,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
+#if defined(__APPLE__) || defined(__unix__)
 
   char            *dest = Rx;
   uint32_t        remaining = lenRx, got = 0, received = 0;
@@ -925,17 +925,17 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
   fd_set          fdr;
   struct termios  toptions;
   uint32_t        timeout;
-  
+
   // get terminal attributes
   if (tcgetattr(fpCom, &toptions) < 0)
     Error("in 'receive_port': get port attributes failed");
-  
+
   // get terminal timeout (see: http://unixwiz.net/techtips/termios-vmin-vtime.html)
   timeout = toptions.c_cc[VTIME] * 100;        // convert 0.1s to ms
-  
+
   // while there are bytes left to read...
   while (remaining != 0) {
-   
+
     // reinit timeval structure each time through loop
     tv.tv_sec  = (timeout / 1000L);
     tv.tv_usec = (timeout % 1000L) * 1000L;
@@ -949,34 +949,34 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 
     // read a response, we know there's data waiting
     got = read(fpCom, dest, remaining);
-    
+
     // handle errors. retry on EAGAIN, fail on anything else, ignore if no bytes read
     if (got == -1) {
       if (errno == EAGAIN)
         continue;
       else
         return(received);
-    } 
+    }
     else if (got > 0) {
-      
+
       // for UART reply mode with 2-wire interface echo each byte
       if (uartMode==2) {
         //fprintf(stderr,"\nsent echo 0x%02x\n", *dest);
         send_port(fpCom, uartMode, 1, dest);
       }
-      
+
       // figure out how many bytes are left and increment dest pointer through buffer
       dest += got;
       remaining -= got;
       received += got;
-      
+
     } // received bytes
 
   } // while (remaining != 0)
 
   // return number of received bytes
   return(received);
-  
+
 #endif // __APPLE__ || __unix__
 
 } // receive_port
@@ -985,9 +985,9 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 
 /**
   \fn void flush_port(HANDLE fpCom)
-   
+
   \param[in]  fpCom   handle to comm port
-  
+
   flush port input & output buffer. Use this function to facilitate serial communication
   on different platforms, e.g. Windows and Posix
 */
@@ -1007,11 +1007,23 @@ void flush_port(HANDLE fpCom) {
 /////////
 // Posix
 /////////
-#if defined(__APPLE__) || defined(__unix__) 
-  
+#if defined(__APPLE__) || defined(__unix__)
+
+  // required for some reason (https://stackoverflow.com/questions/13013387/clearing-the-serial-ports-buffer)
+  SLEEP(5);
+
   // purge all port buffers (see http://linux.die.net/man/3/tcflush)
-  tcflush(fpCom, TCIOFLUSH);
-  
+  //tcflush(fpCom, TCIOFLUSH);
+
+//
+  struct termios options;
+  tcgetattr(fpCom, &options);
+  //options.c_cflag |= (CLOCAL | CREAD);
+  tcsetattr(fpCom, TCSAFLUSH, &options);
+
+  SLEEP(50);              // seems to be required for some reason
+
+
 #endif // __APPLE__ || __unix__
 
 } // flush_port

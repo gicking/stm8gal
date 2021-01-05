@@ -57,7 +57,7 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   if (physInterface == UART)
   {
     flush_port(ptrPort);
-    set_timeout(ptrPort, 200);
+    set_timeout(ptrPort, 100);
   }
 
   // construct SYNC command. Note: SYNC has even parity -> works in all UART modes
@@ -101,15 +101,8 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
     // avoid flooding the STM8
     SLEEP(10);
 
-  //} while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
-  } while ((count<50) && ((len!=lenRx) || (Rx[0]!=NACK)));
+  } while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
 
-  // check if ok (check for NACK, not ACK!)
-  if ((len==lenRx) && (Rx[0]==NACK)) {
-    if (verbose >= SILENT)
-      printf("done\n");
-  }
-  /* xxx
   // check if ok
   if ((len==lenRx) && (Rx[0]==ACK)) {
     if (verbose == SILENT)
@@ -123,7 +116,6 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
     else if (verbose > SILENT)
       printf("done (NACK)\n");
   }
-  */
   else if (len==lenRx)
     Error("in 'bsl_sync()': wrong response 0x%02x from BSL", (uint8_t) (Rx[0]));
   else
@@ -132,7 +124,6 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
 
   // purge PC input buffer
   flush_port(ptrPort);
-  SLEEP(50);              // seems to be required for some reason
 
   // restore receive timeout
   if (physInterface == UART)
@@ -202,7 +193,6 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
 
   // purge PC input buffer
   flush_port(ptrPort);
-  SLEEP(50);              // seems to be required for some reason
 
   // print message
   if (verbose == CHATTY) {
@@ -257,10 +247,8 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   if (!ptrPort)
     Error("in 'bsl_getInfo()': port not open");
 
-
   // purge input buffer
   flush_port(ptrPort);
-  SLEEP(50);              // seems to be required for some reason
 
 
   /////////
