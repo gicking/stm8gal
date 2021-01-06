@@ -459,7 +459,7 @@ int main(int argc, char ** argv) {
   if (g_backgroundOperation)
     g_pauseOnExit = false;
 
-  if (g_backgroundOperation) {
+  if (!g_backgroundOperation) {
     sprintf(tmp, "%s (v%s)", appname, version);
     setConsoleTitle(tmp);
   }
