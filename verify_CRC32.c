@@ -283,11 +283,17 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t vers
   // jump to CRC32 routine in RAM
   bsl_jumpTo(ptrPort, physInterface, uartMode, START_CODE_CRC32, MUTE);
 
+  // for SPI interface (1=SPI_ARDUINO, 2=SPI_SPIDEV) wait sufficiently long (measured empirically)
+  if ((physInterface == 1) || (physInterface == 2))
+  {
+    //fprintf(stderr,"\ntest: %d\n", (int) (25L*lenCheck/1024L));
+    SLEEP(100L + 25L*lenCheck/1024L);
+  }
+
   // re-synchronize after re-start of ROM-BSL
   bsl_sync(ptrPort, physInterface, MUTE);
 
-
-  // reset command state machine sending 0x00 until a NACK is received
+  // for UART reset command state machine sending 0x00 until a NACK is received
   if (physInterface == 0)
   {
     char      Tx=0x00, Rx;

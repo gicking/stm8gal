@@ -460,13 +460,13 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     imageBuf[i] = 0;
 
 
-  // loop over addresses in <=256B steps
+  // loop over addresses in 128B steps (required by SPI via Arduino)
   countBytes = 0;
-  addrStep = 256;
+  addrStep = 128;
   for (addr=addrStart; addr<=addrStop; addr+=addrStep) {
 
     // if addr too close to end of range reduce stepsize
-    if (addr+256 > addrStop)
+    if (addr+128 > addrStop)
       addrStep = addrStop - addr + 1;
 
 
@@ -578,11 +578,14 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
     if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
     else if (physInterface == SPI_ARDUINO)
+    {
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
+      //fprintf(stderr, "%d\n", (int) lenRx);
+    }
     #if defined(USE_SPIDEV)
       else if (physInterface == SPI_SPIDEV) {
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
-        //printf("0x%02x  0x%02x  0x%02x\n", (uint8_t) (Rx[0]), (uint8_t) (Rx[1]), (uint8_t) (Rx[2])); fflush(stdout); getchar();
+        //fprintf(stderr, "%d\n", (int) lenRx);
       }
     #endif
     if (len != lenRx)

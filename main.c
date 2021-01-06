@@ -455,15 +455,6 @@ int main(int argc, char ** argv) {
   // perform some misc tasks
   ////////
 
-  // read back after writing doesn't work for SPI (don't know why)
-  #if defined(USE_SPIDEV)
-    if ((physInterface == SPI_ARDUINO) || (physInterface == SPI_SPIDEV))
-      verifyUpload = 0;
-  #else
-    if (physInterface == SPI_ARDUINO)
-      verifyUpload = 0;
-  #endif
-
   // for background operation avoid prompt on exit
   if (g_backgroundOperation)
     g_pauseOnExit = false;

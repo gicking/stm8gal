@@ -1,13 +1,13 @@
 /**
   \file spi_Arduino_comm.h
-   
+
   \author G. Icking-Konert
   \date 2017-12-19
   \version 0.1
-   
+
   \brief declaration of SPI routines voa Arduino USB<->SPI bridge
-   
-  declaration of routines for SPI communication using the Arduino 
+
+  declaration of routines for SPI communication using the Arduino
   USB<->SPI bridge available from https://github.com/gicking/Arduino_SPI_bridge
 */
 
@@ -33,7 +33,7 @@
 
 #define ARDUINO_SUCCESS              0x01   //< command ok
 #define ARDUINO_ERROR_FRAME_LENGTH   0x02   //< zero or loo long frame length
-#define ARDUINO_ERROR_CHECKSUM       0x03   //< received and calculated checksums don't match 
+#define ARDUINO_ERROR_CHECKSUM       0x03   //< received and calculated checksums don't match
 #define ARDUINO_ERROR_ILLEGAL_CMD    0x04   //< command unknown
 #define ARDUINO_ERROR_ILLEGAL_PARAM  0x05   //< error with command parameters
 
