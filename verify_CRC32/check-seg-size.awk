@@ -1,10 +1,10 @@
 #!/usr/bin/awk -f
 
 BEGIN {
-	start_code = 0x200;	# start of verify_CRC32() from "link/common.lk". Required by stm8gal!
+	start_code = 0x210;	# start of verify_CRC32() from "link/common.lk". Required by stm8gal! Note: STM8L 8kB ROM-BL v1.0 uses 0x00..0x206 (BL manual: 0x00..0x200) 
 	addr_start = 0x2F4;	# start of passed parameters from "link/common.lk". Required by stm8gal!
-	flagError  = 0;			# global error flag
-	total_size = 0;			# size of code + 12B parameters
+	flagError  = 0;		# global error flag
+	total_size = 0;		# size of code + 12B parameters
 }
 
 END {

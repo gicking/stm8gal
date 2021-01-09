@@ -1,5 +1,5 @@
 ; common addresses
--b VERIFY_SEG=0x200		; address of segment VERIFY_SEG
+-b VERIFY_SEG=0x210		; address of segment VERIFY_SEG. Note: STM8L 8kB ROM-BL v1.0 uses 0x00..0x206 (BL manual: 0x00..0x200) 
 -b HOME=0x8000			; required by SDCC
 -b DATA=0x400			; required by SDCC
 -mwx

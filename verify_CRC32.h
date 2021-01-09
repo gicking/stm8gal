@@ -19,7 +19,7 @@
 #include "serial_comm.h"
 
 // RAM routine parameters
-#define START_CODE_CRC32  0x200    // start address of CRC32 routine in RAM
+#define START_CODE_CRC32  0x210    // start address of CRC32 routine in RAM. Note: STM8L 8kB ROM-BL v1.0 uses 0x00..0x206 (BL manual: 0x00..0x200)
 #define ADDR_START_CRC32  0x2F4    // location of CRC32 start address (@ 0x2F4 - 0x2F7)
 #define ADDR_STOP_CRC32   0x2F8    // location of CRC32 stop address (@ 0x2F8 - 0x2FB)
 #define RESULT_CRC32      0x2FC    // location of calculated CRC32 checksum (@ 0x2FC - 0x2FF)
