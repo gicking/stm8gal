@@ -253,7 +253,7 @@ intermediate exports only contain the memory content up to that point in time.
 
 ***
 
-# General Notes
+# Notes
 
 - bootloader programming via UART, SPI or CAN is supported by most STM8 devices. However, not all devices support each interface. A full description of the bootloaders can be found in [UM0560](http://www.st.com/st-web-ui/static/active/en/resource/technical/document/user_manual/CD00201192.pdf), including an overview of STM8 devices with respective bootloader mode. For _stm8gal_ >=v1.2.0 the UART mode can optionally be auto-detected:
 
@@ -269,7 +269,7 @@ intermediate exports only contain the memory content up to that point in time.
 
   - Exception is the [Raspberry Pi](https://www.raspberrypi.org) or similar “embedded PCs“ with direct access to UART and SPI pins via the GPIO header. In this case make sure that the voltage levels of STM8 and embedded PC are compatible, e.g. for RasPi with 3.3V pins also supply the STM8 with Vdd=3.3V. As noted above, **never expose a 3.3V device to 5V signals**.
 
-  - Alternatively an [Arduino](https://www.arduino.cc) can be used to act as a USB<->SPI bridge using a dedicated "gateway software". For the Arduino project and a technical documentation see the [Arduino SPI_bridge](https://github.com/gicking/Arduino_SPI_bridge) repository.
+  - Alternatively an [Arduino](https://www.arduino.cc) can be used to act as a USB<->SPI bridge using a dedicated "gateway software". For the Arduino project and a technical documentation see the [Arduino SPI_bridge](https://github.com/gicking/Arduino_SPI_bridge) repository. Again, **note compatible voltage levels of Arduino and STM8**.
 
 - Prior to uploading code via _stm8gal_ the STM8 ROM bootloader needs to be activated via option bytes. For details see the respective STM8 device datasheet. If required, change the option bytes via SWIM debug interface using
 
@@ -283,7 +283,9 @@ intermediate exports only contain the memory content up to that point in time.
 
 - The BSL can be entered only within 1s after reset or power-on. Exception are virgin devices, which remain in bootloader mode indefinitely.
 
-- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in very low reading speeds.
+- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in extremely low reading speed due to USB latency.
+
+- SPI communication via spidev or [Arduino SPI bridge](https://github.com/gicking/Arduino_SPI_bridge) works reliably only up to 250kBaud in my test setup (see above)
 
 - The STM32 uses a very similar bootloader protocol, so adapting the flasher tool for STM32 should be straightforward. However, I have no board available, but please feel free to go ahead...
 
@@ -296,12 +298,6 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 <p align="center">
   <img src="images/test_matrix.png">
 </p>
-
-***
-
-# Limitations
-
-- SPI communication via spidev or [Arduino SPI bridge](https://github.com/gicking/Arduino_SPI_bridge) works reliably only up to 250kBaud in my test setup (see above)
 
 ***
 
