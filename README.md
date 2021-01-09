@@ -104,7 +104,7 @@ _stm8gal_ is a commandline tool without graphical interface (volunteers...?). Th
     -u/-uart-mode [mode]            UART mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect (default: auto-detect)
     -p/-port [name]                 communication port (default: list available ports)
     -b/-baudrate [speed]            communication baudrate in Baud (default: 115200)
-    -V/-verify                      verify flash content after upload: 0=skip, 1=CRC32 checksum, 2=read back (default: read back)
+    -V/-verify [method]             verify flash content after upload: 0=skip, 1=CRC32 checksum, 2=read-back (default: read-back)
     -j/-jump-addr [address]         jump to address (as dec or hex) before exit of stm8gal, or -1 for skip (default: flash)
     -w/-write-file [file [addr]]    upload file from PC to uController. For binary file (*.bin) with address offset (as dec or hex)
     -W/-write-byte [addr value]     change value at given address (both as dec or hex)
@@ -116,8 +116,7 @@ Notes:
   - reset via RasPi GPIO (`-R 5`) is only available on a Raspberry Pi and if _stm8gal_ was built with _wiringPi_ support (see [Building the Software](#building-the-software))
   - interface spidev (`-i 2`) is only available if _stm8gal_ was built with _spidev_ support (see [Building the Software](#building-the-software))
   - SPI via Arduino (`-i 1`) and reset via Arduino GPIO (`-R 4`) requires an additional Arduino programmed as [SPI bridge](https://github.com/gicking/Arduino_SPI_bridge)
-  - flash write/erase routines in RAM use addresses 0x00-0x1FF. Don't use this range for custom RAM code (see [UM0560](https://www.st.com/content/ccc/resource/technical/document/user_manual/e4/83/c1/d6/ee/d8/49/b8/CD00201192.pdf/files/CD00201192.pdf/jcr:content/translations/en.CD00201192.pdf))
-  - CRC32 checksum routine in RAM use addresses 0x200-0x0x35C. In case you use verify via CRC32 ('-V 1') don't use this range for custom RAM code
+  - to avoid address conflicts with Boot-ROM or CRC32-verify RAM routines, optional user RAM code should start at address 0x400
 
 ***
 
