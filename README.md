@@ -299,6 +299,8 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
   <img src="images/test_matrix.png">
 </p>
 
+green: test passed; yellow: not yet tested 
+
 ***
 
 # Known Bugs
