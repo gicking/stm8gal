@@ -283,7 +283,7 @@ intermediate exports only contain the memory content up to that point in time.
 
 - The BSL can be entered only within 1s after reset or power-on. Exception are virgin devices, which remain in bootloader mode indefinitely.
 
-- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in low upload speeds.
+- The UART "reply" mode (see above) supports single-wire interfaces like LIN or ISO9141. It requires a "Rx echo" for each sent byte. Using the reply mode with dual wires therefore requires _stm8gal_ to echo each received byte individually, which results in very low reading speeds.
 
 - The STM32 uses a very similar bootloader protocol, so adapting the flasher tool for STM32 should be straightforward. However, I have no board available, but please feel free to go ahead...
 
@@ -301,9 +301,7 @@ _stm8gal_ has recently been tested only for the below STM8 devices and operating
 
 # Limitations
 
-- SPI verify after write does not work (READ command only returns ACK) -> verify after write is disabled for SPI. Strangely, memory read-out works via SPI
-
-- On RasPi 3 SPI communication via spidev works reliably only up to 250kBaud. With Arduino and setup above, upload is ok up to 2MBaud
+- SPI communication via spidev or [Arduino SPI bridge](https://github.com/gicking/Arduino_SPI_bridge) works reliably only up to 250kBaud in my test setup (see above)
 
 ***
 
