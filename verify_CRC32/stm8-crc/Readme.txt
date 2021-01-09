@@ -1,1 +1,0 @@
-from https://github.com/basilhussain/stm8-crc
