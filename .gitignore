@@ -66,3 +66,4 @@ tool_validation.*
 /stm8gal.exe
 *_dump.txt
 /test-erase/*
+/binaries
