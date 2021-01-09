@@ -317,6 +317,12 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 
 # Revision History
 
+v1.4.3 (2021-01-09)
+  - fixed bug in SPI read-back after write
+  - fixed bug in CRC32-verify (see https://github.com/gicking/stm8gal/issues/20)
+
+----------------
+
 v1.4.2 (2020-12-26)
   - support re-synchronization w/o STM8 reset
   - add option verify via CRC32 checksum (see https://github.com/gicking/stm8gal/issues/20)

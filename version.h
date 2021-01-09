@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier
-#define VERSION     ((1<<14) | (4<<6) | (2<<1) | 1)     // -> v1.4.2
+#define VERSION     ((1<<14) | (4<<6) | (3<<1) | 1)     // -> v1.4.3
 
 #endif // _SW_VERSION_H_
 
@@ -29,10 +29,16 @@
 Revision History
 ----------------
 
+v1.4.3 (2021-01-09)
+  - fixed bug in SPI read-back after write
+  - fixed bug in CRC32-verify (see https://github.com/gicking/stm8gal/issues/20)
+
+----------------
+
 v1.4.2 (2020-12-26)
   - support re-synchronization w/o STM8 reset
   - add option verify via CRC32 checksum (see https://github.com/gicking/stm8gal/issues/20)
-	- add parameter to verify option (-V/-verify). Is required due to new CRC32 check 
+  - add parameter to verify option (-V/-verify). Is required due to new CRC32 check 
 
 ----------------
 
