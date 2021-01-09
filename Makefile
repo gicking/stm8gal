@@ -11,7 +11,13 @@ RAMINCLUDES   = $(RAMROUTINES:.s19=.h)
 OBJDIR        = Objects
 OBJECTS       = $(patsubst %.c, $(OBJDIR)/%.o, $(SOURCES))
 BIN           = stm8gal
-RM            = rm -fr
+ifeq ($(OS),Windows_NT)
+	RM = cmd.exe /C del /Q
+	MKDIR = mkdir
+else
+	RM = rm -fr
+	MKDIR = mkdir -p
+endif
 
 # add optional SPI support via spidev library (Windows not yet supported)
 #CFLAGS   += -DUSE_SPIDEV
@@ -30,12 +36,16 @@ default: $(BIN) $(OBJDIR)
 
 all: $(RAMINCLUDES) $(SOURCES) $(BIN)
 
-$(OBJDIR):
-	mkdir -p $(OBJDIR)
 
+# make output directories
+$(OBJDIR):
+	$(MKDIR) $(OBJDIR)
+
+# clean up
 clean:
 	${RM} $(OBJECTS) $(OBJDIR) $(BIN) $(BIN).exe *~ .DS_Store
 
+# convert RAM routines to C headers for inclusion into stm8gal
 %.h: %.s19 $(RAMROUTINES)
 	xxd -i $< > $@
 
