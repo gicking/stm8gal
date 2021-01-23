@@ -14,16 +14,14 @@ OUTPUT_HEADERDIR = include
 
 # linker files. Each linker file generates one output binary
 LINKTARGETS = \
+	$(LINKDIR)/STM8L_8k_v1.0.lk \
 	$(LINKDIR)/STM8L_32k_v1.1.lk \
 	$(LINKDIR)/STM8L_32k_v1.2.lk \
 	$(LINKDIR)/STM8L_64k_v1.1.lk \
-	$(LINKDIR)/STM8L_8k_v1.0.lk \
-	$(LINKDIR)/STM8S_128k_v2.1.lk \
-	$(LINKDIR)/STM8S_128k_v2.2.lk \
-	$(LINKDIR)/STM8S_128k_v2.4.lk \
 	$(LINKDIR)/STM8S_32k_v1.2.lk \
 	$(LINKDIR)/STM8S_32k_v1.3.lk \
-	$(LINKDIR)/STM8S_32k_v1.4.lk
+	$(LINKDIR)/STM8S_128k_v2.1.lk \
+	$(LINKDIR)/STM8S_128k_v2.2.lk
 LINKCOMMON = \
 	$(LINKDIR)/common.lk
 
@@ -85,7 +83,8 @@ ifeq ($(OS),Windows_NT)
 else
 	awk -f ./check-seg-size.awk $(BINDIR)/$(basename $(@F)).map
 	xxd -i $@ > $(OUTPUT_HEADERDIR)/$(basename $(@F)).h
-	cp $(OUTPUT_HEADERDIR)/$(basename $(@F)).h ../RAM_Routines/$(basename $(@F)).h
+	$(RM) ../RAM_Routines/verify_CRC32/$(basename $(@F)).h
+	cp $(OUTPUT_HEADERDIR)/$(basename $(@F)).h ../RAM_Routines/verify_CRC32/$(basename $(@F)).h
 	echo
 endif
 
@@ -110,4 +109,3 @@ clean:
 	$(RM) $(OBJDIR)
 	$(RM) $(BINDIR)
 	$(RM) $(OUTPUT_HEADERDIR)
-	$(RM) ../RAM_Routines/verify_CRC32_*.h

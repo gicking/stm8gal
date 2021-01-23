@@ -22,6 +22,15 @@
   #include <wiringPi.h>
 #endif
 
+// device dependent flash w/e routines (from https://github.com/basilhussain/stm8-bootloader-erase-write)
+#include "erase_write_verL_8k_1.0_inc.h"
+#include "erase_write_ver_32k_1.0_inc.h"
+#include "erase_write_ver_32k_1.2_inc.h"
+#include "erase_write_ver_32k_1.3_inc.h"
+#include "erase_write_ver_128k_2.0_inc.h"
+#include "erase_write_ver_128k_2.1_inc.h"
+#include "erase_write_ver_128k_2.2_inc.h"
+
 
 /**
   \fn uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose)
@@ -34,8 +43,8 @@
 
   synchronize with microcontroller bootloader. For UART synchronize baudrate.
 */
-uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
-
+uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose)
+{
   int   i, count;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
@@ -67,8 +76,8 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
 
   // synchronize. Repeat until NACK received (problems re-synchronizing with ACK -> wait for NACK)
   count = 0;
-  do {
-
+  do
+  {
     // send command
     if (physInterface == UART)
       len   = send_port(ptrPort, 0, lenTx, Tx);
@@ -82,9 +91,11 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
       Error("in 'bsl_sync()': sending command failed (expect %d, sent %d)", lenTx, len);
 
     // receive response
-    if (physInterface == UART) {
+    if (physInterface == UART)
+    {
       len = receive_port(ptrPort, 0, lenRx, Rx);
-      if ((len==1) && (Rx[0]== Tx[0])) {              // check for 1-wire echo
+      if ((len==1) && (Rx[0]== Tx[0]))
+      {              // check for 1-wire echo
         len = receive_port(ptrPort, 0, lenRx, Rx);
       }
     }
@@ -104,13 +115,15 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   } while ((count<50) && ((len!=lenRx) || ((Rx[0]!=ACK) && (Rx[0]!=NACK))));
 
   // check if ok
-  if ((len==lenRx) && (Rx[0]==ACK)) {
+  if ((len==lenRx) && (Rx[0]==ACK))
+  {
     if (verbose == SILENT)
       printf("done\n");
     else if (verbose > SILENT)
       printf("done (ACK)\n");
   }
-  else if ((len==lenRx) && (Rx[0]==NACK)) {
+  else if ((len==lenRx) && (Rx[0]==NACK))
+  {
     if (verbose == SILENT)
       printf("done\n");
     else if (verbose > SILENT)
@@ -147,8 +160,8 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose) {
   auto-detect UART bootloader mode (see AppNote UM0560). This information is required
   to set the correct data parity and determine if local echo is required.
 */
-uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
-
+uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose)
+{
   int   len, lenTx, lenRx;
   char  Tx[1000], Rx[1000];
   uint8_t uartMode = 255;
@@ -165,7 +178,8 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   set_parity(ptrPort, 2);
   lenTx = 2; lenRx = 1;
   Tx[0] = 0x00; Tx[1] = (Tx[0] ^ 0xFF); Rx[0] = 0x00;
-  do {
+  do
+  {
     len = send_port(ptrPort, 0, lenTx, Tx);
     len = receive_port(ptrPort, 0, lenRx, Rx);
     //printf("\nmode 1: %d  0x%02x\n", len, (uint8_t) (Rx[0]));
@@ -173,15 +187,18 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   } while (len==0);
 
   // tested empirically...
-  if (Rx[0] == ACK) {               // UART mode 0: 2-wire duplex, no SW reply, even parity
+  if (Rx[0] == ACK)                 // UART mode 0: 2-wire duplex, no SW reply, even parity
+  {
     uartMode = 0;
     set_parity(ptrPort, 2);
   }
-  else if (Rx[0] == Tx[0]) {        // UART mode 1: 1-wire reply, no SW reply, no parity
+  else if (Rx[0] == Tx[0])          // UART mode 1: 1-wire reply, no SW reply, no parity
+  {
     uartMode = 1;
     set_parity(ptrPort, 0);
   }
-  else if (Rx[0] == NACK) {         // UART mode 2: 2-wire reply, SW reply, no parity
+  else if (Rx[0] == NACK)           // UART mode 2: 2-wire reply, SW reply, no parity
+  {
     uartMode = 2;
     set_parity(ptrPort, 0);
   }
@@ -195,7 +212,8 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
   flush_port(ptrPort);
 
   // print message
-  if (verbose == CHATTY) {
+  if (verbose == CHATTY)
+  {
     if (uartMode == 0)
       printf("done (duplex)\n");
     else if (uartMode == 1)
@@ -225,11 +243,129 @@ uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose) {
 
   \return communication status (0=ok, 1=fail)
 
+  upload RAM routines required for flash write & erase. Respective RAM routines depend on device family, bootloader version and flash size.
+  Used RAM routines under OSS license are from https://github.com/basilhussain/stm8-bootloader-erase-write.
+  Optionally proprietary STM RAM routines are available from http://www.st.com/web/catalog/tools/FM147/CL1794/SC1807/SS1754/PF258008
+*/
+uint8_t bsl_uploadWriteErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int flashsize, uint8_t versBSL, uint8_t family, uint8_t verbose)
+{
+  char      *ptrRAM = NULL;                 // pointer to array with RAM routines
+  int       lenRAM;                         // length of RAM array
+  uint16_t  *imageBuf;                      // RAM image buffer (high byte != 0 indicates value is set)
+  uint64_t  addrStart, addrStop, numData;   // image data range
+
+  // STM8L >8kB does not need to upload RAM routines -> Skip
+  if ((family == STM8L) && (flashsize>8))
+    return(0);
+
+  // for STM8S and STM8L 8kB upload device dependent RAM routines
+  if ((flashsize==8) && (versBSL==0x10))
+  {
+    #ifdef DEBUG
+      printf("header STM8_Routines_E_W_ROUTINEs_8K_verL_1_0_s19 \n");
+    #endif
+    ptrRAM = (char*) bin_erase_write_verL_8k_1_0_ihx;
+    lenRAM = bin_erase_write_verL_8k_1_0_ihx_len;
+  }
+  else if ((flashsize==32) && (versBSL==0x10))
+  {
+    #ifdef DEBUG
+      printf("header STM8_Routines_E_W_ROUTINEs_32K_ver_1_0_s19 \n");
+    #endif
+    ptrRAM = (char*) bin_erase_write_ver_32k_1_0_ihx;
+    lenRAM = bin_erase_write_ver_32k_1_0_ihx_len;
+  }
+  else if ((flashsize==32) && (versBSL==0x12))
+  {
+    #ifdef DEBUG
+      printf("header STM8_Routines_E_W_ROUTINEs_32K_ver_1_2_s19 \n");
+    #endif
+    ptrRAM = (char*) bin_erase_write_ver_32k_1_2_ihx;
+    lenRAM = bin_erase_write_ver_32k_1_2_ihx_len;
+  }
+  else if ((flashsize==32) && (versBSL==0x13))
+  {
+    #ifdef DEBUG
+      printf("header STM8_Routines_E_W_ROUTINEs_32K_ver_1_3_s19 \n");
+    #endif
+    ptrRAM = (char*) bin_erase_write_ver_32k_1_3_ihx;
+    lenRAM = bin_erase_write_ver_32k_1_3_ihx_len;
+  }
+  else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x20))
+  {
+    #ifdef DEBUG
+      printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19 \n");
+    #endif
+    ptrRAM = (char*) bin_erase_write_ver_128k_2_0_ihx;
+    lenRAM = bin_erase_write_ver_128k_2_0_ihx_len;
+  }
+  else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x21))
+  {
+    #ifdef DEBUG
+      printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19 \n");
+    #endif
+    ptrRAM = (char*) bin_erase_write_ver_128k_2_1_ihx;
+    lenRAM = bin_erase_write_ver_128k_2_1_ihx_len;
+  }
+  else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x22))
+  {
+    #ifdef DEBUG
+      printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_2_s19 \n");
+    #endif
+    ptrRAM = (char*) bin_erase_write_ver_128k_2_2_ihx;
+    lenRAM = bin_erase_write_ver_128k_2_2_ihx_len;
+  }
+  else
+    Error("unsupported device");
+
+
+  // allocate and init RAM image (>1MByte requires dynamic allocation)
+  if (!(imageBuf = malloc((LENIMAGEBUF + 1) * sizeof(*imageBuf))))
+    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
+  memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+
+  // convert correct array containing ihx file to RAM image
+  convert_ihx(ptrRAM, lenRAM, imageBuf, MUTE);
+
+  // get image size
+  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+
+  // upload RAM routines to STM8
+  if (verbose == CHATTY)
+    printf("  upload RAM routines ... ");
+  fflush(stdout);
+  bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, MUTE);
+  if (verbose == CHATTY)
+    printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+  fflush(stdout);
+
+  // release memory for image
+  free(imageBuf);
+
+  // return success
+  return(0);
+
+} // bsl_uploadWriteErase
+
+
+/**
+  \fn uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *versBSL, uint8_t *family, uint8_t verbose)
+
+  \param[in]  ptrPort        handle to communication port
+  \param[in]  physInterface  bootloader interface: 0=UART (default), 1=SPI via Arduino, 2=SPI via SPIDEV
+  \param[in]  uartMode       UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply
+  \param[out] flashsize      size of flashsize in kB (required for correct W/E routines)
+  \param[out] versBSL        BSL version number (required for correct W/E routines)
+  \param[out] family         STM8 family (STM8S=1, STM8L=2)
+  \param[in]  verbose        verbosity level (0=SILENT, 1=INFORM, 2=CHATTY)
+
+  \return communication status (0=ok, 1=fail)
+
   query microcontroller type and BSL version info. This information is required
   to select correct version of flash write/erase routines
 */
-uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose) {
-
+uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *versBSL, uint8_t *family, uint8_t verbose)
+{
   int   i;
   int   lenTx, lenRx, len;
   char  Tx[1000], Rx[1000];
@@ -256,7 +392,8 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   /////////
 
   // reduce timeout for faster check
-  if (physInterface == UART) {
+  if (physInterface == UART)
+  {
     set_timeout(ptrPort, 200);
   }
 
@@ -295,7 +432,8 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
   #endif
 
   // restore timeout to avoid timeouts during flash operation
-  if (physInterface == UART) {
+  if (physInterface == UART)
+  {
     set_timeout(ptrPort, TIMEOUT);
   }
 
@@ -366,24 +504,26 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 #endif
 
   // copy version number
-  *vers = Rx[2];
+  *versBSL = Rx[2];
 
   // print message
-  if (*family == STM8S) {
+  if (*family == STM8S)
+  {
     if (verbose == SILENT)
       printf("done (STM8S; %dkB)\n", *flashsize);
     else if (verbose == INFORM)
       printf("done (STM8S; %dkB flash)\n", *flashsize);
     else if (verbose == CHATTY)
-      printf("done (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+      printf("done (STM8S; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*versBSL)&0xF0)>>4), ((*versBSL) & 0x0F));
   }
-  else {
+  else
+  {
     if (verbose == SILENT)
       printf("done (STM8L; %dkB)\n", *flashsize);
     else if (verbose == INFORM)
       printf("done (STM8L; %dkB flash)\n", *flashsize);
     else if (verbose == CHATTY)
-      printf("done (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*vers)&0xF0)>>4), ((*vers) & 0x0F));
+      printf("done (STM8L; %dkB flash; BSL v%x.%x)\n", *flashsize, (((*versBSL)&0xF0)>>4), ((*versBSL) & 0x0F));
   }
   fflush(stdout);
 
@@ -409,8 +549,8 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 
   read from microcontroller memory via READ command.
 */
-uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose) {
-
+uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose)
+{
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint64_t  addr, addrStep, numBytes, countBytes;
@@ -419,19 +559,22 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   numBytes = addrStop - addrStart + 1;
 
   // print message
-  if (verbose == SILENT) {
+  if (verbose == SILENT)
+  {
     if (numBytes > 1024)
       printf("  read %1.1fkB ", (float) numBytes/1024.0);
     else
       printf("  read %dB ", (int) numBytes);
   }
-  else if (verbose == INFORM) {
+  else if (verbose == INFORM)
+  {
     if (numBytes > 1024)
       printf("  read %1.1fkB ", (float) numBytes/1024.0);
     else
       printf("  read %dB ", (int) numBytes);
   }
-  else if (verbose == CHATTY) {
+  else if (verbose == CHATTY)
+  {
     if (numBytes > 1024)
       printf("  read %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (float) numBytes/1024.0, addrStart, addrStop);
     else
@@ -463,8 +606,8 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // loop over addresses in 128B steps (required by SPI via Arduino)
   countBytes = 0;
   addrStep = 128;
-  for (addr=addrStart; addr<=addrStop; addr+=addrStep) {
-
+  for (addr=addrStart; addr<=addrStop; addr+=addrStep)
+  {
     // if addr too close to end of range reduce stepsize
     if (addr+128 > addrStop)
       addrStep = addrStop - addr + 1;
@@ -583,7 +726,8 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
       //fprintf(stderr, "%d\n", (int) lenRx);
     }
     #if defined(USE_SPIDEV)
-      else if (physInterface == SPI_SPIDEV) {
+      else if (physInterface == SPI_SPIDEV)
+      {
         len = receive_spi_spidev(ptrPort, lenRx, Rx);
         //fprintf(stderr, "%d\n", (int) lenRx);
       }
@@ -596,26 +740,31 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
       Error("in 'bsl_memRead()': at 0x%02x ACK3 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
     // copy data to buffer. Set HB to indicate data read
-    for (i=1; i<lenRx; i++) {
+    for (i=1; i<lenRx; i++)
+    {
       imageBuf[addr+i-1] = ((uint16_t) (Rx[i]) | 0xFF00);
       //printf("%d 0x%02x\n", i, (uint8_t) (Rx[i])); fflush(stdout); getchar();
       countBytes++;
     }
 
     // print progress
-    if ((countBytes % 1024) == 0) {
-      if (verbose == SILENT) {
+    if ((countBytes % 1024) == 0)
+    {
+      if (verbose == SILENT)
+      {
         printf(".");
         if ((countBytes % (10*1024)) == 0)
           printf(" ");
       }
-      else if (verbose == INFORM) {
+      else if (verbose == INFORM)
+      {
         if (numBytes > 1024)
           printf("%c  read %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
         else
           printf("%c  read %dB / %dB ", '\r', (int) countBytes, (int) numBytes);
       }
-      else if (verbose == CHATTY) {
+      else if (verbose == CHATTY)
+      {
         if (numBytes > 1024)
           printf("%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addrStart, addrStop);
         else
@@ -630,13 +779,15 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   // print message
   if (verbose == SILENT)
     printf(" done\n");
-  else if (verbose == INFORM) {
+  else if (verbose == INFORM)
+  {
     if (numBytes > 1024)
       printf("%c  read %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0);
     else
       printf("%c  read %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numBytes);
   }
-  else if (verbose == CHATTY) {
+  else if (verbose == CHATTY)
+  {
     if (numBytes > 1024)
       printf("%c  read %1.1fkB / %1.1fkB from 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (float) countBytes/1024.0, (float) numBytes/1024.0, addrStart, addrStop);
     else
@@ -665,8 +816,8 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
   check if microcontrolles address exists. Specifically read 1B from microcontroller
   memory via READ command. If it fails, memory doesn't exist. Used to get STM8 type
 */
-uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
-
+uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
+{
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
 
@@ -757,7 +908,8 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     Error("in 'bsl_memCheck()': at 0x%02x ACK2 timeout (expect %d, received %d)", addr, lenRx, len);
 
   // check acknowledge -> on NACK memory cannot be read -> return 0
-  if (Rx[0]!=ACK) {
+  if (Rx[0]!=ACK)
+  {
     return(0);
   }
 
@@ -820,8 +972,8 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
   sector erase for microcontroller flash. Use with care!
 */
-uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
-
+uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
+{
   int       i;
   int       lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
@@ -832,13 +984,16 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   sector = (addr - PFLASH_START)/PFLASH_BLOCKSIZE;
 
   // print message
-  if (verbose == SILENT) {
+  if (verbose == SILENT)
+  {
     printf("  erase sector ... ");
   }
-  else if (verbose == INFORM) {
+  else if (verbose == INFORM)
+  {
     printf("  erase flash sector %d ... ", (int) sector);
   }
-  else if (verbose == CHATTY) {
+  else if (verbose == CHATTY)
+  {
     if (addr>0xFFFFFF)
       printf("  erase flash sector %d @ 0x%" PRIx64 " ... ", (int) sector, addr);
     else if (addr>0xFFFF)
@@ -945,12 +1100,14 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
   // receive response
   if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
-  else if (physInterface == SPI_ARDUINO) {
+  else if (physInterface == SPI_ARDUINO)
+  {
     SLEEP(40);                              // wait >30ms*(N=0+1) for sector erase before requesting response (see UM0560, SPI timing)
     len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   }
   #if defined(USE_SPIDEV)
-    else if (physInterface == SPI_SPIDEV) {
+    else if (physInterface == SPI_SPIDEV)
+    {
       SLEEP(40);                              // wait >30ms*(N=0+1) for sector erase before requesting response (see UM0560, SPI timing)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
     }
@@ -970,10 +1127,12 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 
 
   // print message
-  if (verbose == SILENT) {
+  if (verbose == SILENT)
+  {
     printf("done\n");
   }
-  else if ((verbose == INFORM) || (verbose == CHATTY)) {
+  else if ((verbose == INFORM) || (verbose == CHATTY))
+  {
     printf("done, time %dms\n", (int)(tStop-tStart));
   }
   fflush(stdout);
@@ -997,17 +1156,19 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 
   mass erase microcontroller P-flash and D-flash/EEPROM. Use with care!
 */
-uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose) {
-
+uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose)
+{
   int       i, lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];
   uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
 
   // print message
-  if (verbose == SILENT) {
+  if (verbose == SILENT)
+  {
     printf("  mass erase ... ");
   }
-  else if ((verbose == INFORM) || (verbose == CHATTY)) {
+  else if ((verbose == INFORM) || (verbose == CHATTY))
+  {
     printf("  flash mass erase ... ");
   }
   fflush(stdout);
@@ -1065,8 +1226,8 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   // send 0xFF+0x00 to trigger mass erase
   /////
 
-  // increase timeout for long erase. Measured 3.3s for 128kB STM8 -> set to 4s
-  set_timeout(ptrPort, 4000);
+  // increase timeout for long erase. Measured 3.3s for 128kB STM8 -> set to 5s
+  set_timeout(ptrPort, 10000);
 
   // construct pattern
   lenTx = 2;
@@ -1093,12 +1254,14 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
   // receive response
   if (physInterface == UART)
     len = receive_port(ptrPort, uartMode, lenRx, Rx);
-  else if (physInterface == SPI_ARDUINO) {
+  else if (physInterface == SPI_ARDUINO)
+  {
     SLEEP(1100);                              // wait >30ms*(N=32+1) for sector erase before requesting response (see UM0560, SPI timing)
     len = receive_spi_Arduino(ptrPort, lenRx, Rx);
   }
   #if defined(USE_SPIDEV)
-    else if (physInterface == SPI_SPIDEV) {
+    else if (physInterface == SPI_SPIDEV)
+    {
       SLEEP(1100);                              // wait >30ms*(N=32+1) for sector erase before requesting response (see UM0560, SPI timing)
       len = receive_spi_spidev(ptrPort, lenRx, Rx);
     }
@@ -1118,10 +1281,12 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
 
 
   // print message
-  if (verbose == SILENT) {
+  if (verbose == SILENT)
+  {
     printf("done\n");
   }
-  else if ((verbose == INFORM) || (verbose == CHATTY)) {
+  else if ((verbose == INFORM) || (verbose == CHATTY))
+  {
     printf("done, time %1.1fs\n", (float)(tStop-tStart)/1000.0);
   }
   fflush(stdout);
@@ -1148,8 +1313,8 @@ uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMo
 
   upload data to microcontroller memory via WRITE command
 */
-uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
-
+uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+{
   uint64_t         numData, countBytes, countBlock;    // size of memory image
   const uint64_t   maxBlock = 128;                      // max. length of write block
   char             Tx[1000], Rx[1000];                  // communication buffers
@@ -1162,19 +1327,22 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   get_image_size(imageBuf, addrStart, addrStop, &addrStart, &addrStop, &numData);
 
   // print message
-  if (verbose == SILENT) {
+  if (verbose == SILENT)
+  {
     if (numData > 1024)
       printf("  write %1.1fkB ", (float) numData/1024.0);
     else
       printf("  write %dB ", (int) numData);
   }
-  else if (verbose == INFORM) {
+  else if (verbose == INFORM)
+  {
     if (numData > 1024)
       printf("  write %1.1fkB ", (float) numData/1024.0);
     else
       printf("  write %dB ", (int) numData);
   }
-  else if (verbose == CHATTY) {
+  else if (verbose == CHATTY)
+  {
     if (numData > 1024)
       printf("  write %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", (float) numData/1024.0, addrStart, addrStop);
     else
@@ -1196,8 +1364,8 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   countBytes = 0;
   countBlock = 0;
   uint64_t addr = addrStart;
-  while (addr <= addrStop) {
-
+  while (addr <= addrStop)
+  {
     // find next data byte (=start address of next block)
     while (((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop))
       addr++;
@@ -1209,7 +1377,8 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
     // set length of next data block: max 128B and align with 128 for speed (see UM0560 section 3.4)
     int lenBlock = 1;
-    while ((lenBlock < maxBlock) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxBlock)) {
+    while ((lenBlock < maxBlock) && ((addr+lenBlock) <= addrStop) && (imageBuf[addr+lenBlock] & 0xFF00) && ((addr+lenBlock) % maxBlock))
+    {
       lenBlock++;
     }
     //printf("0x%04x   0x%04x   %d\n", addrBlock, addrBlock+lenBlock-1, lenBlock);
@@ -1304,7 +1473,8 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     lenTx = 0;
     Tx[lenTx++] = lenBlock-1;     // -1 from BSL
     chk         = lenBlock-1;
-    for (j=0; j<lenBlock; j++) {
+    for (j=0; j<lenBlock; j++)
+    {
       Tx[lenTx] = (uint8_t) (imageBuf[addrBlock+j] & 0x00FF);  // only LB, HB indicates "defined"
       chk ^= Tx[lenTx];
       lenTx++;
@@ -1330,7 +1500,8 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
     // receive response
     if (physInterface == UART)
       len = receive_port(ptrPort, uartMode, lenRx, Rx);
-    else if (physInterface == SPI_ARDUINO) {
+    else if (physInterface == SPI_ARDUINO)
+    {
       if ((addrBlock >= PFLASH_START) && (addrBlock % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
         SLEEP(1200);                               // for not 128-aligned data wait >1.1s
       else
@@ -1338,7 +1509,8 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       len = receive_spi_Arduino(ptrPort, lenRx, Rx);
     }
     #if defined(USE_SPIDEV)
-      else if (physInterface == SPI_SPIDEV) {
+      else if (physInterface == SPI_SPIDEV)
+      {
         if ((addrBlock >= PFLASH_START) && (addrBlock % 128))  // wait for flash write finished before requesting response (see UM0560, SPI timing)
           SLEEP(1200);                               // for not 128-aligned data wait >1.1s
         else
@@ -1354,19 +1526,23 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
       Error("in 'bsl_memWrite()': at 0x%02x ACK3 failure (expect 0x%02x, received 0x%02x)", addr, (uint8_t) ACK, (uint8_t) (Rx[0]));
 
     // print progress
-    if (((++countBlock) % 8) == 0) {
-      if (verbose == SILENT) {
+    if (((++countBlock) % 8) == 0)
+    {
+      if (verbose == SILENT)
+      {
         printf(".");
         if ((countBlock % (10*8)) == 0)
           printf(" ");
       }
-      else if (verbose == INFORM) {
+      else if (verbose == INFORM)
+      {
         if (numData > 1024)
           printf("%c  write %1.1fkB / %1.1fkB ", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
         else
           printf("%c  write %dB / %dB ", '\r', (int) countBytes, (int) numData);
       }
-      else if (verbose == CHATTY) {
+      else if (verbose == CHATTY)
+      {
         if (numData > 1024)
           printf("%c  write %1.1fkB / %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ", '\r', (float) countBytes/1024.0, (float) numData/1024.0, addrStart, addrStop);
         else
@@ -1383,13 +1559,15 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   // print message
   if (verbose == SILENT)
     printf(" done\n");
-  else if (verbose == INFORM) {
+  else if (verbose == INFORM)
+  {
     if (numData > 1024)
       printf("%c  write %1.1fkB / %1.1fkB ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0);
     else
       printf("%c  write %dB / %dB ... done   \n", '\r', (int) countBytes, (int) numData);
   }
-  else if (verbose == CHATTY) {
+  else if (verbose == CHATTY)
+  {
     if (numData > 1024)
       printf("%c  write %1.1fkB / %1.1fkB in 0x%" PRIx64 " to 0x%" PRIx64 " ... done   \n", '\r', (float) countBytes/1024.0, (float) numData/1024.0, addrStart, addrStop);
     else
@@ -1418,8 +1596,8 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 
   Read microntroller flash memory and compare to specified RAM image.
 */
-uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose) {
-
+uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+{
   // allocate and clear temporary RAM buffer (>1MByte requires dynamic allocation)
   uint16_t  *tmpImageBuf;            // RAM image buffer (high byte != 0 indicates value is set)
   if (!(tmpImageBuf = malloc(LENIMAGEBUF * sizeof(*tmpImageBuf))))
@@ -1429,8 +1607,8 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
 
   // loop over image and read all consecutive data blocks. Skip undefined data to avoid illegal read.
   uint64_t addr = addrStart;
-  while (addr <= addrStop) {
-
+  while (addr <= addrStop)
+  {
     // find next data byte in image (=start address for next read)
     while (((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop))
       addr++;
@@ -1441,7 +1619,8 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
 
     // set length of next read-out
     int lenRead = 1;
-    while (((addr+lenRead) <= addrStop) && (imageBuf[addr+lenRead] & 0xFF00)) {
+    while (((addr+lenRead) <= addrStop) && (imageBuf[addr+lenRead] & 0xFF00))
+    {
       lenRead++;
     }
     //printf("0x%04x   0x%04x   %d\n", addr, addr+lenBlock-1, lenRead);
@@ -1461,8 +1640,10 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
   fflush(stdout);
 
   // compare defined data data entries (HB!=0x00)
-  for (addr=addrStart; addr<=addrStop; addr++) {
-    if (imageBuf[addr] & 0xFF00) {
+  for (addr=addrStart; addr<=addrStop; addr++)
+  {
+    if (imageBuf[addr] & 0xFF00)
+    {
       if ((imageBuf[addr] & 0xFF) != (tmpImageBuf[addr] & 0xFF))
         Error("verify failed at address 0x%" PRIx64 " (0x%02x vs 0x%02x)", addr, (uint8_t) (imageBuf[addr]&0xFF), (uint8_t) (tmpImageBuf[addr]&0xFF));
     } // if data defined
@@ -1496,8 +1677,8 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
 
   jump to address and continue code execution. Generally RAM or flash starting address
 */
-uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose) {
-
+uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
+{
   int       i;
   int       lenTx, lenRx, len;
   char      Tx[1000], Rx[1000];

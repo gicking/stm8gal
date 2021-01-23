@@ -19,7 +19,9 @@ Georg
 # License / Disclaimer
 - _stm8gal_ and it's source code is distributed under the Apache License Version 2.0 (see [License](LICENSE))
 
-- exception is some RAM code, which is required for flash programming. This code is available on the [STM Homepage](http://www.st.com/web/catalog/tools/FM147/CL1794/SC1807/SS1754/PF258008). All rights to this RAM code remain with STM under the provided, proprietary license.
+- required flash write/erase RAM routines by Basil Hussain is distributed under the Apache License Version 2.0. Sources are available from [https://github.com/basilhussain/stm8-bootloader-erase-write](https://github.com/basilhussain/stm8-bootloader-erase-write)
+
+- optimized CRC32 calculation by Basil Hussain is distributed under the MIT License. Sources are available from [https://github.com/basilhussain/stm8-crc](https://github.com/basilhussain/stm8-crc)
 
 ***
 
@@ -312,6 +314,14 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 ***
 
 # Revision History
+
+v1.5.0 (2021-01-23)
+  - replaced write/erase RAM routines by STM with OSS routines (see https://github.com/gicking/stm8gal/issues/4)
+  - removed STM8S 32kB v1.4 and 128kB v2.4. According to STM support were never released and development is stopped
+  - removed STM8S 256kB v1.0. According to STM support variant was never released and development is stopped
+  - fixed bug in v1.4.3 which prevented flash write/erase after CRC32-verify 
+
+----------------
 
 v1.4.3 (2021-01-09)
   - fixed bug in SPI read-back after write

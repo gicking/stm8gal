@@ -67,3 +67,4 @@ tool_validation.*
 *_dump.txt
 /test-erase/*
 /binaries
+/RAM_Routines/STM_write_erase.zip

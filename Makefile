@@ -1,13 +1,19 @@
 # Project: stm8gal
 
 CC            = gcc
-CFLAGS        = -c -Wall -I./RAM_Routines
+CFLAGS        = -c -Wall -I./RAM_Routines/write_erase -I./RAM_Routines/verify_CRC32
 #CFLAGS       += -DDEBUG
 LDFLAGS       = -g3 -lm
 SOURCES       = bootloader.c hexfile.c main.c misc.c serial_comm.c spi_Arduino_comm.c verify_CRC32.c
 INCLUDES      = misc.h bootloader.h hexfile.h serial_comm.h spi_spidev_comm.h spi_Arduino_comm.h verify_CRC32.h main.h
-RAMROUTINES   = RAM_Routines/E_W_ROUTINEs_128K_ver_2.1.s19 RAM_Routines/E_W_ROUTINEs_128K_ver_2.0.s19 RAM_Routines/E_W_ROUTINEs_256K_ver_1.0.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.3.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.4.s19 RAM_Routines/E_W_ROUTINEs_128K_ver_2.2.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.0.s19 RAM_Routines/E_W_ROUTINEs_128K_ver_2.4.s19 RAM_Routines/E_W_ROUTINEs_32K_ver_1.2.s19  RAM_Routines/E_W_ROUTINEs_32K_verL_1.0.s19 RAM_Routines/E_W_ROUTINEs_8K_verL_1.0.s19
-RAMINCLUDES   = $(RAMROUTINES:.s19=.h)
+RAMINCLUDES   = \
+		RAM_Routines/write_erase/erase_write_verL_8k_1.0_inc.h \
+		RAM_Routines/write_erase/erase_write_ver_32k_1.0_inc.h \
+		RAM_Routines/write_erase/erase_write_ver_32k_1.2_inc.h \
+		RAM_Routines/write_erase/erase_write_ver_32k_1.3_inc.h \
+		RAM_Routines/write_erase/erase_write_ver_128k_2.0_inc.h \
+		RAM_Routines/write_erase/erase_write_ver_128k_2.1_inc.h \
+		RAM_Routines/write_erase/erase_write_ver_128k_2.2_inc.h
 OBJDIR        = Objects
 OBJECTS       = $(patsubst %.c, $(OBJDIR)/%.o, $(SOURCES))
 BIN           = stm8gal
@@ -44,10 +50,6 @@ $(OBJDIR):
 # clean up
 clean:
 	${RM} $(OBJECTS) $(OBJDIR) $(BIN) $(BIN).exe *~ .DS_Store
-
-# convert RAM routines to C headers for inclusion into stm8gal
-%.h: %.s19 $(RAMROUTINES)
-	xxd -i $< > $@
 
 # link application
 $(BIN): $(OBJECTS) $(OBJDIR)

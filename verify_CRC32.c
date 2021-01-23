@@ -21,17 +21,15 @@
 #include "verify_CRC32.h"
 
 // include RAM routines for supported devices
-#include "RAM_Routines/verify_CRC32_STM8L_8k_v1.0.h"
-#include "RAM_Routines/verify_CRC32_STM8L_32k_v1.1.h"
-#include "RAM_Routines/verify_CRC32_STM8L_32k_v1.2.h"
-#include "RAM_Routines/verify_CRC32_STM8L_64k_v1.1.h"
-#include "RAM_Routines/verify_CRC32_STM8S_32k_v1.2.h"
-#include "RAM_Routines/verify_CRC32_STM8S_32k_v1.3.h"
-#include "RAM_Routines/verify_CRC32_STM8S_32k_v1.4.h"
+#include "verify_CRC32_STM8L_8k_v1.0.h"
+#include "verify_CRC32_STM8L_32k_v1.1.h"
+#include "verify_CRC32_STM8L_32k_v1.2.h"
+#include "verify_CRC32_STM8L_64k_v1.1.h"
 
-#include "RAM_Routines/verify_CRC32_STM8S_128k_v2.1.h"
-#include "RAM_Routines/verify_CRC32_STM8S_128k_v2.2.h"
-#include "RAM_Routines/verify_CRC32_STM8S_128k_v2.4.h"
+#include "verify_CRC32_STM8S_32k_v1.2.h"
+#include "verify_CRC32_STM8S_32k_v1.3.h"
+#include "verify_CRC32_STM8S_128k_v2.1.h"
+#include "verify_CRC32_STM8S_128k_v2.2.h"
 
 
 uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t versBSL, uint8_t physInterface, uint8_t uartMode)
@@ -89,13 +87,6 @@ uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t
     #endif
     convert_ihx((char*) bin_verify_CRC32_STM8S_32k_v1_3_ihx, bin_verify_CRC32_STM8S_32k_v1_3_ihx_len, imageBuf, MUTE);    // STM8S / STM8AF "medium density" BL v1.3
   }
-  else if ((family == STM8S) && (flashsize==32) && (versBSL==0x14))
-  {
-    #ifdef DEBUG
-      printf("header verify_CRC32_STM8S_32k_v1_4_ihx\n");
-    #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8S_32k_v1_4_ihx, bin_verify_CRC32_STM8S_32k_v1_4_ihx_len, imageBuf, MUTE);    // STM8S / STM8AF "medium density" BL v1.4
-  }
   else if ((family == STM8S) && ((flashsize==64) || (flashsize==128)) && (versBSL==0x21))
   {
     #ifdef DEBUG
@@ -109,13 +100,6 @@ uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t
       printf("header verify_CRC32_STM8S_128k_v2_2_ihx\n");
     #endif
     convert_ihx((char*) bin_verify_CRC32_STM8S_128k_v2_2_ihx, bin_verify_CRC32_STM8S_128k_v2_2_ihx_len, imageBuf, MUTE);  // STM8S / STM8AF "high density" BL v2.2
-  }
-  else if ((family == STM8S) && ((flashsize==64) || (flashsize==128)) && (versBSL==0x24))
-  {
-    #ifdef DEBUG
-      printf("header verify_CRC32_STM8S_128k_v2_4_ihx\n");
-    #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8S_128k_v2_4_ihx, bin_verify_CRC32_STM8S_128k_v2_4_ihx_len, imageBuf, MUTE);  // STM8S / STM8AF "high density" BL v2.4
   }
   else
   {
@@ -287,24 +271,29 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t vers
   if ((physInterface == 1) || (physInterface == 2))
   {
     //fprintf(stderr,"\ntest: %d\n", (int) (25L*lenCheck/1024L));
-    SLEEP(100L + 25L*lenCheck/1024L);
+    SLEEP(500L + 25L*lenCheck/1024L);
   }
 
   // re-synchronize after re-start of ROM-BSL
   bsl_sync(ptrPort, physInterface, MUTE);
 
-  // for UART reset command state machine sending 0x00 until a NACK is received
+  // For UART reset command state machine sending 0x00 until a NACK is received
+  // Procedure depends on UART mode (0=duplex, 1=1-wire, 2=2-wire reply). Tested empirically and ugly...
   if (physInterface == 0)
   {
-    char      Tx=0x00, Rx;
+    char      Tx[2] = {0x00, 0x00}, Rx;
     int       lenRx;
 
     // send (wrong) GET command until NACK is received. Then state machine is ready to receive next command
     set_timeout(ptrPort, 100);
     for (int i=0; i<5; i++)
     {
-      send_port(ptrPort, 0, 1, &Tx);
+      if ((uartMode == 0) || (uartMode == 2))
+        send_port(ptrPort, 0, 1, Tx);         // duplex and 2-wire reply
+      else
+        send_port(ptrPort, 0, 2, Tx);         // 1-wire
       lenRx = receive_port(ptrPort, 0, 1, &Rx);
+      SLEEP(10);
       if ((lenRx == 1) && (Rx == NACK))
         break;
     }
@@ -314,8 +303,14 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t vers
     if (uartMode == 2)
       send_port(ptrPort, 0, 1, &Rx);
 
-  } // UART interface
+    // required for 1-wire reply mode
+    if (uartMode == 1)
+    {
+      SLEEP(10);
+      flush_port(ptrPort);
+    }
 
+  } // UART interface
 
   // read out CRC32 checksum from STM8
   read_crc32(ptrPort, physInterface, uartMode, &crc32_uC);

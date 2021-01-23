@@ -69,19 +69,6 @@
 #include "version.h"
 
 
-// device dependent flash w/e routines
-#include "E_W_ROUTINEs_8K_verL_1.0.h"
-#include "E_W_ROUTINEs_32K_ver_1.0.h"
-#include "E_W_ROUTINEs_32K_ver_1.2.h"
-#include "E_W_ROUTINEs_32K_ver_1.3.h"
-#include "E_W_ROUTINEs_32K_ver_1.4.h"
-//#include "E_W_ROUTINEs_32K_verL_1.0.h"  // empty
-#include "E_W_ROUTINEs_128K_ver_2.0.h"
-#include "E_W_ROUTINEs_128K_ver_2.1.h"
-#include "E_W_ROUTINEs_128K_ver_2.2.h"
-#include "E_W_ROUTINEs_128K_ver_2.4.h"
-#include "E_W_ROUTINEs_256K_ver_1.0.h"
-
 // max length of filenames
 #define  STRLEN   1000
 
@@ -630,7 +617,7 @@ int main(int argc, char ** argv) {
     if (verbose == INFORM)
       printf("  open Arduino port '%s' ... ", portname);
     else if (verbose == CHATTY)
-      printf("  open Arduino port '%s' with %gkBaud SPI ... ", portname, (float) ARDUINO_BAUDRATE / 1000.0);
+      printf("  open Arduino port '%s' with %gkBaud ... ", portname, (float) ARDUINO_BAUDRATE / 1000.0);
     fflush(stdout);
     ptrPort = init_port(portname, ARDUINO_BAUDRATE, 100, 8, 0, 1, 0, 0);
     if ((verbose == INFORM) || (verbose == CHATTY))
@@ -760,118 +747,8 @@ int main(int argc, char ** argv) {
   // get bootloader info for selecting RAM w/e routines for flash
   bsl_getInfo(ptrPort, physInterface, uartMode, &flashsize, &versBSL, &family, verbose);
 
-  // for STM8S and 8kB STM8L upload RAM routines, else skip
-  if ((family == STM8S) || (flashsize==8)) {
-
-    char   *ptrRAM = NULL;          // pointer to array with RAM routines
-    int    lenRAM;                  // length of RAM array
-
-    // select device dependent flash routines for upload
-    if ((flashsize==8) && (versBSL==0x10)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_8K_verL_1_0_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_8K_verL_1_0_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_8K_verL_1_0_s19_len;
-    }
-    else if ((flashsize==32) && (versBSL==0x10)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_32K_ver_1_0_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_32K_ver_1_0_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_32K_ver_1_0_s19_len;
-    }
-    else if ((flashsize==32) && (versBSL==0x12)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_32K_ver_1_2_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_32K_ver_1_2_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_32K_ver_1_2_s19_len;
-    }
-    else if ((flashsize==32) && (versBSL==0x13)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_32K_ver_1_3_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_32K_ver_1_3_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_32K_ver_1_3_s19_len;
-    }
-    else if ((flashsize==32) && (versBSL==0x14)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_32K_ver_1_4_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_32K_ver_1_4_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_32K_ver_1_4_s19_len;
-    }
-    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x20)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_128K_ver_2_0_s19_len;
-    }
-    #ifdef DONIX
-    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x20)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_32K_verL_1_0_s19_len;
-    }
-    #endif // DONIX
-    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x21)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_128K_ver_2_1_s19_len;
-    }
-    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x22)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_2_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_128K_ver_2_2_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_128K_ver_2_2_s19_len;
-    }
-    else if (((flashsize==64) || (flashsize==128)) && (versBSL==0x24)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_128K_ver_2_4_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_128K_ver_2_4_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_128K_ver_2_4_s19_len;
-    }
-    else if ((flashsize==256) && (versBSL==0x10)) {
-      #ifdef DEBUG
-        printf("header STM8_Routines_E_W_ROUTINEs_256K_ver_1_0_s19 \n");
-      #endif
-      ptrRAM = (char*) STM8_Routines_E_W_ROUTINEs_256K_ver_1_0_s19;
-      lenRAM = STM8_Routines_E_W_ROUTINEs_256K_ver_1_0_s19_len;
-    }
-    else
-      Error("unsupported device");
-
-
-    // clear image buffer
-    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
-    // convert correct array containing s19 file to RAM image
-    convert_s19(ptrRAM, lenRAM, imageBuf, MUTE);
-
-    // get image size
-    get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-
-    // upload RAM routines to STM8
-    if (verbose == CHATTY)
-      printf("  upload RAM routines ... ");
-    fflush(stdout);
-    bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, MUTE);
-    if (verbose == CHATTY)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
-    fflush(stdout);
-
-    // clear memory image again
-    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
-  } // if STM8S or low-density STM8L -> upload RAM code
+  // upload RAM routines for flash write & erase
+  bsl_uploadWriteErase(ptrPort, physInterface, uartMode, flashsize, versBSL, family, verbose);
 
 
   /////////////////
@@ -1000,8 +877,11 @@ int main(int argc, char ** argv) {
       // optionally verify upload
       if (verifyUpload == 0)        // skip verify
         ;
-      else if (verifyUpload == 1)   // compare CRC32 checksums
+      else if (verifyUpload == 1)   // compare CRC32 checksums. Requires re-uploading w/e routines, which are cleared by ROM-BL by "GO" command
+      {
         verify_crc32(ptrPort, family, flashsize, versBSL, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        bsl_uploadWriteErase(ptrPort, physInterface, uartMode, flashsize, versBSL, family, MUTE);
+      }
       else if (verifyUpload == 2)   // read back memory and compare
         bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
       else
@@ -1009,6 +889,39 @@ int main(int argc, char ** argv) {
 
       // clear memory image again
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+
+
+/*
+      /// xxx
+    char   *ptrRAM = NULL;          // pointer to array with RAM routines
+    int    lenRAM;                  // length of RAM array
+
+ptrRAM = (char*) bin_erase_write_ver_128k_2_1_ihx;
+lenRAM = bin_erase_write_ver_128k_2_1_ihx_len;
+
+    // clear image buffer
+    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+
+    // convert correct array containing ihx file to RAM image
+    convert_ihx(ptrRAM, lenRAM, imageBuf, MUTE);
+
+    // get image size
+    get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+
+    // upload RAM routines to STM8
+    if (verbose == CHATTY)
+      printf("  upload RAM routines ... ");
+    fflush(stdout);
+    bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, MUTE);
+    if (verbose == CHATTY)
+      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
+    fflush(stdout);
+
+    // clear memory image again
+    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+
+/// xxx bis hier
+*/
 
     } // write
 

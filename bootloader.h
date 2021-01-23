@@ -51,7 +51,10 @@ uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose);
 uint8_t bsl_getUartMode(HANDLE ptrPort, uint8_t verbose);
 
 /// get microcontroller type and BSL version
-uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *vers, uint8_t *family, uint8_t verbose);
+uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *versBSL, uint8_t *family, uint8_t verbose);
+
+/// upload RAM routines required for flash write & erase
+uint8_t bsl_uploadWriteErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int flashsize, uint8_t versBSL, uint8_t family, uint8_t verbose);
 
 /// read from microcontroller memory
 uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose);

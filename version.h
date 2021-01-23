@@ -19,7 +19,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier
-#define VERSION     ((1<<14) | (4<<6) | (3<<1) | 1)     // -> v1.4.3
+#define VERSION     ((1<<14) | (5<<6) | (0<<1) | 1)     // -> v1.5.0
 
 #endif // _SW_VERSION_H_
 
@@ -27,6 +27,14 @@
 /********************
 
 Revision History
+----------------
+
+v1.5.0 (2021-01-23)
+  - replaced write/erase RAM routines by STM with OSS routines (see https://github.com/gicking/stm8gal/issues/4)
+  - removed STM8S 32kB v1.4 and 128kB v2.4. According to STM support were never released and development is stopped
+  - removed STM8S 256kB v1.0. According to STM support variant was never released and development is stopped
+  - fixed bug in v1.4.3 which prevented flash write/erase after CRC32-verify 
+
 ----------------
 
 v1.4.3 (2021-01-09)
