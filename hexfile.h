@@ -21,7 +21,7 @@
 #define  LENFILEBUF   50*1024*1024
 
 /// buffer size [B] for memory image
-#define  LENIMAGEBUF  50*1024*1024
+#define  LENIMAGEBUF  5*1024*1024
 
 
 /// read next line from RAM buffer
