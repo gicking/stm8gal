@@ -101,7 +101,7 @@ int main(int argc, char ** argv) {
   bool      printHelp;            // flag for printing help page
   int       paramHelp=-1;         // parameter index to print help for
   int       i, j;                 // generic variables
-  char      tmp[STRLEN];          // misc buffer
+  char      tmp[STRLEN + 106];    // misc buffer
   uint64_t  addrStart, addrStop, numData;  // image data range
 
   // STM8 device properties
@@ -378,7 +378,7 @@ int main(int argc, char ** argv) {
   // on request (-h) or in case of parameter error print help page
   if ((printHelp==true) || (argc == 1)) {
 
-    sprintf(tmp, "%s (v%s)", appname, version);
+    snprintf(tmp, sizeof(tmp), "%s (v%s)", appname, version);
     setConsoleTitle(tmp);
 
     printf("\n");
@@ -447,7 +447,7 @@ int main(int argc, char ** argv) {
     g_pauseOnExit = false;
 
   if (!g_backgroundOperation) {
-    sprintf(tmp, "%s (v%s)", appname, version);
+    snprintf(tmp, sizeof(tmp), "%s (v%s)", appname, version);
     setConsoleTitle(tmp);
   }
 
