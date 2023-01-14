@@ -1,7 +1,6 @@
-<p align="center">
+<p align="right">
   <img src="images/logo_stm8flash.png" alt="drawing" width="120"/>
 </p>
-
 # Overview
 
 _stm8gal_ is an application for programming or reading out [STM8](http://www.st.com/en/microcontrollers/stm8-8-bit-mcus.html) memory using the built-in ROM bootloader (BSL) via UART or SPI interface. It is compatible with Windows, MacOS X and Linux, including Raspbian. For a list of tested configurations see section [Test Overview](#test-overview).
