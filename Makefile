@@ -1,9 +1,11 @@
 # Project: stm8gal
 
-CC            = gcc
-CFLAGS        = -c -Wall -I./RAM_Routines/write_erase -I./RAM_Routines/verify_CRC32
+ifeq ($(origin CC), default)
+CC = $(CROSS_COMPILE)gcc
+endif
+CFLAGS        += -c -Wall -I./RAM_Routines/write_erase -I./RAM_Routines/verify_CRC32
 #CFLAGS       += -DDEBUG
-LDFLAGS       = -g3 -lm
+LDFLAGS       += -g3 -lm
 SOURCES       = bootloader.c hexfile.c main.c misc.c serial_comm.c spi_Arduino_comm.c verify_CRC32.c
 INCLUDES      = misc.h bootloader.h hexfile.h serial_comm.h spi_spidev_comm.h spi_Arduino_comm.h verify_CRC32.h main.h
 RAMINCLUDES   = \
