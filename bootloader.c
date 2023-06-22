@@ -46,7 +46,7 @@
 uint8_t bsl_sync(HANDLE ptrPort, uint8_t physInterface, uint8_t verbose)
 {
   int   i, count;
-  int   lenTx, lenRx, len;
+  int   lenTx, lenRx, len = 0;
   char  Tx[1000], Rx[1000];
 
   // print message
@@ -367,7 +367,7 @@ uint8_t bsl_uploadWriteErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int *flashsize, uint8_t *versBSL, uint8_t *family, uint8_t verbose)
 {
   int   i;
-  int   lenTx, lenRx, len;
+  int   lenTx, lenRx, len = 0;
   char  Tx[1000], Rx[1000];
 
   // print message
@@ -551,7 +551,7 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
 */
 uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop, uint16_t *imageBuf, uint8_t verbose)
 {
-  int       i, lenTx, lenRx, len;
+  int       i, lenTx, lenRx, len = 0;
   char      Tx[1000], Rx[1000];
   uint64_t  addr, addrStep, numBytes, countBytes;
 
@@ -818,7 +818,7 @@ uint8_t bsl_memRead(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uin
 */
 uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
 {
-  int       i, lenTx, lenRx, len;
+  int       i, lenTx, lenRx, len = 0;
   char      Tx[1000], Rx[1000];
 
 
@@ -975,7 +975,7 @@ uint8_t bsl_memCheck(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
 uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
 {
   int       i;
-  int       lenTx, lenRx, len;
+  int       lenTx, lenRx, len = 0;
   char      Tx[1000], Rx[1000];
   uint8_t   sector;
   uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
@@ -1158,7 +1158,7 @@ uint8_t bsl_flashSectorErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 */
 uint8_t bsl_flashMassErase(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint8_t verbose)
 {
-  int       i, lenTx, lenRx, len;
+  int       i, lenTx, lenRx, len = 0;
   char      Tx[1000], Rx[1000];
   uint64_t  tStart, tStop;        // measure time [ms] for erase (for COMM timeout)
 
@@ -1318,7 +1318,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, ui
   uint64_t         numData, countBytes, countBlock;    // size of memory image
   const uint64_t   maxBlock = 128;                      // max. length of write block
   char             Tx[1000], Rx[1000];                  // communication buffers
-  int              lenTx, lenRx, len;                   // frame lengths
+  int              lenTx, lenRx, len = 0;               // frame lengths
   uint8_t          chk;                                 // frame checksum
   int              i, j;
 
@@ -1680,7 +1680,7 @@ uint8_t bsl_memVerify(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, u
 uint8_t bsl_jumpTo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addr, uint8_t verbose)
 {
   int       i;
-  int       lenTx, lenRx, len;
+  int       lenTx, lenRx, len = 0;
   char      Tx[1000], Rx[1000];
 
   // print message
