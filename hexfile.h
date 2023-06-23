@@ -17,9 +17,6 @@
 #ifndef _HEXFILE_H_
 #define _HEXFILE_H_
 
-/// buffer size [B] for files
-#define  LENFILEBUF   50*1024*1024
-
 /// buffer size [B] for memory image
 #define  LENIMAGEBUF  50*1024*1024
 
@@ -28,7 +25,7 @@
 char  *get_line(char **buf, char *line);
 
 /// read file into memory buffer
-void  load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose);
+void  load_file(const char *filename, char **fileBuf, uint64_t *lenFileBuf, uint8_t verbose);
 
 /// convert Motorola s19 format in memory buffer to memory image
 void  convert_s19(char *fileBuf, uint64_t lenFileBuf, uint16_t *imageBuf, uint8_t verbose);

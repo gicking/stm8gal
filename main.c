@@ -833,10 +833,6 @@ int main(int argc, char ** argv) {
       char      *fileBuf;              // RAM buffer for input file
       uint64_t  lenFile;               // length of file in fileBuf
 
-      // allocate intermediate buffers (>1MByte requires dynamic allocation)
-      if (!(fileBuf = malloc(LENFILEBUF * sizeof(*fileBuf))))
-        Error("Cannot allocate file buffer, try reducing LENFILEBUF");
-
       // get file name
       strncpy(infile, argv[++i], STRLEN-1);
 
@@ -851,7 +847,7 @@ int main(int argc, char ** argv) {
       }
 
       // import file into string buffer (no interpretation, yet)
-      load_file(infile, fileBuf, &lenFile, verbose);
+      load_file(infile, &fileBuf, &lenFile, verbose);
 
       // clear image buffer
       memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));

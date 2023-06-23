@@ -73,7 +73,7 @@ char *get_line(char **buf, char *line) {
 
    read file from file to memory buffer. Don't interpret (is done in separate routine)
 */
-void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_t verbose) {
+void load_file(const char *filename, char **fileBuf, uint64_t *lenFileBuf, uint8_t verbose) {
 
   FILE      *fp;
 
@@ -102,15 +102,11 @@ void load_file(const char *filename, char *fileBuf, uint64_t *lenFileBuf, uint8_
   (*lenFileBuf) = ftell(fp);
   fseek(fp, 0, SEEK_SET);
 
-  // check file size vs. buffer
-  if ((*lenFileBuf) > LENFILEBUF)
-    Error("File %s exceeded buffer size (%ld vs %ld)", (*lenFileBuf), LENFILEBUF);
-
-  // init memory image to zero
-  memset(fileBuf, 0, LENFILEBUF * sizeof(*fileBuf));
+  if (!(*fileBuf = malloc((*lenFileBuf) * sizeof(*fileBuf))))
+      Error("Cannot allocate file buffer");
 
   // read file to buffer
-  fread(fileBuf, (*lenFileBuf), 1, fp);
+  fread(*fileBuf, (*lenFileBuf), 1, fp);
 
   // close file again
   fclose(fp);
