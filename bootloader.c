@@ -421,6 +421,8 @@ uint8_t bsl_getInfo(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, int
     *flashsize = 256;
   else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x027FFF, SILENT))  // high density (128kB)
     *flashsize = 128;
+  else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x017FFF, SILENT)) // high density (64kB)
+    *flashsize = 64;
   else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x00FFFF, SILENT))  // medium density (32kB)
     *flashsize = 32;
   else if (bsl_memCheck(ptrPort, physInterface, uartMode, 0x009FFF, SILENT))  // low density (8kB)
