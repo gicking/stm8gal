@@ -1,3 +1,0 @@
-# OPT2 alternate function: activate BEEP
-0x4803  0x80
-0x4804  0x7F

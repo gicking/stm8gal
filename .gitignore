@@ -1,33 +1,9 @@
 # Object files
-*.o
-*.ko
-*.obj
-*.elf
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Libraries
-*.lib
-*.a
-*.la
-*.lo
-
-# Shared objects (inc. Windows DLLs)
-*.dll
-*.so
-*.so.*
-*.dylib
+lib/*
 
 # Executables
-stm8gal
-#*.exe
-*.out
-*.app
-*.i*86
-*.x86_64
-*.hex
+stm8gal*
+binaries/*
 
 # Doxygen output
 doxygen/html/*
@@ -36,36 +12,12 @@ doxygen/man/*
 doxygen/rtf/*
 doxygen/xml/*
 
-# CRC32 verify output
-verify_CRC32/obj/*
-verify_CRC32/bin/*
-verify_CRC32/include/*
+# Testing data
+testing/*
 
-# STM8 / bootloader manuals
-STM8_Datasheets/*
+# VSCode & PlatformIO files
+.vscode/*
+.pio/*
+.pioenvs
+.piolibdeps
 
-# regression list 
-tool_validation.*
-
-# Others
-.DS_Store
-*.rel
-*.asm
-*.lst
-*.rst
-*.sym
-*.map
-#*.lk
-*.dep
-*.pdb
-*.wdb
-*.wed
-*.cdb
-*.ihx
-*.s19
-/stm8gal.exe
-*_dump.txt
-/test-erase/*
-/binaries
-/RAM_Routines/STM_write_erase.zip
-verify

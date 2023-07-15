@@ -1,3 +1,0 @@
-# OPT2 alternate function: default
-0x4803  0x00
-0x4804  0xFF

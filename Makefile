@@ -1,62 +1,45 @@
-# Project: stm8gal
+# compiler settings
+CC     = gcc
+CFLAGS = -Wall -g -I./include -I./include/RAM_Routines/write_erase -I./include/RAM_Routines/verify_CRC32
+LFLAGS = -lm
 
-ifeq ($(origin CC), default)
-CC = $(CROSS_COMPILE)gcc
-endif
-CFLAGS        += -c -Wall -I./RAM_Routines/write_erase -I./RAM_Routines/verify_CRC32
-#CFLAGS       += -DDEBUG
-LDFLAGS       += -g3 -lm
-SOURCES       = bootloader.c hexfile.c main.c misc.c serial_comm.c spi_Arduino_comm.c verify_CRC32.c
-INCLUDES      = misc.h bootloader.h hexfile.h serial_comm.h spi_spidev_comm.h spi_Arduino_comm.h verify_CRC32.h main.h
-RAMINCLUDES   = \
-		RAM_Routines/write_erase/erase_write_verL_8k_1.0_inc.h \
-		RAM_Routines/write_erase/erase_write_ver_32k_1.0_inc.h \
-		RAM_Routines/write_erase/erase_write_ver_32k_1.2_inc.h \
-		RAM_Routines/write_erase/erase_write_ver_32k_1.3_inc.h \
-		RAM_Routines/write_erase/erase_write_ver_128k_2.0_inc.h \
-		RAM_Routines/write_erase/erase_write_ver_128k_2.1_inc.h \
-		RAM_Routines/write_erase/erase_write_ver_128k_2.2_inc.h
-OBJDIR        = Objects
-OBJECTS       = $(patsubst %.c, $(OBJDIR)/%.o, $(SOURCES))
-BIN           = stm8gal
+# OS-dependent delete commands for 'make clean'
 ifeq ($(OS),Windows_NT)
-	RM = cmd.exe /C del /Q
-	MKDIR = mkdir
+	RM = cmd //C del //Q //F
+	RD = cmd //C rmdir //Q //S
 else
-	RM = rm -fr
-	MKDIR = mkdir -p
+	RM = rm -f
+	RD = rm -fr
 endif
 
-# add optional SPI support via spidev library (Windows not yet supported)
-#CFLAGS   += -DUSE_SPIDEV
-#SOURCES  += spi_spidev_comm.c
 
-# add optional GPIO reset via wiringPi library (Raspberry only)
-#CFLAGS   += -DUSE_WIRING
-#LDFLAGS  += -lwiringPi
+# sources to compile
+SRCDIR  = ./src
+SOURCES  = $(notdir $(wildcard $(SRCDIR)/*.c))
 
+OBJDIR  = ./lib
+OBJECTS := $(addprefix $(OBJDIR)/, $(SOURCES:.c=.o))
 
-.PHONY: clean all default objects
+BIN = stmm8gal
+BINARGS = -v 3 -import output/test.s19 -export output/test.s19
 
-.PRECIOUS: $(BIN) $(OBJECTS)
+all: $(OBJDIR) $(BIN)
 
-default: $(BIN) $(OBJDIR)
-
-all: $(RAMINCLUDES) $(SOURCES) $(BIN)
-
-
-# make output directories
+# create directory for objects
 $(OBJDIR):
-	$(MKDIR) $(OBJDIR)
+	mkdir -p $(OBJDIR)
 
-# clean up
-clean:
-	${RM} $(OBJECTS) $(OBJDIR) $(BIN) $(BIN).exe *~ .DS_Store
-
-# link application
-$(BIN): $(OBJECTS) $(OBJDIR)
-	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
-
-# compile all *c files
-$(OBJDIR)/%.o: %.c $(SOURCES) $(INCLUDES) $(RAMINCLUDES) $(OBJDIR)
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
+
+#	$(CC) $(LFLAGS) $^ -o $@
+$(BIN): $(OBJECTS)
+	$(CC) $(OBJECTS) $(LFLAGS) -o $@
+
+clean:
+	$(RM) $(OBJDIR)/*
+	$(RM) -fr $(BIN)
+	$(RD) -fr .pio/*
+
+memcheck:
+	valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all -s ./$(BIN) $(BINARGS)
