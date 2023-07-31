@@ -2,10 +2,8 @@
   \file serial_comm.c
 
   \author G. Icking-Konert
-  \date 2008-11-02
-  \version 0.1
 
-  \brief implementation of RS232 comm port routines
+  \brief implementation of RS232 comport routines
 
   implementation of of routines for RS232 communication using the Windows or Posix API.
   For Windows, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx
@@ -850,7 +848,7 @@ uint32_t send_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenTx, char *Tx) {
     lenRx = receive_port(fpCom, uartMode, numChars, Rx);
     if (lenRx != numChars)
       Error("in 'send_port()': read 1-wire echo failed");
-    //fprintf(stderr,"received echo %dB 0x%02x\n", (int) lenRx, Rx[0]);
+    //fprintf(stderr,"received echo %dB 0x%02" PRIX8 "\n", (int) lenRx, Rx[0]);
   }
 
   // return number of sent bytes
@@ -961,7 +959,7 @@ uint32_t receive_port(HANDLE fpCom, uint8_t uartMode, uint32_t lenRx, char *Rx) 
 
       // for UART reply mode with 2-wire interface echo each byte
       if (uartMode==2) {
-        //fprintf(stderr,"\nsent echo 0x%02x\n", *dest);
+        //fprintf(stderr,"\nsent echo 0x%02" PRIX8 "\n", *dest);
         send_port(fpCom, uartMode, 1, dest);
       }
 

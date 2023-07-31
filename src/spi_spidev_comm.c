@@ -2,8 +2,6 @@
   \file spi_spidev_comm.c
    
   \author G. Icking-Konert
-  \date 2017-12-10
-  \version 0.1
    
   \brief implementation of SPI comm routines via spidev library
    

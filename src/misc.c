@@ -2,8 +2,6 @@
   \file misc.c
 
   \author G. Icking-Konert
-  \date 2014-03-14
-  \version 0.1
 
   \brief implementation of misc routines
 
@@ -13,12 +11,8 @@
 
 #include <string.h>
 #include <stdlib.h>
-
-#if !defined(_MSC_VER)
-  #include <unistd.h>
-  #include <sys/time.h>
-#endif
-
+#include <unistd.h>
+#include <sys/time.h>
 
 #include "misc.h"
 #include "main.h"
@@ -290,7 +284,7 @@ void setConsoleColor(uint8_t color) {
     flag = 1;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbiInfo);
     oldColor = csbiInfo.wAttributes;
-    colorBck = (csbiInfo.wAttributes) & (BACKGROUND_BLUE	| BACKGROUND_GREEN | BACKGROUND_RED | BACKGROUND_INTENSITY);
+    colorBck = (csbiInfo.wAttributes) & (BACKGROUND_BLUE | BACKGROUND_GREEN | BACKGROUND_RED | BACKGROUND_INTENSITY);
   }
 
   // set to text color
@@ -498,5 +492,74 @@ void setConsoleColor(uint8_t color) {
     } // micros
 
 #endif // USE_WIRING
+
+
+
+/**
+  \fn bool isDecString(const char *str)
+
+  \param str     C-string to check (ends with '\0')
+
+  \return check result
+
+  Check if a string is a valid decimal number with only 0-9
+*/
+bool isDecString(const char *str) {
+
+  // assert that string characters are in 0-9
+  for (int i = 0; i < strlen(str); i++) {
+    if (!isdigit(str[i])) {
+      return false;
+    }
+  }
+   
+  return true;
+  
+} // isDecString()
+
+
+
+/**
+  \fn bool isHexString(const char *str)
+
+  \param str     C-string to check (starts with "0x" and ends with '\0')
+
+  \return check result
+
+  Check if a string is a valid hexadecimal number starting with "0x", else only 0-9,a-f,A-F
+*/
+bool isHexString(const char *str) {
+
+  // assert that string starts with "0x"
+  if ((str[0] != '0') || ((str[1] != 'x') && (str[1] != 'X')))
+    return false;
+
+  // assert remaining string characters are in 0-9,a-f,A-F
+  for (int i = 2; i < strlen(str); i++) {
+    if (!isxdigit(str[i])) {
+      return false;
+    }
+  }
+   
+  return true;
+  
+} // isHexString()
+
+
+
+/**
+  \fn bool isLittleEndian(void)
+
+  \return true: little-endian; false: big-endian
+
+  Check if machine is little-endian (e.g. Intel, ARM) or big-endian (e.g. PowerPC, SPARC). Is required e.g. for CRC32 checksum calculation
+*/
+bool isLittleEndian(void) {
+
+  // check storage order of bytes
+  uint16_t value = 1;
+  return (*((uint8_t*) &value) == 1);
+  
+} // isLittleEndian()
 
 // end of file

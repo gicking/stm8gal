@@ -18,9 +18,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdarg.h>
+#include <ctype.h>
 
-// color codes
+
+// color codes 
 #define PRM_COLOR_DEFAULT       0
 #define PRM_COLOR_BLACK         1
 #define PRM_COLOR_BLUE          2
@@ -76,6 +79,15 @@ void setConsoleColor(uint8_t color);
   uint64_t micros(void);
 
 #endif // USE_WIRING
+
+/// check is a string represents a decimal number
+bool isDecString(const char *str);
+
+/// check is a string represents a hexadecimal number starting with "0x"
+bool isHexString(const char *str);
+
+/// check endianness of machine
+bool isLittleEndian(void);
 
 #endif // _MISC_H_
 

@@ -2,10 +2,8 @@
   \file spi_Arduino_comm.c
 
   \author G. Icking-Konert
-  \date 2017-12-19
-  \version 0.1
 
-  \brief implementation of SPI routines voa Arduino USB<->SPI bridge
+  \brief implementation of SPI routines via Arduino USB<->SPI bridge
 
   implementation of routines for SPI communication using the Arduino
   USB<->SPI bridge available from https://github.com/gicking/Arduino_SPI_bridge
@@ -83,11 +81,11 @@ void configSPI_Arduino(HANDLE fp, uint32_t baudrateSPI, uint8_t bitOrder, uint8_
 
   // check checksum
   if (Rx[lenRx-1] != checksum_Arduino(Rx))
-    Error("in 'configSPI_Arduino()': checksum error (expect 0x%02x, read 0x%02x)", Rx[lenRx-1], checksum_Arduino(Rx));
+    Error("in 'configSPI_Arduino()': checksum error (expect 0x%02" PRIX8 ", read 0x%02" PRIX8 ")", Rx[lenRx-1], checksum_Arduino(Rx));
 
   // check for ACK
   if (Rx[1] != ARDUINO_SUCCESS)
-    Error("in 'configSPI_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x)", ARDUINO_SUCCESS, Rx[1]);
+    Error("in 'configSPI_Arduino()': acknowledge error (expect 0x%02" PRIX8 ", read 0x%02" PRIX8 ")", ARDUINO_SUCCESS, Rx[1]);
 
 } // configSPI_Arduino
 
@@ -132,11 +130,11 @@ void setPin_Arduino(HANDLE fp, uint8_t pin, uint8_t state) {
 
   // check checksum
   if (Rx[lenRx-1] != checksum_Arduino(Rx))
-    Error("in 'setPin_Arduino()': checksum error (expect 0x%02x, read 0x%02x)", Rx[lenRx-1], checksum_Arduino(Rx));
+    Error("in 'setPin_Arduino()': checksum error (expect 0x%02" PRIX8 ", read 0x%02" PRIX8 ")", Rx[lenRx-1], checksum_Arduino(Rx));
 
   // check for ACK
   if (Rx[1] != ARDUINO_SUCCESS)
-    Error("in 'setPin_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x)", ARDUINO_SUCCESS, Rx[1]);
+    Error("in 'setPin_Arduino()': acknowledge error (expect 0x%02" PRIX8 ", read 0x%02" PRIX8 ")", ARDUINO_SUCCESS, Rx[1]);
 
 } // setPin_Arduino
 
@@ -191,11 +189,11 @@ uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char 
 
   // check checksum
   if (Rx[lenRx-1] != checksum_Arduino(Rx))
-    Error("in 'sendReceiveSPI_Arduino()': checksum error (expect 0x%02x, read 0x%02x)", Rx[lenRx-1], checksum_Arduino(Rx));
+    Error("in 'sendReceiveSPI_Arduino()': checksum error (expect 0x%02" PRIX8 ", read 0x%02" PRIX8 ")", Rx[lenRx-1], checksum_Arduino(Rx));
 
   // check for ACK
   if (Rx[1] != ARDUINO_SUCCESS)
-    Error("in 'sendReceiveSPI_Arduino()': acknowledge error (expect 0x%02x, read 0x%02x)", ARDUINO_SUCCESS, Rx[1]);
+    Error("in 'sendReceiveSPI_Arduino()': acknowledge error (expect 0x%02" PRIX8 ", read 0x%02" PRIX8 ")", ARDUINO_SUCCESS, Rx[1]);
 
   // copy MISO bytes
   if (bufRx != NULL) {
@@ -207,7 +205,7 @@ uint32_t sendReceiveSPI_Arduino(HANDLE fp, uint8_t CSN, uint32_t lenFrame, char 
   #if defined(DEBUG)
     fprintf(stderr, "n  MOSI  MISO\n");
     for (i=0; i<lenFrame; i++)
-      fprintf(stderr, "%d  0x%02x  0x%02x\n", i, Tx[3+i], Rx[2+i]);
+      fprintf(stderr, "%d  0x%02" PRIX8 "  0x%02" PRIX8 "\n", i, Tx[3+i], Rx[2+i]);
     fprintf(stderr, "\n");
   #endif
 

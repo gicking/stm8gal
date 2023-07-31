@@ -2,8 +2,6 @@
    \file main.c
 
    \author G. Icking-Konert
-   \date 2019-01-14
-   \version 0.3
 
    \brief implementation of main routine
 
@@ -11,7 +9,6 @@
    calling the import, programming, and check routines.
 
    \note program not yet fully tested!
-
 */
 
 // include files
@@ -20,57 +17,17 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdint.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <sys/types.h>
-
-#if !defined(_MSC_VER)
-  #include <unistd.h>
-  #include <sys/time.h>
-#endif
-
-#include <time.h>
-
-// OS specific: Windows
-#if defined(WIN32) || defined(WIN64)
-  #include <windows.h>
-  #include <malloc.h>
-  #include <inttypes.h>
-
-// OS specific: Posix
-#elif defined(__APPLE__) || defined(__unix__)
-  #ifndef HANDLE
-    #define HANDLE  int     // comm port handler is int
-  #endif
-  #include <fcntl.h>      // File control definitions
-  #include <termios.h>    // Posix terminal control definitions
-  #include <getopt.h>
-  #include <errno.h>    /* Error number definitions */
-  #include <dirent.h>
-  #include <sys/ioctl.h>
-  #if defined(__ARMEL__) && defined(USE_WIRING)
-    #include <wiringPi.h>       // for reset via GPIO
-  #endif // __ARMEL__ && USE_WIRING
-
-#else
-  #error OS not supported
-#endif
-
-#define _MAIN_
-  #include "main.h"
-#undef _MAIN_
+#include "hexfile.h"
 #include "misc.h"
 #include "serial_comm.h"
 #include "spi_spidev_comm.h"
 #include "spi_Arduino_comm.h"
 #include "bootloader.h"
-#include "hexfile.h"
 #include "verify_CRC32.h"
 #include "version.h"
-
-
-// max length of filenames
-#define  STRLEN   1000
+#define _MAIN_
+  #include "main.h"
+#undef _MAIN_
 
 
 /**
@@ -86,28 +43,26 @@
 int main(int argc, char ** argv) {
 
   // local variables
-  char      appname[STRLEN];      // name of application without path
-  char      version[100];         // version as string
-  int       verbose;              // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
-  int       physInterface;        // bootloader interface: 0=UART (default), 1=SPI_ARDUINO, 2=SPI_SPIDEV
-  char      portname[STRLEN]="";  // name of communication port
-  HANDLE    ptrPort = 0;          // handle to communication port
-  int       baudrate;             // communication baudrate [Baud]
-  int       uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
-  int       resetSTM8;            // reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default: manual)
-  uint16_t  *imageBuf;            // global RAM image buffer (high byte != 0 indicates value is set)
-  int       verifyUpload;         // verify method after upload (0=skip, 1=CRC32, 2=read-out)
-  uint64_t  jumpAddr;             // address to jump to before exit program
-  bool      printHelp;            // flag for printing help page
-  int       paramHelp=-1;         // parameter index to print help for
-  int       i, j;                 // generic variables
-  char      tmp[STRLEN + 106];    // misc buffer
-  uint64_t  addrStart, addrStop, numData;  // image data range
+  char            appname[STRLEN];      // name of application without path
+  char            version[100];         // version as string
+  int             verbose;              // verbosity level (0=MUTE, 1=SILENT, 2=INFORM, 3=CHATTY)
+  MemoryImage_s   image;                // memory image buffer as list of (addr, value)
+  int             printHelp = -1;       // parameter index to print help for
+  char            tmp[STRLEN+106];      // misc string buffer
+  int             physInterface;        // bootloader interface: 0=UART (default), 1=SPI_ARDUINO, 2=SPI_SPIDEV
+  char            portname[STRLEN]="";  // name of communication port
+  HANDLE          ptrPort = 0;          // handle to communication port
+  int             baudrate;             // communication baudrate [Baud]
+  int             uartMode;             // UART bootloader mode: 0=duplex, 1=1-wire, 2=2-wire reply, other=auto-detect
+  int             resetSTM8;            // reset STM8: 0=skip, 1=manual, 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12, 6=RTS line (RS232) (default: manual)
+  int             verifyUpload;         // verify method after upload (0=skip, 1=CRC32, 2=read-out)
+  uint64_t        jumpAddr;             // address to jump to before exit program
+  int             i, j;                 // loop variables
 
   // STM8 device properties
-  int       flashsize;            // size of flash (kB) for w/e routines
-  uint8_t   versBSL;              // BSL version for w/e routines
-  uint8_t   family;               // device family, currently STM8S and STM8L
+  int             flashsize;            // size of flash (kB) for w/e routines
+  uint8_t         versBSL;              // BSL version for w/e routines
+  uint8_t         family;               // device family, currently STM8S and STM8L
 
 
   // initialize global variables
@@ -137,44 +92,57 @@ int main(int argc, char ** argv) {
   */
 
 
+  // get app name & version, and change console title
+  get_app_name(argv[0], VERSION, appname, version);
+
   // initialize time-keeping (1st call stores launch time)
   micros();
 
-  // get app name & version, and change console title
-  get_app_name(argv[0], VERSION, appname, version);
+  // reset console color (needs to be called once for Windows)
+  setConsoleColor(PRM_COLOR_DEFAULT);
+
+  // initialize memory image
+  MemoryImage_init(&image);
 
 
   /////////////////
   // 1st pass of commandline arguments: set global parameters, no upload/download/erase yet
   /////////////////
 
-  printHelp = false;
   for (i=1; i<argc; i++) {
 
     // print help
     if ((!strcmp(argv[i], "-h")) || (!strcmp(argv[i], "-help"))) {
 
       // set flag for printing help
-      printHelp = true;
+      printHelp = 0;
       break;
 
     } // help
 
 
-    // set verbosity level (0..2)
+    // set verbosity level (0..3)
     else if ((!strcmp(argv[i], "-v")) || (!strcmp(argv[i], "-verbose"))) {
 
       // get verbosity level
-      if (i+1<argc)
-        sscanf(argv[++i],"%d",&verbose);
+      if (i+1<argc) {
+        i++;
+        if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &verbose) <= 0) || (verbose < 0) || (verbose > 3))
+        {
+          printf("\ncommand '-v/-verbose' requires a decimal parameter (0..3)\n");
+          printHelp = i;
+          break;
+        }
+      }
       else {
-        printHelp = true;
+        printf("\ncommand '-v/-verbose' requires a decimal parameter (0..3)\n");
+        printHelp = i;
         break;
       }
       if (verbose < MUTE)   verbose = MUTE;
       if (verbose > CHATTY) verbose = CHATTY;
 
-    } // verbose
+    } // verbosity
 
 
     // optimize for background operation, e.g. skip prompts and colors
@@ -192,31 +160,45 @@ int main(int argc, char ** argv) {
     // reset method: 0=skip, 1=manual; 2=DTR line (RS232), 3=send 'Re5eT!' @ 115.2kBaud, 4=Arduino pin 8, 5=Raspi pin 12, 6=RTS line (RS232)
     else if ((!strcmp(argv[i], "-R")) || (!strcmp(argv[i], "-reset"))) {
 
-      // get reset STM8 method
+      // get STM8 reset method
       if (i+1<argc) {
-        sscanf(argv[++i], "%d", &j);
-        resetSTM8 = j;
+        i++;
+        if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &j) <= 0) || (j < 0) || (j > 6))
+        {
+          printf("\ncommand '-R/-reset' requires a decimal parameter (0..6)\n");
+          printHelp = i;
+          break;
+        }
       }
       else {
-        printHelp = true;
+        printf("\ncommand '-R/-reset' requires a decimal parameter (0..6)\n");
+        printHelp = i;
         break;
       }
+      resetSTM8 = j;
 
-    } // reset
+    } // reset method
 
 
-    // get interface type: 0=UART (default), 1=SPI_ARDUINO, 2=SPI_SPIDEV
+    // get communication interface: 0=UART (default), 1=SPI_ARDUINO, 2=SPI_SPIDEV
     else if ((!strcmp(argv[i], "-i")) || (!strcmp(argv[i], "-interface"))) {
 
       // get interface
       if (i+1<argc) {
-        sscanf(argv[++i], "%d", &j);
-        physInterface = j;
+        i++;
+        if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &j) <= 0) || (j < 0) || (j > 2))
+        {
+          printf("\ncommand '-i/-interface' requires a decimal parameter (0..2)\n");
+          printHelp = i;
+          break;
+        }
       }
       else {
-        printHelp = true;
+        printf("\ncommand '-i/-interface' requires a decimal parameter (0..2)\n");
+        printHelp = i;
         break;
       }
+      physInterface = j;
 
     } // interface
 
@@ -224,15 +206,22 @@ int main(int argc, char ** argv) {
     // UART mode
     else if ((!strcmp(argv[i], "-u")) || (!strcmp(argv[i], "-uart-mode"))) {
 
-      // get UART mode
+      // get interface
       if (i+1<argc) {
-        sscanf(argv[++i], "%d", &j);
-        uartMode = j;
+        i++;
+        if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &j) <= 0))
+        {
+          printf("\ncommand '-u/-uart-mode' requires a decimal parameter\n");
+          printHelp = i;
+          break;
+        }
       }
       else {
-        printHelp = true;
+        printf("\ncommand '-u/-uart-mode' requires a decimal parameter\n");
+        printHelp = i;
         break;
       }
+      uartMode = j;
 
     } // uart_mode
 
@@ -241,10 +230,13 @@ int main(int argc, char ** argv) {
     else if ((!strcmp(argv[i], "-p")) || (!strcmp(argv[i], "-port"))) {
 
       // get port name
-      if (i+1<argc)
-        strncpy(portname, argv[++i], STRLEN-1);
+      if (i+1<argc) {
+        i+=1;
+        strncpy(portname, argv[i], STRLEN-1);
+      }
       else {
-        printHelp = true;
+        printf("\ncommand '-p/-port' requires a name\n");
+        printHelp = i;
         break;
       }
 
@@ -255,12 +247,21 @@ int main(int argc, char ** argv) {
     else if ((!strcmp(argv[i], "-b")) || (!strcmp(argv[i], "-baudrate"))) {
 
       // get communication baudrate
-      if (i+1<argc)
-        sscanf(argv[++i],"%d",&baudrate);
+      if (i+1<argc) {
+        i++;
+        if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &j) <= 0))
+        {
+          printf("\ncommand '-b/-baudrate' requires a decimal parameter\n");
+          printHelp = i;
+          break;
+        }
+      }
       else {
-        printHelp = true;
+        printf("\ncommand '-b/-baudrate' requires a decimal parameter\n");
+        printHelp = i;
         break;
       }
+      baudrate = j;
 
     } // baudrate
 
@@ -269,14 +270,21 @@ int main(int argc, char ** argv) {
     else if ((!strcmp(argv[i], "-V")) || (!strcmp(argv[i], "-verify"))) {
 
       // get memory verify method
-      if (i+1<argc)
-        sscanf(argv[++i],"%d",&verifyUpload);
+      if (i+1<argc) {
+        i++;
+        if ((!isDecString(argv[i])) || (sscanf(argv[i],"%d", &j) <= 0) || (j < 0) || (j > 2))
+        {
+          printf("\ncommand '-V/-verify' requires a decimal parameter (0..2)\n");
+          printHelp = i;
+          break;
+        }
+      }
       else {
-        printHelp = true;
+        printf("\ncommand '-V/-verify' requires a decimal parameter (0..2)\n");
+        printHelp = i;
         break;
       }
-      if (verifyUpload < 0) verifyUpload = 0;
-      if (verifyUpload > 2) verifyUpload = 2;
+      verifyUpload = j;
 
     } // verify method
 
@@ -286,39 +294,55 @@ int main(int argc, char ** argv) {
 
       // get jump address (0x indicates hex, else decimal)
       if (i+1<argc) {
+        i+=1;
         uint64_t addr;
-        strncpy(tmp, argv[++i], STRLEN-1);
-        if (strstr(tmp, "0x") != NULL)
+        strncpy(tmp, argv[i], STRLEN-1);
+        if (isHexString(tmp))
           sscanf(tmp, "%" SCNx64, &addr);   // read as hex
-        else
+        else if (isDecString(tmp))
           sscanf(tmp, "%" SCNu64, &addr);   // read as dec
-        //printf("\n0x%" PRIx64 "\t%d\n", addr, (int) addr); exit(1);
+        else {
+          printf("\ncommand '-j/-jump' requires a hex or decimal parameter\n");
+          printHelp = i;
+          break;
+        }
         jumpAddr = addr;
       }
       else {
-        printHelp = true;
+        printf("\ncommand '-j/-jump' requires a hex or decimal parameter\n");
+        printHelp = i;
         break;
       }
 
     } // jump-address
 
 
-    // skip file upload. Just check parameter number
+    // skip file upload. Just check parameter number and offset (bin only)
     else if ((!strcmp(argv[i], "-w")) || (!strcmp(argv[i], "-write-file"))) {
 
       // get file name
       if (i+1<argc) {
-        if (strstr(argv[++i], ".bin") != NULL) {  // for binary file skip additionaly address
-          if (i+1<argc)
+        i+=1;
+        char *p = strrchr(argv[i], '.');
+        if ((p != NULL ) && ((!strcmp(p, ".bin")) || (!strcmp(p, ".BIN")))) {   // for binary file assert additional address
+          if (i+1<argc) {
             i+=1;
+            if (!isHexString(argv[i])) {
+              printf("\ncommand '-w/-write-file' requires a hex offset for binary\n");
+              printHelp = i;
+              break;
+            }
+          }
           else {
-            printHelp = true;
+            printf("\ncommand '-w/-write-file' requires a hex offset for binary\n");
+            printHelp = i;
             break;
           }
         }
       }
       else {
-        printHelp = true;
+        printf("\ncommand '-w/-write-file' requires a filename\n");
+        printHelp = i;
         break;
       }
 
@@ -327,48 +351,89 @@ int main(int argc, char ** argv) {
 
     // skip writing single value. Just check parameter number
     else if ((!strcmp(argv[i], "-W")) || (!strcmp(argv[i], "-write-byte"))) {
-      if (i+2<argc)
-        i+=2;
+      if (i+2<argc) {
+        i++;
+        if (!isHexString(argv[i]) && !isDecString(argv[i])) {
+          printf("\ncommand '-W/-write-byte' requires two hex or decimal parameters\n");
+          printHelp = i;
+          break;
+        }
+        i++;
+        if (!isHexString(argv[i]) && !isDecString(argv[i])) {
+          printf("\ncommand '-W/-write-byte' requires two hex or decimal parameters\n");
+          printHelp = i;
+          break;
+        }
+      }
       else {
-        printHelp = true;
+        printf("\ncommand '-W/-write-byte' requires two hex or decimal parameters\n");
+        printHelp = i;
         break;
       }
+
     } // write-byte
 
-
+  
     // skip reading address range. Just check parameter number
     else if ((!strcmp(argv[i], "-r")) || (!strcmp(argv[i], "-read"))) {
-      if (i+3<argc)
-        i+=3;
+      if (i+3<argc) {
+        i++;
+        if (!isHexString(argv[i]) && !isDecString(argv[i])) {
+          printf("\ncommand '-r/-read' requires two hex or decimal parameters and a filename\n");
+          printHelp = i;
+          break;
+        }
+        i++;
+        if (!isHexString(argv[i]) && !isDecString(argv[i])) {
+          printf("\ncommand '-r/-read' requires two hex or decimal parameters and a filename\n");
+          printHelp = i;
+          break;
+        }
+        i++; 
+        // no check for filename
+      }
       else {
-        printHelp = true;
-        paramHelp = i;
+        printf("\ncommand '-r/-read' requires two hex or decimal parameters and a filename\n");
+        printHelp = i;
         break;
       }
+
     } // read
 
 
     // skip flash sector erase. Just check parameter number
     else if ((!strcmp(argv[i], "-e")) || (!strcmp(argv[i], "-erase-sector"))) {
-      if (i+1<argc)
+
+      // get sector address (0x indicates hex, else decimal)
+      if (i+1<argc) {
         i+=1;
+        if (!isHexString(argv[i]) && !isDecString(argv[i])) {
+          printf("\ncommand '-e/-erase-sector' requires a hex or decimal parameter\n");
+          printHelp = i;
+          break;
+        }
+      }
       else {
-        printHelp = true;
+        printf("\ncommand '-e/-erase-sector' requires a hex or decimal parameter\n");
+        printHelp = i;
         break;
       }
+
     } // erase-sector
 
 
     // skip flash mass erase
     else if ((!strcmp(argv[i], "-E")) || (!strcmp(argv[i], "-erase-full"))) {
+      
       // dummy
+    
     } // erase-full
 
 
     // else print help
     else {
-      printHelp = true;
-      paramHelp = i;
+      printf("\nunknown command '%s' \n", argv[i]);
+      printHelp = i;
       break;
     }
 
@@ -376,7 +441,7 @@ int main(int argc, char ** argv) {
 
 
   // on request (-h) or in case of parameter error print help page
-  if ((printHelp==true) || (argc == 1)) {
+  if ((printHelp >= 0) || (argc == 1)) {
 
     snprintf(tmp, sizeof(tmp), "%s (v%s)", appname, version);
     setConsoleTitle(tmp);
@@ -431,8 +496,8 @@ int main(int argc, char ** argv) {
     printf("\n");
 
     // in case of a wrong parameter print index
-    if (paramHelp > 0)
-      printf("\nerror occurred in parameter %d\n", paramHelp);
+    if (printHelp > 0)
+      printf("\nerror occurred in parameter %d\n", printHelp);
 
     Exit(0,0);
   }
@@ -450,14 +515,6 @@ int main(int argc, char ** argv) {
     snprintf(tmp, sizeof(tmp), "%s (v%s)", appname, version);
     setConsoleTitle(tmp);
   }
-
-  // reset console color (needs to be called once for Windows)
-  setConsoleColor(PRM_COLOR_DEFAULT);
-
-  // allocate and init global RAM image (>1MByte requires dynamic allocation)
-  if (!(imageBuf = malloc((LENIMAGEBUF + 1) * sizeof(*imageBuf))))
-    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
-  memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
 
 
   /////////////////
@@ -830,98 +887,54 @@ int main(int argc, char ** argv) {
 
       // intermediate variables
       char      infile[STRLEN]="";     // name of input file
-      char      *fileBuf;              // RAM buffer for input file
-      uint64_t  lenFile;               // length of file in fileBuf
-
-      // allocate intermediate buffers (>1MByte requires dynamic allocation)
-      if (!(fileBuf = malloc(LENFILEBUF * sizeof(*fileBuf))))
-        Error("Cannot allocate file buffer, try reducing LENFILEBUF");
+      uint64_t  addrStart;             // address offset for binary file
 
       // get file name
       strncpy(infile, argv[++i], STRLEN-1);
 
       // for binary file also get starting address
-      if (strstr(infile, ".bin") != NULL) {
+      char *p = strrchr(infile, '.');
+      if ((p != NULL ) && ((strstr(p, ".bin")) || (strstr(p, ".BIN")))) {
         strncpy(tmp, argv[++i], STRLEN-1);
-        if (strstr(tmp, "0x") != NULL)
-          sscanf(tmp, "%" SCNx64, &addrStart);   // read as hex
-        else
-          sscanf(tmp, "%" SCNu64, &addrStart);   // read as dec
-        //printf("\n0x%" PRIx64 "\t%d\n", addrStart, (int) addrStart); exit(1);
+        sscanf(tmp, "%" SCNx64, &addrStart);
       }
 
-      // import file into string buffer (no interpretation, yet)
-      load_file(infile, fileBuf, &lenFile, verbose);
-
-      // clear image buffer
-      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
-      // convert to memory image, depending on file type
-      if (strstr(infile, ".s19") != NULL)   // Motorola S-record format
-        convert_s19(fileBuf, lenFile, imageBuf, verbose);
-      else if ((strstr(infile, ".hex") != NULL) || (strstr(infile, ".ihx") != NULL))   // Intel HEX-format
-        convert_ihx(fileBuf, lenFile, imageBuf, verbose);
-      else if (strstr(infile, ".txt") != NULL)   // text table (Addr / Data)
-        convert_txt(fileBuf, lenFile, imageBuf, verbose);
-      else if (strstr(infile, ".bin") != NULL)   // binary file
-        convert_bin(fileBuf, lenFile, addrStart, imageBuf, verbose);
-      else
+      // import file to memory image, depending on type
+      if ((p != NULL ) && ((!strcmp(p, ".s19")) || (!strcmp(p, ".S19")))) {        // Motorola S-record format
+        import_file_s19(infile, &image, verbose);
+      }
+      else if ((p != NULL ) && (!strcmp(p, ".hex") || (!strcmp(p, ".HEX")) || (!strcmp(p, ".ihx")) || (!strcmp(p, ".IHX")))) {  // Intel hex format
+        import_file_ihx(infile, &image, verbose);
+      }
+      else if ((p != NULL ) && ((!strcmp(p, ".txt")) || (!strcmp(p, ".TXT")))) {   // text table (hex addr / data)
+        import_file_txt(infile, &image, verbose);
+      }
+      else if ((p != NULL ) && ((!strcmp(p, ".bin")) || (!strcmp(p, ".BIN")))) {   // binary file
+        import_file_bin(infile, addrStart, &image, verbose);
+      }
+      else {
+        MemoryImage_free(&image);
         Error("Input file %s has unsupported format (*.s19, *.hex, *.ihx, *.txt, *.bin)", infile);
-
-      // get image size
-      get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+      }
 
       // upload memory image to STM8
-      bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      bsl_memWrite(ptrPort, physInterface, uartMode, &image, verbose);
 
       // optionally verify upload
       if (verifyUpload == 0)        // skip verify
         ;
       else if (verifyUpload == 1)   // compare CRC32 checksums. Requires re-uploading w/e routines, which are cleared by ROM-BL by "GO" command
       {
-        verify_crc32(ptrPort, family, flashsize, versBSL, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        verify_crc32(ptrPort, family, flashsize, versBSL, physInterface, uartMode, &image, verbose);
         bsl_uploadWriteErase(ptrPort, physInterface, uartMode, flashsize, versBSL, family, MUTE);
       }
       else if (verifyUpload == 2)   // read back memory and compare
-        bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        bsl_memVerifyRead(ptrPort, physInterface, uartMode,  &image, verbose);
       else
         Error("Unknown memory verify method %d", verifyUpload);
 
-      // clear memory image again
-      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
-
-/*
-      /// xxx
-    char   *ptrRAM = NULL;          // pointer to array with RAM routines
-    int    lenRAM;                  // length of RAM array
-
-ptrRAM = (char*) bin_erase_write_ver_128k_2_1_ihx;
-lenRAM = bin_erase_write_ver_128k_2_1_ihx_len;
-
-    // clear image buffer
-    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
-    // convert correct array containing ihx file to RAM image
-    convert_ihx(ptrRAM, lenRAM, imageBuf, MUTE);
-
-    // get image size
-    get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
-
-    // upload RAM routines to STM8
-    if (verbose == CHATTY)
-      printf("  upload RAM routines ... ");
-    fflush(stdout);
-    bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, MUTE);
-    if (verbose == CHATTY)
-      printf("done (%dB in 0x%" PRIx64 " - 0x%" PRIx64 ")\n", (int) numData, addrStart, addrStop);
-    fflush(stdout);
-
-    // clear memory image again
-    memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
-/// xxx bis hier
-*/
+      // clear memory image
+      MemoryImage_free(&image);
 
     } // write
 
@@ -933,46 +946,44 @@ lenRAM = bin_erase_write_ver_128k_2_1_ihx_len;
       uint64_t  addr;
       uint8_t   val;
 
-      // clear image buffer
-      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+      // clear memory image
+      MemoryImage_free(&image);
 
       // get address
       strncpy(tmp, argv[++i], STRLEN-1);
-      if (strstr(tmp, "0x") != NULL)
+      if (isHexString(tmp))
         sscanf(tmp, "%" SCNx64, &addr);   // read as hex
       else
         sscanf(tmp, "%" SCNu64, &addr);   // read as dec
-      //printf("\n0x%" PRIx64 "\t%d\n", addr, (int) addr); exit(1);
+      //printf("\n0x%" PRIX64 "\t%d\n", addr, (int) addr); exit(1);
 
-      // get address and value and store to parameters for bsl_memWrite
+      // get value
       strncpy(tmp, argv[++i], STRLEN-1);
-      if (strstr(tmp, "0x") != NULL)
-        sscanf(tmp, "%" SCNx8, &val);   // read as hex
+      if (isHexString(tmp))
+        //sscanf(tmp, "%" SCNx8, &val);   // read as hex
+        sscanf(tmp, "%hhx", &val);   // read as hex
       else
         sscanf(tmp, "%" SCNu8, &val);   // read as dec
-      //printf("\n0x%" PRIx8 "\t%d\n", val, (int) val); exit(1);
+      //printf("\n0x%" PRIX8 "\t%d\n", val, (int) val); exit(1);
 
-      // get address and value and store to parameters for bsl_memWrite
-      imageBuf[addr] = (uint16_t) (val | 0xFF00);
-
-      // get image size
-      get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+      // store value in memory image for bsl_memWrite()
+      assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) addr, (uint8_t) val));
 
       // upload memory image to STM8
-      bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+      bsl_memWrite(ptrPort, physInterface, uartMode, &image, verbose);
 
       // optionally verify upload
       if (verifyUpload == 0)        // skip verify
         ;
       else if (verifyUpload == 1)   // compare CRC32 checksums
-        bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        verify_crc32(ptrPort, family, flashsize, versBSL, physInterface, uartMode, &image, verbose);
       else if (verifyUpload == 2)   // read back memory and compare
-        bsl_memVerify(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, verbose);
+        bsl_memVerifyRead(ptrPort, physInterface, uartMode, &image, verbose);
       else
         Error("Unknown memory verify method %d", verifyUpload);
 
-      // clear memory image again
-      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+      // clear memory image
+      MemoryImage_free(&image);
 
     } // set
 
@@ -982,59 +993,48 @@ lenRAM = bin_erase_write_ver_128k_2_1_ihx_len;
 
       // intermediate variables
       char      outfile[STRLEN]="";     // name of export file
-      uint64_t  addrTmp;
+      uint64_t  addrStart, addrStop;    // address range to read
+
+      // clear memory image
+      MemoryImage_free(&image);
 
       // get start address
       strncpy(tmp, argv[++i], STRLEN-1);
-      if (strstr(tmp, "0x") != NULL)
-      {
-        sscanf(tmp, "%" SCNx64, &addrTmp);   // read as hex
-        addrStart = addrTmp;
-      }
+      if (isHexString(tmp))
+        sscanf(tmp, "%" SCNx64, &addrStart);   // read as hex
       else
-      {
-        sscanf(tmp, "%" SCNu64, &addrTmp);   // read as dec
-        addrStart = addrTmp;
-      }
-      //printf("\n0x%" PRIx64 "\t%d\n", addrStart, (int) addrStart); exit(1);
+        sscanf(tmp, "%" SCNu64, &addrStart);   // read as dec
+      //printf("\n0x%" PRIX64 "\t%d\n", addrStart, (int) addrStart); exit(1);
 
       // get stop address
       strncpy(tmp, argv[++i], STRLEN-1);
-      if (strstr(tmp, "0x") != NULL)
-      {
-        sscanf(tmp, "%" SCNx64, &addrTmp);   // read as hex
-        addrStop = addrTmp;
-      }
+      if (isHexString(tmp))
+        sscanf(tmp, "%" SCNx64, &addrStop);   // read as hex
       else
-      {
-        sscanf(tmp, "%" SCNu64, &addrTmp);   // read as dec
-        addrStop = addrTmp;
-      }
-      //printf("\n0x%" PRIx64 "\t%d\n", addrStop, (int) addrStop); exit(1);
+        sscanf(tmp, "%" SCNu64, &addrStop);   // read as dec
+      //printf("\n0x%" PRIX64 "\t%d\n", addrStop, (int) addrStop); exit(1);
 
       // get export filename
       strncpy(outfile, argv[++i], STRLEN-1);
 
-      // clear image buffer
-      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
       // read memory
-      bsl_memRead(ptrPort, physInterface, uartMode, addrStart, addrStop, imageBuf, verbose);
+      bsl_memRead(ptrPort, physInterface, uartMode, (MEMIMAGE_ADDR_T) addrStart, (MEMIMAGE_ADDR_T) addrStop, &image, verbose);
 
       // export in format depending on file extension
-      if (strstr(outfile, ".s19") != NULL)   // Motorola S-record format
-        export_s19(outfile, imageBuf, verbose);
-      else if ((strstr(outfile, ".hex") != NULL) || (strstr(outfile, ".ihx") != NULL))   // Intel HEX-format
-        export_ihx(outfile, imageBuf, verbose);
-      else if (strstr(outfile, ".txt") != NULL)   // text table (hexAddr / hexData)
-        export_txt(outfile, imageBuf, verbose);
-      else if (strstr(outfile, ".bin") != NULL)   // binary format
-        export_bin(outfile, imageBuf, verbose);
-      else                                        // print
-        export_txt("console", imageBuf, verbose);
+      char *p = strrchr(outfile, '.');
+      if ((p != NULL ) && ((!strcmp(p, ".s19")) || (!strcmp(p, ".S19"))))          // Motorola S-record format
+        export_file_s19(outfile, &image, verbose);
+      else if ((p != NULL ) && ((!strcmp(p, ".hex")) || (!strcmp(p, ".HEX")) || (!strcmp(p, ".ihx")) || (!strcmp(p, ".IHX"))))  // Intel hex format
+        export_file_ihx(outfile, &image, verbose);
+      else if ((p != NULL ) && ((!strcmp(p, ".txt")) || (!strcmp(p, ".TXT"))))     // text table (hex addr / data)
+        export_file_txt(outfile, &image, verbose);
+      else if ((p != NULL ) && ((!strcmp(p, ".bin")) || (!strcmp(p, ".BIN"))))     // binary file
+        export_file_bin(outfile, &image, verbose);
+      else                                                                         // print
+        export_file_txt("console", &image, verbose);
 
-      // clear image buffer
-      memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+      // clear memory image
+      MemoryImage_free(&image);
 
     } // read
 
@@ -1045,11 +1045,11 @@ lenRAM = bin_erase_write_ver_128k_2_1_ihx_len;
       // get address of sector to erase. See respective STM8 datasheet
       uint64_t addr;
       strncpy(tmp, argv[++i], STRLEN-1);
-      if (strstr(tmp, "0x") != NULL)
+      if (isHexString(tmp))
         sscanf(tmp, "%" SCNx64, &addr);   // read as hex
       else
         sscanf(tmp, "%" SCNu64, &addr);   // read as dec
-      //printf("\n0x%" PRIx64 "\t%d\n", addr, (int) addr); exit(1);
+      //printf("\n0x%" PRIX64 "\t%d\n", addr, (int) addr); exit(1);
 
       // trigger flash mass erase
       bsl_flashSectorErase(ptrPort, physInterface, uartMode, addr, verbose);
@@ -1099,8 +1099,8 @@ lenRAM = bin_erase_write_ver_128k_2_1_ihx_len;
   if (verbose != MUTE)
     printf("done with program\n");
 
-  // release global buffer
-  free(imageBuf);
+  // clear memory image
+  MemoryImage_free(&image);
 
   // close communication port
   close_port(&ptrPort);

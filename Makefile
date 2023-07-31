@@ -1,6 +1,11 @@
 # compiler settings
-CC     = gcc
+ifeq ($(origin CC), default)
+	CC = $(CROSS_COMPILE)gcc
+endif
 CFLAGS = -Wall -g -I./include -I./include/RAM_Routines/write_erase -I./include/RAM_Routines/verify_CRC32
+#CFLAGS += -DDEBUG							# activate stm8gal debug output
+#CFLAGS += -DMEMIMAGE_DEBUG					# activate memory image debug output 
+#CFLAGS += -DMEMIMAGE_CHK_INCLUDE_ADDRESS	# include addresses into CRC32 checksum
 LFLAGS = -lm
 
 # OS-dependent delete commands for 'make clean'
@@ -20,7 +25,7 @@ SOURCES  = $(notdir $(wildcard $(SRCDIR)/*.c))
 OBJDIR  = ./lib
 OBJECTS := $(addprefix $(OBJDIR)/, $(SOURCES:.c=.o))
 
-BIN = stmm8gal
+BIN = stm8gal
 BINARGS = -v 3 -import output/test.s19 -export output/test.s19
 
 all: $(OBJDIR) $(BIN)

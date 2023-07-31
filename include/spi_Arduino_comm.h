@@ -3,7 +3,7 @@
 
   \author G. Icking-Konert
 
-  \brief declaration of SPI routines voa Arduino USB<->SPI bridge
+  \brief declaration of SPI routines via Arduino USB<->SPI bridge
 
   declaration of routines for SPI communication using the Arduino
   USB<->SPI bridge available from https://github.com/gicking/Arduino_SPI_bridge

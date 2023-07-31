@@ -2,8 +2,6 @@
   \file verify_CRC32.c
 
   \author G. Icking-Konert
-  \date 2020-12-25
-  \version 0.1
 
   \brief implementation of verify via CRC32 routines
 
@@ -14,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 #include "main.h"
 #include "hexfile.h"
 #include "bootloader.h"
@@ -34,86 +33,92 @@
 
 uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t versBSL, uint8_t physInterface, uint8_t uartMode)
 {
-  uint64_t  addrStart, addrStop, numData;
+  char            *ptrRAM = NULL;     // pointer to array with RAM routines
+  int             lenRAM;             // length of RAM array
+  MemoryImage_s   image;              // memory image for RAM routines
 
-  // allocate and clear temporary RAM buffer (>1MByte requires dynamic allocation)
-  uint16_t  *imageBuf;            // RAM image buffer (high byte != 0 indicates value is set)
-  if (!(imageBuf = malloc(LENIMAGEBUF * sizeof(*imageBuf))))
-    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
+  // initialize memory image
+  MemoryImage_init(&image);
 
-  // clear image buffer
-  memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
-
-  // convert array containing CRC32 RAM ihx file to RAM image
+  // identify device dependent CRC32 RAM ihx file
   if ((family == STM8L) && (flashsize==8) && (versBSL==0x10))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8L_8k_v1_0_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8L_8k_v1_0_ihx, bin_verify_CRC32_STM8L_8k_v1_0_ihx_len, imageBuf, MUTE);      // STM8L / STM8AL "low density" BL v1.0
+    ptrRAM = (char*) bin_verify_CRC32_STM8L_8k_v1_0_ihx;
+    lenRAM = bin_verify_CRC32_STM8L_8k_v1_0_ihx_len;
   }
   else if ((family == STM8L) && ((flashsize==16) || (flashsize==32)) && (versBSL==0x11))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8L_32k_v1_1_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8L_32k_v1_1_ihx, bin_verify_CRC32_STM8L_32k_v1_1_ihx_len, imageBuf, MUTE);    // STM8L / STM8AL "medium density" BL v1.1
+    ptrRAM = (char*) bin_verify_CRC32_STM8L_32k_v1_1_ihx;
+    lenRAM = bin_verify_CRC32_STM8L_32k_v1_1_ihx_len;
   }
   else if ((family == STM8L) && ((flashsize==16) || (flashsize==32)) && (versBSL==0x12))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8L_32k_v1_2_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8L_32k_v1_2_ihx, bin_verify_CRC32_STM8L_32k_v1_2_ihx_len, imageBuf, MUTE);    // STM8L / STM8AL "medium density" BL v1.2
+    ptrRAM = (char*) bin_verify_CRC32_STM8L_32k_v1_2_ihx;
+    lenRAM = bin_verify_CRC32_STM8L_32k_v1_2_ihx_len;
   }
   else if ((family == STM8L) && (flashsize==64) && (versBSL==0x11))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8L_64k_v1_1_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8L_64k_v1_1_ihx, bin_verify_CRC32_STM8L_64k_v1_1_ihx_len, imageBuf, MUTE);    // STM8L / STM8AL "high/medium+ density" BL v1.1
+    ptrRAM = (char*) bin_verify_CRC32_STM8L_64k_v1_1_ihx;
+    lenRAM = bin_verify_CRC32_STM8L_64k_v1_1_ihx_len;
   }
   else if ((family == STM8S) && (flashsize==32) && (versBSL==0x12))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8S_32k_v1_2_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8S_32k_v1_2_ihx, bin_verify_CRC32_STM8S_32k_v1_2_ihx_len, imageBuf, MUTE);    // STM8S / STM8AF "medium density" BL v1.2
+    ptrRAM = (char*) bin_verify_CRC32_STM8S_32k_v1_2_ihx;
+    lenRAM = bin_verify_CRC32_STM8S_32k_v1_2_ihx_len;
   }
   else if ((family == STM8S) && (flashsize==32) && (versBSL==0x13))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8S_32k_v1_3_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8S_32k_v1_3_ihx, bin_verify_CRC32_STM8S_32k_v1_3_ihx_len, imageBuf, MUTE);    // STM8S / STM8AF "medium density" BL v1.3
+    ptrRAM = (char*) bin_verify_CRC32_STM8S_32k_v1_3_ihx;
+    lenRAM = bin_verify_CRC32_STM8S_32k_v1_3_ihx_len;
   }
   else if ((family == STM8S) && ((flashsize==64) || (flashsize==128)) && (versBSL==0x21))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8S_128k_v2_1_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8S_128k_v2_1_ihx, bin_verify_CRC32_STM8S_128k_v2_1_ihx_len, imageBuf, MUTE);  // STM8S / STM8AF "high density" BL v2.1
+    ptrRAM = (char*) bin_verify_CRC32_STM8S_128k_v2_1_ihx;
+    lenRAM = bin_verify_CRC32_STM8S_128k_v2_1_ihx_len;
   }
   else if ((family == STM8S) && ((flashsize==64) || (flashsize==128)) && (versBSL==0x22))
   {
     #ifdef DEBUG
       printf("header verify_CRC32_STM8S_128k_v2_2_ihx\n");
     #endif
-    convert_ihx((char*) bin_verify_CRC32_STM8S_128k_v2_2_ihx, bin_verify_CRC32_STM8S_128k_v2_2_ihx_len, imageBuf, MUTE);  // STM8S / STM8AF "high density" BL v2.2
+    ptrRAM = (char*) bin_verify_CRC32_STM8S_128k_v2_2_ihx;
+    lenRAM = bin_verify_CRC32_STM8S_128k_v2_2_ihx_len;
   }
   else
   {
     Error("bootloader does not support CRC32 verify, use read-out instead (family=%d, flash=%dkB, BL v%d)", (int) family, (int) flashsize, (int) versBSL);
   }
 
-  // get image size
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &addrStart, &addrStop, &numData);
+  // convert matching RAM array containing ihx file to RAM image. Assert C-string termination
+  ptrRAM[lenRAM] = '\0';
+  import_buffer_ihx((uint8_t*) ptrRAM, &image, MUTE);
 
   // upload RAM routines to STM8
-  bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, addrStart, addrStop, MUTE);
+  bsl_memWrite(ptrPort, physInterface, uartMode, &image, MUTE);
 
-  // release temporary memory image
-  free(imageBuf);
+  // release memory image
+  MemoryImage_free(&image);
 
   // avoid compiler warnings
   return(0);
@@ -121,39 +126,30 @@ uint8_t upload_crc32_code(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t
 } // upload_crc32_code()
 
 
-
 uint8_t upload_crc32_address(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint64_t addrStart, uint64_t addrStop)
 {
-  uint64_t  AddrStart, AddrStop, NumData;
+  MemoryImage_s   image;
 
-  // allocate and clear temporary RAM buffer (>1MByte requires dynamic allocation)
-  uint16_t  *imageBuf;            // RAM image buffer (high byte != 0 indicates value is set)
-  if (!(imageBuf = malloc(LENIMAGEBUF * sizeof(*imageBuf))))
-    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
+  // initialize memory image
+  MemoryImage_init(&image);
 
-  // clear image buffer
-  memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+  // store start addresses for CRC32 at fixed RAM address (STM8 = big endian = MSB first)
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_START_CRC32+0, (uint8_t) (addrStart >> 24)));
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_START_CRC32+1, (uint8_t) (addrStart >> 16)));
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_START_CRC32+2, (uint8_t) (addrStart >>  8)));
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_START_CRC32+3, (uint8_t) (addrStart >>  0)));
 
-  // store start addresses for CRC32 at fixed RAM address (big endian = MSB first)
-  imageBuf[ADDR_START_CRC32]   = ((uint16_t) (addrStart >> 24)) | 0xFF00; // start address, byte 3
-  imageBuf[ADDR_START_CRC32+1] = ((uint16_t) (addrStart >> 16)) | 0xFF00; // start address, byte 2
-  imageBuf[ADDR_START_CRC32+2] = ((uint16_t) (addrStart >>  8)) | 0xFF00; // start address, byte 1
-  imageBuf[ADDR_START_CRC32+3] = ((uint16_t) (addrStart      )) | 0xFF00; // start address, byte 0
-
-  // store last addresses for CRC32 at fixed RAM address (big endian = MSB first)
-  imageBuf[ADDR_STOP_CRC32]    = ((uint16_t) (addrStop >> 24)) | 0xFF00;  // stop address, byte 3
-  imageBuf[ADDR_STOP_CRC32+1]  = ((uint16_t) (addrStop >> 16)) | 0xFF00;  // stop address, byte 2
-  imageBuf[ADDR_STOP_CRC32+2]  = ((uint16_t) (addrStop >>  8)) | 0xFF00;  // stop address, byte 1
-  imageBuf[ADDR_STOP_CRC32+3]  = ((uint16_t) (addrStop      )) | 0xFF00;  // stop address, byte 0
-
-  // get image size
-  get_image_size(imageBuf, 0, LENIMAGEBUF, &AddrStart, &AddrStop, &NumData);
+  // store last addresses for CRC32 at fixed RAM address (STM8 = big endian = MSB first)
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_STOP_CRC32+0, (uint8_t) (addrStop >> 24)));
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_STOP_CRC32+1, (uint8_t) (addrStop >> 16)));
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_STOP_CRC32+2, (uint8_t) (addrStop >>  8)));
+  assert(MemoryImage_addData(&image, (MEMIMAGE_ADDR_T) ADDR_STOP_CRC32+3, (uint8_t) (addrStop >>  0)));
 
   // upload RAM routines to STM8
-  bsl_memWrite(ptrPort, physInterface, uartMode, imageBuf, AddrStart, AddrStop, MUTE);
+  bsl_memWrite(ptrPort, physInterface, uartMode, &image, MUTE);
 
-  // release temporary memory image
-  free(imageBuf);
+  // release memory image
+  MemoryImage_free(&image);
 
   // avoid compiler warnings
   return(0);
@@ -161,28 +157,25 @@ uint8_t upload_crc32_address(HANDLE ptrPort, uint8_t physInterface, uint8_t uart
 } // upload_crc32_address()
 
 
-
 uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint32_t *CRC32)
 {
-  // allocate and clear temporary RAM buffer (>1MByte requires dynamic allocation)
-  uint16_t  *imageBuf;            // RAM image buffer (high byte != 0 indicates value is set)
-  if (!(imageBuf = malloc(LENIMAGEBUF * sizeof(*imageBuf))))
-    Error("Cannot allocate image buffer, try reducing LENIMAGEBUF");
+  MemoryImage_s   image;
+  uint8_t         value;
 
-  // clear image buffer
-  memset(imageBuf, 0, (LENIMAGEBUF + 1) * sizeof(*imageBuf));
+  // initialize memory image
+  MemoryImage_init(&image);
 
   // read back CRC32 result (4B)
-  bsl_memRead(ptrPort, physInterface, uartMode, RESULT_CRC32, RESULT_CRC32+3, imageBuf, MUTE);
+  bsl_memRead(ptrPort, physInterface, uartMode, RESULT_CRC32, RESULT_CRC32+3, &image, MUTE);
 
-  // get CRC32 result from image buffer
-  *CRC32  = ((uint32_t) (imageBuf[RESULT_CRC32]   & 0x00FF)) << 24;
-  *CRC32 += ((uint32_t) (imageBuf[RESULT_CRC32+1] & 0x00FF)) << 16;
-  *CRC32 += ((uint32_t) (imageBuf[RESULT_CRC32+2] & 0x00FF)) << 8;
-  *CRC32 += ((uint32_t) (imageBuf[RESULT_CRC32+3] & 0x00FF));
+  // get CRC32 result from image buffer (STM8 = big endian = MSB first)
+  MemoryImage_getData(&image, (MEMIMAGE_ADDR_T) RESULT_CRC32  , &value); *CRC32  = ((uint32_t) value) << 24;
+  MemoryImage_getData(&image, (MEMIMAGE_ADDR_T) RESULT_CRC32+1, &value); *CRC32 += ((uint32_t) value) << 16;
+  MemoryImage_getData(&image, (MEMIMAGE_ADDR_T) RESULT_CRC32+2, &value); *CRC32 += ((uint32_t) value) <<  8;
+  MemoryImage_getData(&image, (MEMIMAGE_ADDR_T) RESULT_CRC32+3, &value); *CRC32 += ((uint32_t) value) <<  0;
 
-  // release temporary memory image
-  free(imageBuf);
+  // release memory image
+  MemoryImage_free(&image);
 
   // avoid compiler warnings
   return(0);
@@ -190,46 +183,15 @@ uint8_t read_crc32(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, uint
 } // read_crc32()
 
 
-// from https://www.mikrocontroller.net/attachment/61520/crc32_v1.c
-uint32_t calculate_crc32(uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop)
-{
-  uint32_t  crc32;
-
-  // initialize CRC32 checksum
-  crc32 = 0xffffffff;
-
-  for(uint64_t addr=addrStart; addr<=addrStop; addr++)
-  {
-  uint8_t value = (uint8_t) (imageBuf[addr] & 0x00FF);
-  for (int i=0; i<8; ++i)
-  {
-    if ((crc32 & 1) != (value & 1))
-    crc32 = (crc32 >> 1) ^ CRC32_POLYNOM;
-    else
-      crc32 >>= 1;
-    value >>= 1;
-  }
-  }
-
-  // finalize CRC32 checksum
-  crc32 ^= 0xffffffff;
-
-  // return result
-  return(crc32);
-
-} // calculate_crc32()
-
-
-
-/// compare CRC32 over microcontroller memory vs. CRC32 over RAM image
-uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t versBSL, uint8_t physInterface, uint8_t uartMode, uint16_t *imageBuf, uint64_t addrStart, uint64_t addrStop, uint8_t verbose)
+/// compare CRC32-IEEE over microcontroller memory vs. CRC32 over memory image
+uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t versBSL, uint8_t physInterface, uint8_t uartMode, const MemoryImage_s *image, uint8_t verbose)
 {
   uint32_t  crc32_uC, crc32_PC;
   //uint64_t  tStart, tStop;        // measure time [ms]
 
   // print collective message
   if ((verbose == SILENT) || (verbose == INFORM))
-  printf("  CRC32 check ... ");
+    printf("  CRC32 check ... ");
   fflush(stdout);
 
   // upload CRC32 RAM routine
@@ -238,105 +200,95 @@ uint8_t verify_crc32(HANDLE ptrPort, uint8_t family, int flashsize, uint8_t vers
   // get start time [ms]
   //tStart = millis();
 
-  // loop over image and check all consecutive data blocks. Skip undefined data
-  uint64_t addr = addrStart;
-  while (addr <= addrStop) {
+  // for each consecutive memory range compare CRC32 checksums
+  MEMIMAGE_ADDR_T address = 0x00;
+  size_t          idxStart, idxEnd;
+  while (MemoryImage_getMemoryBlock(image, address, &idxStart, &idxEnd)) {
+  
+    MEMIMAGE_ADDR_T  addrStart = image->memoryEntries[idxStart].address;
+    MEMIMAGE_ADDR_T  addrEnd   = image->memoryEntries[idxEnd].address;
 
-  // find next data byte in image (=start address for next read)
-  while (((imageBuf[addr] & 0xFF00) == 0) && (addr <= addrStop))
-    addr++;
+    // print verbose message for each block
+    if (verbose == CHATTY)
+      printf("  CRC32 check 0x%" PRIX64 " to 0x%" PRIX64 " ... ", (uint64_t) addrStart, (uint64_t) addrEnd);
+    fflush(stdout);
 
-  // end address reached -> done
-  if (addr > addrStop)
-    break;
+    // upload address range for STM8 CRC32 calculation
+    upload_crc32_address(ptrPort, physInterface, uartMode, addrStart, addrEnd);
 
-  // set length of next check
-  uint64_t lenCheck = 1;
-  while (((addr+lenCheck) <= addrStop) && (imageBuf[addr+lenCheck] & 0xFF00)) {
-    lenCheck++;
-  }
+    // jump to CRC32 routine in RAM
+    bsl_jumpTo(ptrPort, physInterface, uartMode, (MEMIMAGE_ADDR_T) START_CODE_CRC32, MUTE);
 
-  // print verbose message for each block
-  if (verbose == CHATTY)
-    printf("  CRC32 check 0x%" PRIx64 " to 0x%" PRIx64 " ... ", addr, addr+lenCheck-1);
-  fflush(stdout);
-
-  // upload address range for CRC32 calculation
-  upload_crc32_address(ptrPort, physInterface, uartMode, addr, addr+lenCheck-1);
-
-  // jump to CRC32 routine in RAM
-  bsl_jumpTo(ptrPort, physInterface, uartMode, START_CODE_CRC32, MUTE);
-
-  // for SPI interface (1=SPI_ARDUINO, 2=SPI_SPIDEV) wait sufficiently long (measured empirically)
-  if ((physInterface == 1) || (physInterface == 2))
-  {
-    //fprintf(stderr,"\ntest: %d\n", (int) (25L*lenCheck/1024L));
-    SLEEP(500L + 25L*lenCheck/1024L);
-  }
-
-  // re-synchronize after re-start of ROM-BSL
-  bsl_sync(ptrPort, physInterface, MUTE);
-
-  // For UART reset command state machine sending 0x00 until a NACK is received
-  // Procedure depends on UART mode (0=duplex, 1=1-wire, 2=2-wire reply). Tested empirically and ugly...
-  if (physInterface == 0)
-  {
-    char      Tx[2] = {0x00, 0x00}, Rx;
-    int       lenRx;
-
-    // send (wrong) GET command until NACK is received. Then state machine is ready to receive next command
-    set_timeout(ptrPort, 100);
-    for (int i=0; i<5; i++)
+    // for SPI interface (1=SPI_ARDUINO, 2=SPI_SPIDEV) wait sufficiently long (measured empirically)
+    if ((physInterface == 1) || (physInterface == 2))
     {
-      if ((uartMode == 0) || (uartMode == 2))
-        send_port(ptrPort, 0, 1, Tx);         // duplex and 2-wire reply
-      else
-        send_port(ptrPort, 0, 2, Tx);         // 1-wire
-      lenRx = receive_port(ptrPort, 0, 1, &Rx);
-      SLEEP(10);
-      if ((lenRx == 1) && (Rx == NACK))
-        break;
-    }
-    set_timeout(ptrPort, TIMEOUT);
-
-    // for UART 2-wire reply mode reply NACK echo
-    if (uartMode == 2)
-      send_port(ptrPort, 0, 1, &Rx);
-
-    // required for 1-wire reply mode
-    if (uartMode == 1)
-    {
-      SLEEP(10);
-      flush_port(ptrPort);
+      //fprintf(stderr,"\ntest: %d\n", (int) (25L*(addrEnd - addrStart)/1024L));
+      SLEEP(500L + 25L*(addrEnd - addrStart)/1024L);
     }
 
-  } // UART interface
+    // re-synchronize after re-start of ROM-BSL
+    bsl_sync(ptrPort, physInterface, MUTE);
 
-  // read out CRC32 checksum from STM8
-  read_crc32(ptrPort, physInterface, uartMode, &crc32_uC);
-  //printf("\nuC CRC = 0x%08x\n", crc32_uC);
+    // For UART reset command state machine sending 0x00 until a NACK is received
+    // Procedure depends on UART mode (0=duplex, 1=1-wire, 2=2-wire reply). Tested empirically and ugly...
+    if (physInterface == 0)
+    {
+      char      Tx[2] = {0x00, 0x00}, Rx;
+      int       lenRx;
 
-  // calculate CRC32 checksum over corresponding range in RAM image
-  crc32_PC = calculate_crc32(imageBuf, addr, addr+lenCheck-1);
-  //printf("\nPC CRC = 0x%08x\n", crc32_PC);
+      // send (wrong) GET command until NACK is received. Then state machine is ready to receive next command
+      set_timeout(ptrPort, 100);
+      for (int i=0; i<5; i++)
+      {
+        if ((uartMode == 0) || (uartMode == 2))
+          send_port(ptrPort, 0, 1, Tx);         // duplex and 2-wire reply
+        else
+          send_port(ptrPort, 0, 2, Tx);         // 1-wire
+        lenRx = receive_port(ptrPort, 0, 1, &Rx);
+        SLEEP(10);
+        if ((lenRx == 1) && (Rx == NACK))
+          break;
+      }
+      set_timeout(ptrPort, TIMEOUT);
 
-  // check if CRC32 checksums match
-  if (crc32_uC != crc32_PC)
-    Error("in 'verify_crc32()': CRC32 checksum mismatch (0x%08X vs. 0x%08X)", crc32_uC, crc32_PC);
+      // for UART 2-wire reply mode reply NACK echo
+      if (uartMode == 2)
+        send_port(ptrPort, 0, 1, &Rx);
 
-  // go to next potential block
-  addr += lenCheck;
+      // required for 1-wire reply mode
+      if (uartMode == 1)
+      {
+        SLEEP(10);
+        flush_port(ptrPort);
+      }
 
-  // print verbose message
-  if (verbose == CHATTY)
-    printf("passed (0x%08X)\n", crc32_uC);
-  fflush(stdout);
+    } // UART interface
 
-  } // loop over image
+    // read out CRC32 checksum from STM8
+    read_crc32(ptrPort, physInterface, uartMode, &crc32_uC);
+    //printf("\nuC CRC = 0x%08" PRIX32 "\n", crc32_uC);
+
+    // calculate CRC32 checksum over range memory image
+    crc32_PC = MemoryImage_checksum_crc32(image, idxStart, idxEnd);
+    //printf("\nPC CRC = 0x%08" PRIX32 "\n", crc32_PC);
+
+    // check if CRC32 checksums match
+    if (crc32_uC != crc32_PC)
+      Error("in 'verify_crc32()': CRC32 checksum mismatch (0x%08" PRIX32 " vs. 0x%08" PRIX32 ")", crc32_uC, crc32_PC);
+
+    // print verbose message
+    if (verbose == CHATTY)
+      printf("passed (0x%08" PRIX32 ")\n", crc32_uC);
+    fflush(stdout);
+
+    // set start address for next block search
+    address = addrEnd + 1;
+
+  } // loop over consecutive memory blocks
 
   // print collective message
   if ((verbose == SILENT) || (verbose == INFORM))
-  printf("passed\n");
+    printf("passed\n");
   fflush(stdout);
 
   // get end time [ms]

@@ -3,7 +3,7 @@
    
   \author G. Icking-Konert
    
-  \brief declaration of RS232 comm port routines
+  \brief declaration of RS232 comport routines
    
   declaration of of routines for RS232 communication using the Windows or Posix API.
   For Windows, see e.g. http://msdn.microsoft.com/en-us/library/default.aspx

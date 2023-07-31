@@ -25,17 +25,23 @@
  GLOBAL DEFINES / MACROS
 **********************/
 
-/// uncomment for optional debug output
+/// uncomment for optional debug output (or via Makefile)
 //#define MEMIMAGE_DEBUG
 
+/// uncomment to include addresses in checksum (or via Makefile)
+//#define MEMIMAGE_CHK_INCLUDE_ADDRESS
+
 /// memory image address datatype / width
-#define MEMIMAGE_ADDR_T         uint64_t
+#define MEMIMAGE_ADDR_T         uint32_t
 
 /// grow/shrink factor for memory image buffer. Must be >1.0!
-#define MEMIMAGE_BUFFER_MARGIN  1.2
+#define MEMIMAGE_BUFFER_MARGIN  1.3
 
 /// max. size for memory image buffer [B]
 #define MEMIMAGE_BUFFER_MAX     50L*1024L*1024L
+
+/// CRC32-IEEE polynom
+#define CRC32_IEEE_POLYNOM      0xEDB88320
 
 
 /**********************
@@ -72,6 +78,11 @@ void MemoryImage_init(MemoryImage_s* image);
 /// @param image          pointer to memory image
 void MemoryImage_free(MemoryImage_s* image);
 
+/// @brief check if memory image is empty
+/// @param[in]  image     pointer to memory image
+/// @return true=image empty, false=image contains data
+bool MemoryImage_isEmpty(const MemoryImage_s* image);
+
 /// @brief print memory image to stdout
 /// @param[in]  image     pointer to memory image
 /// @param[in]  fp        stream to print to, e.g. stdout or file
@@ -83,14 +94,6 @@ void MemoryImage_print(const MemoryImage_s* image, FILE* fp);
     /// @param[in]  debug     new debug level (0..2)
     void MemoryImage_setDebug(MemoryImage_s* image, const uint8_t debug);
 #endif // MEMIMAGE_DEBUG
-
-/// @brief search address in memory image
-/// @param[in]  image   pointer to memory image
-/// @param[in]  b       second entry to compare
-/// @param[in]  address address to find
-/// @param[out] index   index if address if found, else index of upper neighbour
-/// @return address found
-bool MemoryImage_findAddress(const MemoryImage_s* image, const MEMIMAGE_ADDR_T address, size_t *index);
 
 /// @brief add byte at specified address in memory image. If address already exists, overwrite content
 /// @param      image     pointer to memory image
@@ -111,6 +114,28 @@ bool MemoryImage_deleteData(MemoryImage_s* image, const MEMIMAGE_ADDR_T address)
 /// @param[out] data      read data
 /// @return operation successful
 bool MemoryImage_getData(const MemoryImage_s* image, const MEMIMAGE_ADDR_T address, uint8_t *data);
+
+/// @brief find indes of specified address in memory image
+/// @param[in]  image   pointer to memory image
+/// @param[in]  address address to find
+/// @param[out] index   index if address if found, else matching position, i.e. index of upper neighbour
+/// @return search successful, i.e. address in image
+bool MemoryImage_getIndex(const MemoryImage_s* image, const MEMIMAGE_ADDR_T address, size_t *index);
+
+/// @brief get next consecutive memory block, starting at addrStart
+/// @param[in]  image       pointer to memory image
+/// @param[in]  addrStart   start address of search (inclusive)
+/// @param[out] idxStart    first index of next memory block (inclusive)
+/// @param[out] idxEnd      last index of next memory block (inclusive)
+/// @return search successful, i.e. address in image
+bool MemoryImage_getMemoryBlock(const MemoryImage_s* image, const MEMIMAGE_ADDR_T addrStart, size_t *idxStart, size_t *idxEnd);
+
+/// @brief calculate CRC32 checksum over index range (see https://www.mikrocontroller.net/attachment/61520/crc32_v1.c)
+/// @param[in]  image     pointer to memory image 
+/// @param[in]  idxStart  start index (inclusive)
+/// @param[in]  idxEnd    end index (inclusive)
+/// @return calculated CRC32 little endian checksum
+uint32_t MemoryImage_checksum_crc32(const MemoryImage_s* image, const size_t idxStart, const size_t idxEnd);
 
 /// @brief fill address range [addrStart;addrEnd] with fixed value 
 /// @param      image     pointer to memory image

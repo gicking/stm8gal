@@ -7,7 +7,6 @@
 
   main header with global macros and global variable declaration. 
   All global variables start with "g_" to indicate their scope.
-
 */
 
 // for including file only once
@@ -22,6 +21,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include <assert.h>
 
 
 /*******
