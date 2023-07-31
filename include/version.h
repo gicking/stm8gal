@@ -17,7 +17,7 @@
 #define _SW_VERSION_H_
 
 /// 16b SW version identifier
-#define VERSION     ((1<<14) | (6<<6) | (0<<1) | (1<<0))     // -> v1.6.0
+#define VERSION     ((1<<14) | (6<<6) | (0<<1) | (0<<0))     // -> v1.6.0b
 
 #endif // _SW_VERSION_H_
 
@@ -27,7 +27,7 @@
 Revision History
 ----------------
 
-v1.6.0 (2023-07-28)
+v1.6.0b (2023-07-31)
   - switch from static RAM buffer to dynamic memory image
   - support for 32-bit addresses (see memory_image.h)
   - migrate to VSCode / PlatformIO file structure for convenience

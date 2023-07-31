@@ -319,6 +319,13 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 
 # Revision History
 
+v1.6.0b (2023-07-31)
+  - switch from static RAM buffer to dynamic memory image
+  - support for 32-bit addresses (see memory_image.h)
+  - migrate to VSCode / PlatformIO file structure for convenience
+
+----------------
+
 v1.5.0 (2021-01-23)
   - replaced write/erase RAM routines by STM with OSS routines (see https://github.com/gicking/stm8gal/issues/4)
   - removed STM8S 32kB v1.4 and 128kB v2.4. According to STM support were never released and development is stopped
