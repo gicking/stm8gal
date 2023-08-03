@@ -22,6 +22,12 @@
 
 
 /**********************
+ MACROS
+**********************/
+//#define HEXFILE_DIRECT_IMPORT       // comment out for import file to RAM, then convert to memory image
+
+
+/**********************
  GLOBAL FUNCTIONS
 **********************/
 

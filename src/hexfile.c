@@ -67,89 +67,107 @@ void import_file_s19(const char *filename, MemoryImage_s *image, const uint8_t v
   }
 
 
-  //=====================
-  // start data import
-  //=====================
+  // import file directly to memory image (less RAM, more file operations)
+  #if defined(HEXFILE_DIRECT_IMPORT)
 
-  char              line[STRLEN], tmp[STRLEN];
-  int               linecount = 0, idx, len;
-  uint8_t           type, chkRead, chkCalc;
-  MEMIMAGE_ADDR_T   address = 0; 
-  int               value = 0;
+    char              line[STRLEN], tmp[STRLEN];
+    int               linecount = 0, idx, len;
+    uint8_t           type, chkRead, chkCalc;
+    MEMIMAGE_ADDR_T   address = 0; 
+    int               value = 0;
 
-  // read data line by line
-  while (fgets(line, STRLEN, fp)) {
+    // read data line by line
+    while (fgets(line, STRLEN, fp)) {
 
-    // increase line counter
-    linecount++;
+      // increase line counter
+      linecount++;
 
-    // check 1st char (must be 'S')
-    if (line[0] != 'S') {
-      MemoryImage_free(image);
-      Error("Line %u in Motorola S-record: line does not start with 'S'", linecount);
-    }
+      // check 1st char (must be 'S')
+      if (line[0] != 'S') {
+        MemoryImage_free(image);
+        Error("Line %u in Motorola S-record: line does not start with 'S'", linecount);
+      }
 
-    // record type
-    type = line[1]-48;
+      // record type
+      type = line[1]-48;
 
-    // skip if line contains no data, i.e. line doesn't start with S1, S2 or S3
-    if ((type != 1) && (type != 2) && (type != 3))
-      continue;
+      // skip if line contains no data, i.e. line doesn't start with S1, S2 or S3
+      if ((type != 1) && (type != 2) && (type != 3))
+        continue;
 
-    // record length (address + data + checksum)
-    sprintf(tmp,"0x00");
-    strncpy(tmp+2, line+2, 2);
-    sscanf(tmp, "%x", &value);
-    len = value;
-    chkCalc = value;
-
-    // address (S1=16bit, S2=24bit, S3=32bit)
-    address = 0;
-    for (int i=0; i<type+1; i++) {
+      // record length (address + data + checksum)
       sprintf(tmp,"0x00");
-      tmp[2] = line[4+(i*2)];
-      tmp[3] = line[5+(i*2)];
+      strncpy(tmp+2, line+2, 2);
       sscanf(tmp, "%x", &value);
-      address *= (uint64_t) 256;
-      address += (uint64_t) value;
-      chkCalc += (uint8_t) value;
-    }
+      len = value;
+      chkCalc = value;
 
-    // read record data
-    idx = 6+(type*2);                   // start at position 8, 10, or 12, depending on record type
-    len = len-1-(1+type);               // substract chk and address length
-    for (MEMIMAGE_ADDR_T i=0; i<len; i++) {
-      
-      // get next value
+      // address (S1=16bit, S2=24bit, S3=32bit)
+      address = 0;
+      for (int i=0; i<type+1; i++) {
+        sprintf(tmp,"0x00");
+        tmp[2] = line[4+(i*2)];
+        tmp[3] = line[5+(i*2)];
+        sscanf(tmp, "%x", &value);
+        address *= (uint64_t) 256;
+        address += (uint64_t) value;
+        chkCalc += (uint8_t) value;
+      }
+
+      // read record data
+      idx = 6+(type*2);                   // start at position 8, 10, or 12, depending on record type
+      len = len-1-(1+type);               // substract chk and address length
+      for (MEMIMAGE_ADDR_T i=0; i<len; i++) {
+        
+        // get next value
+        sprintf(tmp,"0x00");
+        strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
+        sscanf(tmp, "%x", &value);        // interpret as hex data
+
+        // store data byte in memory image
+        assert(MemoryImage_addData(image, address+i, (uint8_t) value));
+
+        chkCalc += (uint8_t) value;       // increase checksum
+        idx+=2;                           // advance 2 chars in line
+      }
+
+      // read checksum
       sprintf(tmp,"0x00");
-      strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
-      sscanf(tmp, "%x", &value);        // interpret as hex data
+      strncpy(tmp+2, line+idx, 2);
+      sscanf(tmp, "%x", &value);
+      chkRead = (uint8_t) value;
 
-      // store data byte in memory image
-      assert(MemoryImage_addData(image, address+i, (uint8_t) value));
+      // assert checksum (0xFF xor (sum over all except record type)
+      chkCalc ^= 0xFF;                 // invert checksum
+      if (chkCalc != chkRead) {
+        MemoryImage_free(image);
+        Error("Line %u in Motorola S-record: checksum error (0x%02" PRIX8 " vs. 0x%02" PRIX8 ")", linecount, (uint8_t) chkRead, (uint8_t) chkCalc);
+      }
 
-      chkCalc += (uint8_t) value;       // increase checksum
-      idx+=2;                           // advance 2 chars in line
-    }
+    } // while !EOF
 
-    // read checksum
-    sprintf(tmp,"0x00");
-    strncpy(tmp+2, line+idx, 2);
-    sscanf(tmp, "%x", &value);
-    chkRead = (uint8_t) value;
+  #else // HEXFILE_DIRECT_IMPORT
 
-    // assert checksum (0xFF xor (sum over all except record type)
-    chkCalc ^= 0xFF;                 // invert checksum
-    if (chkCalc != chkRead) {
-      MemoryImage_free(image);
-      Error("Line %u in Motorola S-record: checksum error (0x%02" PRIX8 " vs. 0x%02" PRIX8 ")", linecount, (uint8_t) chkRead, (uint8_t) chkCalc);
-    }
+    uint64_t  fileLen;
+    char      *fileBuf;
 
-  } // while !EOF
+    // get filesize
+    fseek(fp, 0, SEEK_END);
+    fileLen = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
 
-  //=====================
-  // end data import
-  //=====================
+    // allocate memory for file import
+    fileBuf = malloc(fileLen*sizeof(char));
+    if (!fileBuf)
+      Error("Cannot allocate %" PRIu64 "B for file buffer", fileLen);
+
+    // convert hexfile in buffer to memory image
+    import_buffer_s19((uint8_t*) fileBuf, image, verbose);
+    
+    // release memory for file import
+    free(fileBuf);
+    
+  #endif // direct data import
 
 
   // close file again
@@ -229,134 +247,152 @@ void import_file_ihx(const char *filename, MemoryImage_s *image, const uint8_t v
   }
 
 
-  //=====================
-  // start data import
-  //=====================
+  // import file directly to memory image (less RAM, more file operations)
+  #if defined(HEXFILE_DIRECT_IMPORT)
 
-  char              line[STRLEN], tmp[STRLEN];
-  int               linecount = 0, idx, len;
-  uint8_t           type, chkRead, chkCalc;
-  MEMIMAGE_ADDR_T   address = 0; 
-  uint64_t          addrOffset, addrJumpStart;
-  int               value = 0;
+    char              line[STRLEN], tmp[STRLEN];
+    int               linecount = 0, idx, len;
+    uint8_t           type, chkRead, chkCalc;
+    MEMIMAGE_ADDR_T   address = 0; 
+    uint64_t          addrOffset, addrJumpStart;
+    int               value = 0;
 
-  // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
-  (void) (addrJumpStart);
+    // avoid compiler warning (variable not yet used). See https://stackoverflow.com/questions/3599160/unused-parameter-warnings-in-c
+    (void) (addrJumpStart);
 
-  // read data line by line
-  addrOffset = 0x0000000000000000;
-  while (fgets(line, STRLEN, fp)) {
+    // read data line by line
+    addrOffset = 0x0000000000000000;
+    while (fgets(line, STRLEN, fp)) {
 
-    // increase line counter
-    linecount++;
+      // increase line counter
+      linecount++;
 
-    // check 1st char (must be ':')
-    if (line[0] != ':') {
-      MemoryImage_free(image);
-      Error("Line %u in Intel hex record: line does not start with ':'", linecount);
-    }
-
-    // record length (address + data + checksum)
-    sprintf(tmp,"0x00");
-    strncpy(tmp+2, line+1, 2);
-    sscanf(tmp, "%x", &value);
-    len = value;
-    chkCalc = len;
-
-    // 16b address
-    sprintf(tmp,"0x0000");
-    strncpy(tmp+2, line+3, 4);
-    sscanf(tmp, "%x", &value);
-    chkCalc += (uint8_t) (value >> 8);
-    chkCalc += (uint8_t)  value;
-    address = (uint64_t) (value + addrOffset);    // add offset for >64kB addresses
-
-    // record type
-    sprintf(tmp,"0x00");
-    strncpy(tmp+2, line+7, 2);
-    sscanf(tmp, "%x", &value);
-    type = value;
-    chkCalc += type;
-
-    // record contains data
-    if (type==0) {
-
-      // get data
-      idx = 9;                            // start at index 9
-      for (int i=0; i<len; i++) {
-        
-        // get next value
-        sprintf(tmp,"0x00");
-        strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
-        sscanf(tmp, "%x", &value);        // interpret as hex data
-        
-        // store data byte in memory image
-        assert(MemoryImage_addData(image, address+i, (uint8_t) value));
-        
-        chkCalc += value;                 // increase checksum
-        idx+=2;                           // advance 2 chars in line
+      // check 1st char (must be ':')
+      if (line[0] != ':') {
+        MemoryImage_free(image);
+        Error("Line %u in Intel hex record: line does not start with ':'", linecount);
       }
 
-    } // type==0
+      // record length (address + data + checksum)
+      sprintf(tmp,"0x00");
+      strncpy(tmp+2, line+1, 2);
+      sscanf(tmp, "%x", &value);
+      len = value;
+      chkCalc = len;
 
-    // EOF indicator
-    else if (type==1)
-      continue;
-
-    // extended segment addresses not yet supported
-    else if (type==2) {
-      MemoryImage_free(image);
-      Error("Line %u in Intel hex record: extended segment address type 2 not supported", linecount);
-    }
-
-    // start segment address (only relevant for 80x86 processor, ignore here)
-    else if (type==3)
-      continue;
-
-    // extended address (=upper 16b of address for following data records)
-    else if (type==4) {
-      idx = 13;                       // start at index 13
+      // 16b address
       sprintf(tmp,"0x0000");
-      strncpy(tmp+2, line+9, 4);      // get next 4 chars as string
-      sscanf(tmp, "%x", &value);      // interpret as hex data
+      strncpy(tmp+2, line+3, 4);
+      sscanf(tmp, "%x", &value);
       chkCalc += (uint8_t) (value >> 8);
       chkCalc += (uint8_t)  value;
-      addrOffset = ((uint64_t) value) << 16;
-    } // type==4
+      address = (uint64_t) (value + addrOffset);    // add offset for >64kB addresses
 
-    // start linear address records. Can be ignored, see http://www.keil.com/support/docs/1584/
-    else if (type==5)
-      continue;
+      // record type
+      sprintf(tmp,"0x00");
+      strncpy(tmp+2, line+7, 2);
+      sscanf(tmp, "%x", &value);
+      type = value;
+      chkCalc += type;
 
-    // unsupported record type -> error
-    else {
-      MemoryImage_free(image);
-      Error("Line %u in Intel hex record: unsupported type %d", linecount, type);
-    }
+      // record contains data
+      if (type==0) {
+
+        // get data
+        idx = 9;                            // start at index 9
+        for (int i=0; i<len; i++) {
+          
+          // get next value
+          sprintf(tmp,"0x00");
+          strncpy(tmp+2, line+idx, 2);      // get next 2 chars as string
+          sscanf(tmp, "%x", &value);        // interpret as hex data
+          
+          // store data byte in memory image
+          assert(MemoryImage_addData(image, address+i, (uint8_t) value));
+          
+          chkCalc += value;                 // increase checksum
+          idx+=2;                           // advance 2 chars in line
+        }
+
+      } // type==0
+
+      // EOF indicator
+      else if (type==1)
+        continue;
+
+      // extended segment addresses not yet supported
+      else if (type==2) {
+        MemoryImage_free(image);
+        Error("Line %u in Intel hex record: extended segment address type 2 not supported", linecount);
+      }
+
+      // start segment address (only relevant for 80x86 processor, ignore here)
+      else if (type==3)
+        continue;
+
+      // extended address (=upper 16b of address for following data records)
+      else if (type==4) {
+        idx = 13;                       // start at index 13
+        sprintf(tmp,"0x0000");
+        strncpy(tmp+2, line+9, 4);      // get next 4 chars as string
+        sscanf(tmp, "%x", &value);      // interpret as hex data
+        chkCalc += (uint8_t) (value >> 8);
+        chkCalc += (uint8_t)  value;
+        addrOffset = ((uint64_t) value) << 16;
+      } // type==4
+
+      // start linear address records. Can be ignored, see http://www.keil.com/support/docs/1584/
+      else if (type==5)
+        continue;
+
+      // unsupported record type -> error
+      else {
+        MemoryImage_free(image);
+        Error("Line %u in Intel hex record: unsupported type %d", linecount, type);
+      }
 
 
-    // checksum
-    sprintf(tmp,"0x00");
-    strncpy(tmp+2, line+idx, 2);
-    sscanf(tmp, "%x", &value);
-    chkRead = value;
+      // checksum
+      sprintf(tmp,"0x00");
+      strncpy(tmp+2, line+idx, 2);
+      sscanf(tmp, "%x", &value);
+      chkRead = value;
 
-    // assert checksum (0xFF xor (sum over all except record type))
-    chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
-    if (chkCalc != chkRead) {
-      MemoryImage_free(image);
-      Error("Line %u in Intel hex record: checksum error (0x%02" PRIX8 " vs. 0x%02" PRIX8 ")", linecount, (uint8_t) chkRead, (uint8_t) chkCalc);
-    }
+      // assert checksum (0xFF xor (sum over all except record type))
+      chkCalc = 255 - chkCalc + 1;                 // calculate 2-complement
+      if (chkCalc != chkRead) {
+        MemoryImage_free(image);
+        Error("Line %u in Intel hex record: checksum error (0x%02" PRIX8 " vs. 0x%02" PRIX8 ")", linecount, (uint8_t) chkRead, (uint8_t) chkCalc);
+      }
 
-    // debug
-    //printf("%ld\n", linecount);
-    //fflush(stdout);
+      // debug
+      //printf("%ld\n", linecount);
+      //fflush(stdout);
 
-  } // while !EOF
+    } // while !EOF
 
-  //=====================
-  // end data import
-  //=====================
+  #else // HEXFILE_DIRECT_IMPORT
+
+    uint64_t  fileLen;
+    char      *fileBuf;
+
+    // get filesize
+    fseek(fp, 0, SEEK_END);
+    fileLen = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // allocate memory for file import
+    fileBuf = malloc(fileLen*sizeof(char));
+    if (!fileBuf)
+      Error("Cannot allocate %" PRIu64 "B for file buffer", fileLen);
+
+    // convert hexfile in buffer to memory image
+    import_buffer_ihx((uint8_t*) fileBuf, image, verbose);
+    
+    // release memory for file import
+    free(fileBuf);
+    
+  #endif // direct data import
 
 
   // close file again
@@ -437,76 +473,94 @@ void import_file_txt(const char *filename, MemoryImage_s *image, const uint8_t v
   }
 
 
-  //=====================
-  // start data import
-  //=====================
+  // import file directly to memory image (less RAM, more file operations)
+  #if defined(HEXFILE_DIRECT_IMPORT)
 
-  char            line[STRLEN];
-  int             linecount  = 0;
-  char            sAddr[STRLEN], sValue[STRLEN];
-  uint64_t        address = 0; 
-  unsigned int    value = 0;
+    char            line[STRLEN];
+    int             linecount  = 0;
+    char            sAddr[STRLEN], sValue[STRLEN];
+    uint64_t        address = 0; 
+    unsigned int    value = 0;
 
-  // read data line by line
-  while (fgets(line, STRLEN, fp)) {
+    // read data line by line
+    while (fgets(line, STRLEN, fp)) {
 
-    // increase line counter
-    linecount++;
+      // increase line counter
+      linecount++;
 
-    // if line starts with '#' ignore as comment
-    if (line[0] == '#')
-      continue;
+      // if line starts with '#' ignore as comment
+      if (line[0] == '#')
+        continue;
 
-    // get address and value as string
-    sscanf(line, "%s %s", sAddr, sValue);
-
-
-    //////////
-    // extract address
-    //////////
-
-    // if string is in hex format, read it
-    if (isHexString(sAddr))
-      sscanf(sAddr, "%" SCNx64, &address);
-
-    // if string is in decimal format, read it
-    else if (isDecString(sAddr))
-      sscanf(sAddr, "%" SCNu64, &address);
-
-    // invalid string format
-    else {
-      MemoryImage_free(image);
-      Error("Line %u in table: invalid address '%s'", linecount, sAddr);
-    }
+      // get address and value as string
+      sscanf(line, "%s %s", sAddr, sValue);
 
 
-    //////////
-    // extract value
-    //////////
+      //////////
+      // extract address
+      //////////
 
-    // if string is in hex format, read it
-    if (isHexString(sValue))
-      sscanf(sValue, "%x", &value);
+      // if string is in hex format, read it
+      if (isHexString(sAddr))
+        sscanf(sAddr, "%" SCNx64, &address);
 
-    // if string is in decimal format, read it
-    else if (isDecString(sValue))
-      sscanf(sValue, "%d", &value);
+      // if string is in decimal format, read it
+      else if (isDecString(sAddr))
+        sscanf(sAddr, "%" SCNu64, &address);
 
-    // invalid string format
-    else {
-      MemoryImage_free(image);
-      Error("Line %u in table: invalid value '%s'", linecount, sValue);
-    }
+      // invalid string format
+      else {
+        MemoryImage_free(image);
+        Error("Line %u in table: invalid address '%s'", linecount, sAddr);
+      }
 
 
-    // store data byte in memory image
-    assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
+      //////////
+      // extract value
+      //////////
 
-  } // while !EOF
+      // if string is in hex format, read it
+      if (isHexString(sValue))
+        sscanf(sValue, "%x", &value);
 
-  //=====================
-  // end data import
-  //=====================
+      // if string is in decimal format, read it
+      else if (isDecString(sValue))
+        sscanf(sValue, "%d", &value);
+
+      // invalid string format
+      else {
+        MemoryImage_free(image);
+        Error("Line %u in table: invalid value '%s'", linecount, sValue);
+      }
+
+
+      // store data byte in memory image
+      assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
+
+    } // while !EOF
+
+  #else // HEXFILE_DIRECT_IMPORT
+
+    uint64_t  fileLen;
+    char      *fileBuf;
+
+    // get filesize
+    fseek(fp, 0, SEEK_END);
+    fileLen = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // allocate memory for file import
+    fileBuf = malloc(fileLen*sizeof(char));
+    if (!fileBuf)
+      Error("Cannot allocate %" PRIu64 "B for file buffer", fileLen);
+
+    // convert hexfile in buffer to memory image
+    import_buffer_txt((uint8_t*) fileBuf, image, verbose);
+    
+    // release memory for file import
+    free(fileBuf);
+    
+  #endif // direct data import
 
 
   // close file again
@@ -587,30 +641,48 @@ void import_file_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, Memo
   }
 
 
-  //=====================
-  // start data import
-  //=====================
+  // import file directly to memory image (less RAM, more file operations)
+  #if defined(HEXFILE_DIRECT_IMPORT)
 
-  // read bytes and store to image
-  MEMIMAGE_ADDR_T  address = addrStart;
-  uint8_t  value;
-  while (!feof(fp)) {
+    // read bytes and store to image
+    MEMIMAGE_ADDR_T  address = addrStart;
+    uint8_t  value;
+    while (!feof(fp)) {
+      
+      // read next byte
+      fread(&value, sizeof(uint8_t), 1, fp);
+
+      // store in memory image
+      if (!feof(fp))
+        assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
+
+      // increment address
+      address++;
+
+    } // while !EOF
+
+  #else // HEXFILE_DIRECT_IMPORT
+
+    uint64_t  fileLen;
+    char      *fileBuf;
+
+    // get filesize
+    fseek(fp, 0, SEEK_END);
+    fileLen = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+
+    // allocate memory for file import
+    fileBuf = malloc(fileLen*sizeof(char));
+    if (!fileBuf)
+      Error("Cannot allocate %" PRIu64 "B for file buffer", fileLen);
+
+    // convert hexfile in buffer to memory image
+    import_buffer_bin((uint8_t*) fileBuf, fileLen, addrStart, image, verbose);
     
-    // read next byte
-    fread(&value, sizeof(uint8_t), 1, fp);
-
-    // store in memory image
-    if (!feof(fp))
-      assert(MemoryImage_addData(image, (MEMIMAGE_ADDR_T) address, (uint8_t) value));
-
-    // increment address
-    address++;
-
-  } // while !EOF
-
-  //=====================
-  // end data import
-  //=====================
+    // release memory for file import
+    free(fileBuf);
+    
+  #endif // direct data import
 
 
   // close file again

@@ -443,11 +443,11 @@ int main(int argc, char ** argv) {
   // on request (-h) or in case of parameter error print help page
   if ((printHelp >= 0) || (argc == 1)) {
 
-    snprintf(tmp, sizeof(tmp), "%s (v%s)", appname, version);
+    snprintf(tmp, sizeof(tmp), "%s (%s)", appname, version);
     setConsoleTitle(tmp);
 
     printf("\n");
-    printf("\n%s (v%s)\n\n", appname, version);
+    printf("\n%s (%s)\n\n", appname, version);
     printf("Program or read STM8 memory via built-in UART or SPI bootloader.\n");
     printf("For more information see https://github.com/gicking/stm8gal\n");
     printf("\n");
@@ -512,7 +512,7 @@ int main(int argc, char ** argv) {
     g_pauseOnExit = false;
 
   if (!g_backgroundOperation) {
-    snprintf(tmp, sizeof(tmp), "%s (v%s)", appname, version);
+    snprintf(tmp, sizeof(tmp), "%s (%s)", appname, version);
     setConsoleTitle(tmp);
   }
 
@@ -523,7 +523,7 @@ int main(int argc, char ** argv) {
 
   // print message
   if (verbose != MUTE)
-    printf("\n%s (v%s)\n", appname, version);
+    printf("\n%s (%s)\n", appname, version);
 
 
   ////////
