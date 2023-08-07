@@ -148,7 +148,7 @@ bool MemoryImage_addData(MemoryImage_s* image, const MEMIMAGE_ADDR_T address, co
 
     // shift higher addresses by +1 to free space for new entry
     if (idx < image->numEntries) {
-        memcpy(&(image->memoryEntries[idx+1L]), &(image->memoryEntries[idx]), (image->numEntries - idx) * (size_t) (sizeof(MemoryEntry_s)));
+        memmove(&(image->memoryEntries[idx+1L]), &(image->memoryEntries[idx]), (image->numEntries - idx) * (size_t) (sizeof(MemoryEntry_s)));
     }
     
     // add new entry at correct location
