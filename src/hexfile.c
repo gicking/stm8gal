@@ -165,7 +165,7 @@ void import_file_s19(const char *filename, MemoryImage_s *image, const uint8_t v
     fread(fileBuf, fileLen, sizeof(char), fp);
     
     // convert hexfile in buffer to memory image
-    import_buffer_s19((uint8_t*) fileBuf, image, verbose);
+    import_buffer_s19((uint8_t*) fileBuf, image, MUTE);
     
     // release memory for file import
     free(fileBuf);
@@ -393,7 +393,7 @@ void import_file_ihx(const char *filename, MemoryImage_s *image, const uint8_t v
     fread(fileBuf, fileLen, sizeof(char), fp);
     
     // convert hexfile in buffer to memory image
-    import_buffer_ihx((uint8_t*) fileBuf, image, verbose);
+    import_buffer_ihx((uint8_t*) fileBuf, image, MUTE);
     
     // release memory for file import
     free(fileBuf);
@@ -564,7 +564,7 @@ void import_file_txt(const char *filename, MemoryImage_s *image, const uint8_t v
     fread(fileBuf, fileLen, sizeof(char), fp);
     
     // convert hexfile in buffer to memory image
-    import_buffer_txt((uint8_t*) fileBuf, image, verbose);
+    import_buffer_txt((uint8_t*) fileBuf, image, MUTE);
     
     // release memory for file import
     free(fileBuf);
@@ -689,7 +689,7 @@ void import_file_bin(const char *filename, const MEMIMAGE_ADDR_T addrStart, Memo
     fread(fileBuf, fileLen, sizeof(char), fp);
     
     // convert hexfile in buffer to memory image
-    import_buffer_bin((uint8_t*) fileBuf, fileLen, addrStart, image, verbose);
+    import_buffer_bin((uint8_t*) fileBuf, fileLen, addrStart, image, MUTE);
     
     // release memory for file import
     free(fileBuf);

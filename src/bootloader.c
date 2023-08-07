@@ -1369,6 +1369,7 @@ uint8_t bsl_memWrite(HANDLE ptrPort, uint8_t physInterface, uint8_t uartMode, co
 
     addrStart = image->memoryEntries[idxStart].address;
     addrEnd   = image->memoryEntries[idxEnd].address;
+    //printf("addrStart: 0x%x - addrEnd 0x%x\n", addrStart, addrEnd);
 
     // loop over memory block and upload in pages of max. 128B
     addrPage = addrStart;
