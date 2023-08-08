@@ -170,7 +170,7 @@ void import_file_s19(const char *filename, MemoryImage_s *image, const uint8_t v
     // release memory for file import
     free(fileBuf);
     
-  #endif // direct data import
+  #endif // HEXFILE_DIRECT_IMPORT
 
 
   // close file again

@@ -319,7 +319,7 @@ If you are aware of bugs, please drop me a note or start an [issue](https://gith
 
 # Revision History
 
-v1.6.0b (2023-07-31)
+v1.6.0 (2023-08-08)
   - switch from static RAM buffer to dynamic memory image
   - support for 32-bit addresses (see memory_image.h)
   - migrate to VSCode / PlatformIO file structure for convenience
